@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO.Compression;
 using System.Xml;
@@ -11,6 +11,56 @@ namespace PptxViewer
         {
             public int AutoAdvanceMs = -1;
             public bool AdvanceOnClick = true;
+        }
+
+        public sealed class SlideShowSettingsSpec
+        {
+            public bool Loop;
+            public bool UseTimings = true;
+        }
+
+        public static SlideShowSettingsSpec ReadSlideShowSettings(
+            string file)
+        {
+            SlideShowSettingsSpec result =
+                new SlideShowSettingsSpec();
+
+            using (ZipArchive zip = ZipFile.OpenRead(file))
+            {
+                XmlDocument presentation =
+                    LoadXml(zip, "ppt/presentation.xml");
+
+                XmlNode showPr =
+                    FindFirst(presentation, "showPr");
+
+                if (showPr == null)
+                    return result;
+
+                string loop =
+                    GetAttr(showPr, "loop");
+
+                result.Loop =
+                    loop == "1" ||
+                    string.Equals(
+                        loop,
+                        "true",
+                        StringComparison.OrdinalIgnoreCase);
+
+                string useTimings =
+                    GetAttr(showPr, "useTimings");
+
+                if (!string.IsNullOrEmpty(useTimings))
+                {
+                    result.UseTimings =
+                        useTimings != "0" &&
+                        !string.Equals(
+                            useTimings,
+                            "false",
+                            StringComparison.OrdinalIgnoreCase);
+                }
+            }
+
+            return result;
         }
 
         public static List<SlideAdvanceSpec> ReadSlideAdvanceSpecs(

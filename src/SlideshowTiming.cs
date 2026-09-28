@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
@@ -10,6 +10,9 @@ namespace PptxViewer
         private System.Windows.Forms.Timer slideTimingTimer;
         private List<InternalPptxRenderer.SlideAdvanceSpec> slideAdvanceSpecs =
             new List<InternalPptxRenderer.SlideAdvanceSpec>();
+
+        private InternalPptxRenderer.SlideShowSettingsSpec slideShowSettings =
+            new InternalPptxRenderer.SlideShowSettingsSpec();
 
         private string slideTimingSourceFile;
         private int timingObservedSlide = -1;
@@ -50,6 +53,12 @@ namespace PptxViewer
             {
                 timingObservedSlide = currentIndex;
                 timingSlideStartedAt = DateTime.Now;
+                return;
+            }
+
+            if (slideShowSettings != null &&
+                !slideShowSettings.UseTimings)
+            {
                 return;
             }
 
@@ -101,6 +110,9 @@ namespace PptxViewer
             slideAdvanceSpecs =
                 new List<InternalPptxRenderer.SlideAdvanceSpec>();
 
+            slideShowSettings =
+                new InternalPptxRenderer.SlideShowSettingsSpec();
+
             timingObservedSlide = -1;
             timingSlideStartedAt = DateTime.MinValue;
 
@@ -123,12 +135,24 @@ namespace PptxViewer
             {
                 slideAdvanceSpecs =
                     InternalPptxRenderer.ReadSlideAdvanceSpecs(file);
+
+                slideShowSettings =
+                    InternalPptxRenderer.ReadSlideShowSettings(file);
             }
             catch (Exception ex)
             {
                 CrashReporter.WriteLine(
                     "Slide timing metadata: " + ex.Message);
             }
+        }
+
+        private bool InternalSlideShowLoops()
+        {
+            RefreshSlideTimingMetadataIfNeeded();
+
+            return
+                slideShowSettings != null &&
+                slideShowSettings.Loop;
         }
 
         private bool CurrentSlideAllowsMouseAdvance()
