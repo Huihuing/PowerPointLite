@@ -5,7 +5,7 @@ cd /d "%~dp0"
 if not exist "PowerPointLite.exe" (
   echo PowerPointLite.exe was not found.
   echo Run BUILD_EXE.cmd first.
-  pause
+  if not defined PPLT_NO_PAUSE pause
   exit /b 1
 )
 
@@ -73,7 +73,7 @@ echo - PDF reader visual inspection and print verification
 echo.
 echo PDF export currently rasterizes pages and does not embed source font files.
 echo.
-pause
+if not defined PPLT_NO_PAUSE pause
 exit /b 0
 
 :run
@@ -91,5 +91,5 @@ exit /b 0
 :failed
 echo.
 echo ONE OR MORE FORMAT SELF-TESTS FAILED.
-pause
+if not defined PPLT_NO_PAUSE pause
 exit /b 1
