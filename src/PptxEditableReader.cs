@@ -24,6 +24,8 @@ namespace PptxViewer
     internal static class PptxEditableReader
     {
         private const string SlideRelationshipSuffix = "/slide";
+        private const string SlideLayoutRelationshipSuffix = "/slideLayout";
+        private const string ImageRelationshipSuffix = "/image";
 
         public static PptxEditableLoadResult Read(string path)
         {
@@ -71,7 +73,7 @@ namespace PptxViewer
                     if (slideId.LocalName != "sldId")
                         continue;
 
-                    string relationshipId = GetRelationshipId(slideId);
+                    string relationshipId = GetRelationshipReference(slideId, "id");
                     OpcRelationship relationship;
 
                     if (string.IsNullOrEmpty(relationshipId) ||
@@ -89,7 +91,11 @@ namespace PptxViewer
                     if (slideDocument == null)
                         continue;
 
-                    PresentationSlide slide = ReadSlide(slideDocument, result);
+                    PresentationSlide slide = ReadSlide(
+                        archive,
+                        relationship.ResolvedPart,
+                        slideDocument,
+                        result);
                     document.Slides.Add(slide);
                 }
 
@@ -113,6 +119,8 @@ namespace PptxViewer
         }
 
         private static PresentationSlide ReadSlide(
+            ZipArchive archive,
+            string slidePart,
             XmlDocument document,
             PptxEditableLoadResult result)
         {
@@ -126,6 +134,31 @@ namespace PptxViewer
                     slide.Name = name;
             }
 
+            List<OpcRelationship> relationships =
+                OpcPackageUtility.ReadRelationships(archive, slidePart);
+            Dictionary<string, OpcRelationship> byId =
+                new Dictionary<string, OpcRelationship>(StringComparer.Ordinal);
+
+            for (int r = 0; r < relationships.Count; r++)
+            {
+                OpcRelationship relationship = relationships[r];
+                if (!string.IsNullOrEmpty(relationship.Id))
+                    byId[relationship.Id] = relationship;
+
+                if (relationship == null || relationship.IsExternal)
+                {
+                    result.HasUnsupportedContent = true;
+                    continue;
+                }
+
+                bool supportedRelationship =
+                    relationship.Type.EndsWith(SlideLayoutRelationshipSuffix, StringComparison.Ordinal) ||
+                    relationship.Type.EndsWith(ImageRelationshipSuffix, StringComparison.Ordinal);
+
+                if (!supportedRelationship)
+                    result.HasUnsupportedContent = true;
+            }
+
             XmlNode shapeTree = FindFirst(commonSlideData, "spTree");
             if (shapeTree == null)
                 return slide;
@@ -136,9 +169,34 @@ namespace PptxViewer
 
                 if (node.LocalName == "sp")
                 {
-                    PresentationTextBox box = ReadTextBox(node);
-                    if (box != null)
-                        slide.TextBoxes.Add(box);
+                    if (FindFirst(node, "txBody") != null)
+                    {
+                        PresentationTextBox box = ReadTextBox(node);
+                        if (box != null)
+                            slide.TextBoxes.Add(box);
+                        else
+                            result.HasUnsupportedContent = true;
+                    }
+                    else
+                    {
+                        PresentationShape shape = ReadShape(node);
+                        if (shape != null)
+                            slide.Shapes.Add(shape);
+                        else
+                            result.HasUnsupportedContent = true;
+                    }
+                }
+                else if (node.LocalName == "pic")
+                {
+                    PresentationImage image = ReadImage(
+                        archive,
+                        node,
+                        byId);
+
+                    if (image != null)
+                        slide.Images.Add(image);
+                    else
+                        result.HasUnsupportedContent = true;
                 }
                 else if (node.LocalName != "nvGrpSpPr" &&
                          node.LocalName != "grpSpPr")
@@ -169,15 +227,7 @@ namespace PptxViewer
             if (!string.IsNullOrEmpty(name))
                 box.Name = name;
 
-            XmlNode transform = FindFirst(shape, "xfrm");
-            XmlNode offset = FindFirst(transform, "off");
-            XmlNode extent = FindFirst(transform, "ext");
-
-            box.X = GetLongAttribute(offset, "x", box.X);
-            box.Y = GetLongAttribute(offset, "y", box.Y);
-            box.Width = Math.Max(1L, GetLongAttribute(extent, "cx", box.Width));
-            box.Height = Math.Max(1L, GetLongAttribute(extent, "cy", box.Height));
-
+            ReadTransform(shape, box);
             box.Text = ReadText(textBody);
 
             XmlNode firstParagraphProperties = FindFirst(textBody, "pPr");
@@ -210,6 +260,153 @@ namespace PptxViewer
                 box.ColorHex = colorValue;
 
             return box;
+        }
+
+        private static PresentationShape ReadShape(XmlNode shapeNode)
+        {
+            XmlNode shapeProperties = FindFirst(shapeNode, "spPr");
+            XmlNode geometry = FindFirst(shapeProperties, "prstGeom");
+            string preset = GetAttribute(geometry, "prst");
+            PresentationShapeKind kind;
+
+            if (preset == "rect")
+                kind = PresentationShapeKind.Rectangle;
+            else if (preset == "roundRect")
+                kind = PresentationShapeKind.RoundedRectangle;
+            else if (preset == "ellipse")
+                kind = PresentationShapeKind.Ellipse;
+            else if (preset == "triangle")
+                kind = PresentationShapeKind.Triangle;
+            else if (preset == "diamond")
+                kind = PresentationShapeKind.Diamond;
+            else
+                return null;
+
+            PresentationShape shape = new PresentationShape();
+            shape.Kind = kind;
+
+            XmlNode nonVisual = FindFirst(shapeNode, "cNvPr");
+            string name = GetAttribute(nonVisual, "name");
+            if (!string.IsNullOrEmpty(name))
+                shape.Name = name;
+
+            ReadTransform(shapeNode, shape);
+
+            XmlNode fill = FindFirst(shapeProperties, "solidFill");
+            XmlNode fillColor = FindFirst(fill, "srgbClr");
+            string fillValue = GetAttribute(fillColor, "val");
+            if (!string.IsNullOrEmpty(fillValue))
+                shape.FillColorHex = fillValue;
+
+            XmlNode line = FindFirst(shapeProperties, "ln");
+            XmlNode lineColor = FindFirst(line, "srgbClr");
+            string lineValue = GetAttribute(lineColor, "val");
+            if (!string.IsNullOrEmpty(lineValue))
+                shape.LineColorHex = lineValue;
+
+            long lineWidth = GetLongAttribute(line, "w", 15875L);
+            shape.LineWidthPoints = Math.Max(0.25f, lineWidth / 12700f);
+            return shape;
+        }
+
+        private static PresentationImage ReadImage(
+            ZipArchive archive,
+            XmlNode pictureNode,
+            Dictionary<string, OpcRelationship> relationships)
+        {
+            XmlNode blip = FindFirst(pictureNode, "blip");
+            string relationshipId = GetRelationshipReference(blip, "embed");
+            OpcRelationship relationship;
+
+            if (string.IsNullOrEmpty(relationshipId) ||
+                relationships == null ||
+                !relationships.TryGetValue(relationshipId, out relationship) ||
+                relationship == null ||
+                relationship.IsExternal ||
+                !relationship.Type.EndsWith(ImageRelationshipSuffix, StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            ZipArchiveEntry entry = archive.GetEntry(
+                OpcPackageUtility.NormalizePartName(relationship.ResolvedPart));
+            if (entry == null)
+                return null;
+
+            byte[] data;
+            using (Stream input = entry.Open())
+            using (MemoryStream output = new MemoryStream())
+            {
+                input.CopyTo(output);
+                data = output.ToArray();
+            }
+
+            string extension = Path.GetExtension(relationship.ResolvedPart)
+                .TrimStart('.')
+                .ToLowerInvariant();
+            string contentType = ImageContentType(extension);
+
+            if (string.IsNullOrEmpty(contentType))
+                return null;
+
+            PresentationImage image = new PresentationImage();
+            image.Data = data;
+            image.Extension = extension;
+            image.ContentType = contentType;
+
+            XmlNode nonVisual = FindFirst(pictureNode, "cNvPr");
+            string name = GetAttribute(nonVisual, "name");
+            if (!string.IsNullOrEmpty(name))
+                image.Name = name;
+
+            ReadTransform(pictureNode, image);
+            return image;
+        }
+
+        private static void ReadTransform(XmlNode node, PresentationTextBox box)
+        {
+            XmlNode transform = FindFirst(node, "xfrm");
+            XmlNode offset = FindFirst(transform, "off");
+            XmlNode extent = FindFirst(transform, "ext");
+            box.X = GetLongAttribute(offset, "x", box.X);
+            box.Y = GetLongAttribute(offset, "y", box.Y);
+            box.Width = Math.Max(1L, GetLongAttribute(extent, "cx", box.Width));
+            box.Height = Math.Max(1L, GetLongAttribute(extent, "cy", box.Height));
+        }
+
+        private static void ReadTransform(XmlNode node, PresentationShape shape)
+        {
+            XmlNode transform = FindFirst(node, "xfrm");
+            XmlNode offset = FindFirst(transform, "off");
+            XmlNode extent = FindFirst(transform, "ext");
+            shape.X = GetLongAttribute(offset, "x", shape.X);
+            shape.Y = GetLongAttribute(offset, "y", shape.Y);
+            shape.Width = Math.Max(1L, GetLongAttribute(extent, "cx", shape.Width));
+            shape.Height = Math.Max(1L, GetLongAttribute(extent, "cy", shape.Height));
+        }
+
+        private static void ReadTransform(XmlNode node, PresentationImage image)
+        {
+            XmlNode transform = FindFirst(node, "xfrm");
+            XmlNode offset = FindFirst(transform, "off");
+            XmlNode extent = FindFirst(transform, "ext");
+            image.X = GetLongAttribute(offset, "x", image.X);
+            image.Y = GetLongAttribute(offset, "y", image.Y);
+            image.Width = Math.Max(1L, GetLongAttribute(extent, "cx", image.Width));
+            image.Height = Math.Max(1L, GetLongAttribute(extent, "cy", image.Height));
+        }
+
+        private static string ImageContentType(string extension)
+        {
+            if (extension == "png")
+                return "image/png";
+            if (extension == "jpg" || extension == "jpeg")
+                return "image/jpeg";
+            if (extension == "gif")
+                return "image/gif";
+            if (extension == "bmp")
+                return "image/bmp";
+            return string.Empty;
         }
 
         private static string ReadText(XmlNode textBody)
@@ -277,7 +474,7 @@ namespace PptxViewer
                 string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
         }
 
-        private static string GetRelationshipId(XmlNode node)
+        private static string GetRelationshipReference(XmlNode node, string localName)
         {
             if (node == null || node.Attributes == null)
                 return string.Empty;
@@ -286,7 +483,7 @@ namespace PptxViewer
             {
                 XmlAttribute attribute = node.Attributes[i];
 
-                if (attribute.LocalName == "id" &&
+                if (attribute.LocalName == localName &&
                     (attribute.Prefix == "r" ||
                      attribute.NamespaceURI.IndexOf("relationships", StringComparison.OrdinalIgnoreCase) >= 0))
                 {
