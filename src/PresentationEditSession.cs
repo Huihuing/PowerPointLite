@@ -64,20 +64,16 @@ namespace PptxViewer
         public bool RemoveSlide(int index)
         {
             bool removed = Document.RemoveSlide(index);
-
             if (removed)
                 MarkDirty();
-
             return removed;
         }
 
         public bool MoveSlide(int fromIndex, int toIndex)
         {
             bool moved = Document.MoveSlide(fromIndex, toIndex);
-
             if (moved)
                 MarkDirty();
-
             return moved;
         }
 
@@ -176,12 +172,10 @@ namespace PptxViewer
         public bool SetText(int slideIndex, int textBoxIndex, string text)
         {
             PresentationTextBox box = GetTextBox(slideIndex, textBoxIndex);
-
             if (box == null)
                 return false;
 
             string newValue = text ?? string.Empty;
-
             if (string.Equals(box.Text, newValue, StringComparison.Ordinal))
                 return true;
 
@@ -199,7 +193,6 @@ namespace PptxViewer
             bool italic)
         {
             PresentationTextBox box = GetTextBox(slideIndex, textBoxIndex);
-
             if (box == null)
                 return false;
 
@@ -232,7 +225,7 @@ namespace PptxViewer
             if (string.IsNullOrEmpty(FilePath))
                 throw new InvalidOperationException("Save As is required for a new presentation.");
 
-            PptxWriter.Save(Document, FilePath);
+            PresentationPackageWriter.Save(Document, FilePath);
             IsDirty = false;
             LastSavedUtc = DateTime.UtcNow;
         }
@@ -243,11 +236,10 @@ namespace PptxViewer
                 throw new ArgumentException("A destination path is required.", "path");
 
             string extension = Path.GetExtension(path);
-
             if (!string.Equals(extension, ".pptx", StringComparison.OrdinalIgnoreCase))
                 path += ".pptx";
 
-            PptxWriter.Save(Document, path);
+            PresentationPackageWriter.Save(Document, path);
             FilePath = Path.GetFullPath(path);
             IsDirty = false;
             LastSavedUtc = DateTime.UtcNow;
