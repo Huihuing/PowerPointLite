@@ -1,0 +1,12 @@
+PowerPointLite slideshow timing - development
+================================================
+
+Branch: feature/presentation-tools
+
+- Read transition advTm and advClick directly from PPTX Open XML.
+- Auto-advance the internal slideshow after the configured time.
+- Respect advClick for blank-area mouse clicks.
+- Preserve explicit keyboard navigation even when advClick is disabled.
+- Use explicit System.Windows.Forms.Timer to avoid Timer ambiguity.
+
+This remains on the feature branch until Windows csc.exe build/runtime verification passes.
