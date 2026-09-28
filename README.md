@@ -181,9 +181,14 @@ RUN_DIAGNOSTIC.cmd
 OPEN_LOGS.cmd
 ```
 
-## 테스트 자산
+## 테스트 파일
 
-개발용 배포 ZIP에는 `TEST_INTERNAL_READER.pptx`, `TEST_BASIC_FEATURES.pptx` 같은 렌더러 확인용 샘플이 포함될 수 있습니다. GitHub의 바이너리 테스트 자산은 Windows 실빌드 검증과 함께 안정판 기준으로 동기화합니다.
+저장소에는 내부 렌더러 검증용 파일이 포함됩니다.
+
+- `tests/TEST_INTERNAL_READER.pptx`
+- `tests/TEST_BASIC_FEATURES.pptx`
+
+PowerPoint가 없는 환경에서 내부 OpenXML 렌더러 경로를 확인할 때 사용합니다.
 
 ## 저장소 구조
 
@@ -197,6 +202,9 @@ PowerPointLite/
 │  ├─ RecentFileStore.cs
 │  ├─ ViewerDialogs.cs
 │  └─ InternalPptxRenderer.Part*.cs
+├─ tests/
+│  ├─ TEST_INTERNAL_READER.pptx
+│  └─ TEST_BASIC_FEATURES.pptx
 ├─ PowerPointLite.exe.config
 ├─ BUILD_EXE.cmd
 ├─ REGISTER_PPTX.cmd
@@ -277,3 +285,25 @@ Ctrl+Shift+E 현재 슬라이드 잉크 삭제
 ```
 
 잉크는 normalized slide coordinate로 저장되어 Fit/Zoom 변경 뒤에도 같은 위치에 표시됩니다. 이 기능은 Windows 실빌드 확인 전까지 `main`에 합치지 않습니다.
+
+### 개발 중: 슬라이드 자동 진행
+
+내부 슬라이드쇼는 PPTX transition의 다음 설정도 읽습니다.
+
+- `advTm`: 설정된 시간이 지나면 자동으로 다음 슬라이드 이동
+- `advClick`: 빈 슬라이드 영역의 마우스 클릭으로 진행할 수 있는지 여부
+
+키보드의 방향키, PageUp/PageDown, N/P 같은 명시적 탐색은 `advClick=false`와 관계없이 사용할 수 있습니다.
+
+### 개발 중: 뷰어 내부 미디어 재생
+
+`feature/presentation-tools`에서는 PPTX에서 추출된 오디오/비디오를 클릭했을 때 먼저 PowerPointLite 내부 플레이어로 재생을 시도합니다.
+
+- Windows `winmm.dll` / MCI 사용
+- Play / Pause / Stop / Replay
+- Seek bar
+- 재생 시간 표시
+- 비디오 surface를 별도 Viewer 창 안에 연결
+- 내부 재생이 지원되지 않는 코덱이면 기존처럼 Windows 기본 앱으로 fallback
+
+새로운 NuGet 패키지나 .NET 8 SDK 의존성은 추가하지 않습니다.

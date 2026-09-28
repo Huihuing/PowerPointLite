@@ -1,0 +1,9 @@
+PowerPointLite internal media player - development
+====================================================
+
+- Try to play extracted PPTX audio/video inside PowerPointLite.
+- Use Windows winmm.dll / MCI, so no NuGet or .NET 8 dependency is added.
+- Add play/pause/stop/replay controls.
+- Add seek bar and position/duration display.
+- Attach video output to a WinForms panel when supported.
+- Preserve external default-app fallback when MCI cannot open the media.

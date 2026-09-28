@@ -60,6 +60,9 @@ Not claimed as pixel-perfect in internal renderer
 - VBA/macros/ActiveX execution
 - inline codec-independent video player
 
+These items require a PowerPoint-class rendering/runtime engine. The viewer
+uses the native PowerPoint backend automatically when it exists.
+
 PowerPoint Viewer-style controls added in 1.1
 ----------------------------------------------
 [OK] F5 from beginning
@@ -107,8 +110,24 @@ PowerPoint Viewer-style controls added in 1.2
 -------------------------------------
 [OK] monolithic PptxViewer.cs split into compilable partial-class source files
 [OK] source moved under src/
+[OK] test assets moved under tests/
 [OK] BUILD_EXE.cmd compiles src\*.cs
 [OK] portable PowerPointLite.exe output retained
 [OK] README/AGENTS updated for repository-first continuation
 
-Note: tests are maintained as project assets and should be added/updated in the repository together with a verified Windows build when binary upload is available.
+feature/presentation-tools (development)
+----------------------------------------
+[DEV] internal slideshow laser pointer
+[DEV] pen / highlighter
+[DEV] annotation eraser
+[DEV] erase current/all ink
+[DEV] normalized annotation coordinates
+[DEV] Ctrl+A / Ctrl+L / Ctrl+P / Ctrl+H / Ctrl+E
+
+feature/presentation-tools media playback
+-----------------------------------------
+[DEV] embedded media player window using Windows MCI
+[DEV] play / pause / stop / replay
+[DEV] seek bar and playback time
+[DEV] video child-window attachment
+[OK] external default-app fallback when MCI cannot open media
