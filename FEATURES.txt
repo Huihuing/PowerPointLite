@@ -1,163 +1,212 @@
-PPTX Viewer 1.0 - Feature Matrix
-================================
+PowerPointLite - Feature Matrix
+===============================
 
-Viewer UX
-[OK] GUI EXE / no console window
-[OK] PPTX/PPTM direct open without PowerPoint
-[OK] drag and drop
-[OK] thumbnails / TOC
-[OK] Fit based on actual right-hand viewer pane
-[OK] TOC hide/show and fullscreen width reclaim
-[OK] mouse wheel navigation
-[OK] Ctrl+wheel zoom
-[OK] keyboard navigation
-[OK] F5 slideshow
-[OK] printing
-[OK] startup diagnostics/logging
-[OK] per-file render cache
-[OK] Windows Open With registration script
+Stable main baseline
+--------------------
+[OK] portable WinForms GUI EXE
+[OK] PPTX/PPTM Viewer
+[OK] PowerPoint native rendering when installed
+[OK] Internal OpenXML renderer without PowerPoint
+[OK] LibreOffice fallback for selected legacy paths
+[OK] thumbnails / TOC / Fit / zoom / fullscreen
+[OK] mouse and keyboard navigation
+[OK] F5 / Shift+F5 slideshow
+[OK] hidden slides / speaker notes / Presenter View
+[OK] printing: slide / notes / 2 / 4 / 6 handout
+[OK] startup diagnostics / render cache / Open With registration
 
-Static PowerPoint content
-[OK] backgrounds / theme colors
-[OK] theme fonts (major/minor mapping)
+Internal PPTX rendering baseline
+--------------------------------
+[OK] backgrounds / theme colors / theme fonts
 [OK] masters / layouts / inherited placeholder positions
-[OK] text, basic paragraph formatting
-[OK] bullets / numbering
-[OK] images / crop / rotation
-[OK] basic SVG subset + EMF/WMF through GDI+ when supported
-[OK] common PowerPoint shapes
-[OK] gradients / transparency / basic shadow
-[OK] lines / dash / arrowheads
-[OK] grouped shapes
+[OK] text / paragraph formatting / bullets / numbering
+[OK] images / crop / alpha / rotation / flip
+[OK] common shapes / custom geometry subset
+[OK] lines / dash / arrowheads / groups
+[OK] gradients / pattern / basic shadow
 [OK] tables
-[OK] basic column/bar/line/pie charts
-[OK] SmartArt static approximation from diagram data
-[OK] embedded object preview images when available
+[OK] basic charts
+[OK] SmartArt static approximation
+[OK] hyperlinks / internal slide actions
+[OK] embedded-object previews when available
+[OK] basic transition / entrance-animation fallback
 
-Interactive / presentation
-[OK] external hyperlinks
-[OK] internal slide hyperlinks
-[OK] PowerPoint first/last/next/previous/end-show actions
-[OK] embedded audio/video click-to-open
-[OK] fade transition
-[OK] wipe transition
-[OK] push transition
-[OK] cut transition
-[OK] unsupported/Morph transition graceful fade fallback
-[OK] simple entrance reveal animation approximation
-
-Native PowerPoint backend
-[OK] uses native PowerPoint rendering when available
-[OK] uses native PowerPoint slideshow/F5 when available
-
-Not claimed as pixel-perfect in internal renderer
---------------------------------------------------
-- complex SmartArt automatic layout
-- every chart subtype / custom chart extensions
-- full per-object PowerPoint animation timeline
-- true object-matched Morph geometry interpolation
+Not claimed as pixel-perfect
+----------------------------
+- every SmartArt automatic layout
+- every chart subtype / custom extension
+- full animation timeline
+- true object-matched Morph
 - all 3D/glow/reflection/artistic effects
-- VBA/macros/ActiveX execution
-- inline codec-independent video player
+- VBA/ActiveX execution
+- codec-independent media playback in stable main
 
-PowerPoint Viewer-style controls added in 1.1
-----------------------------------------------
-[OK] F5 from beginning
-[OK] Shift+F5 from current slide
-[OK] speaker notes panel
-[OK] slide sorter
-[OK] text search
-[OK] go-to-slide
-[OK] recent files
-[OK] hidden slide detection
-[OK] hidden slide skip in slideshow
-[OK] H shortcut for adjacent hidden slide
-[OK] N/P slideshow keys
-[OK] number + Enter direct slide jump
-[OK] B black-screen toggle
-[OK] W white-screen toggle
-[OK] slideshow right-click navigation menu
-[OK] presentation info
-
-PowerPoint Viewer-style controls added in 1.2
-----------------------------------------------
-[OK] Presenter View
-[OK] current slide preview
-[OK] next slide preview
-[OK] presenter notes
-[OK] elapsed presentation timer
-[OK] presenter navigation
-[OK] auto-hide slide thumbnail pane
-[OK] full-page slide printing
-[OK] notes-page printing
-[OK] 2-slide handout
-[OK] 4-slide handout
-[OK] 6-slide handout
-
-1.2.2 repository/portable changes
-----------------------------------
-[OK] final executable name standardized to PowerPointLite.exe
-[OK] build script emits portable GUI EXE directly
-[OK] file association scripts use PowerPointLite.exe
-[OK] diagnostic launcher uses PowerPointLite.exe
-[OK] config renamed to PowerPointLite.exe.config
-[OK] repository allows tracking the stable portable EXE
-
-1.3 repository source synchronization
--------------------------------------
-[OK] monolithic PptxViewer.cs split into compilable partial-class source files
-[OK] source moved under src/
+Repository / portable workflow
+------------------------------
+[OK] source split under src/
 [OK] BUILD_EXE.cmd compiles src\*.cs
-[OK] portable PowerPointLite.exe output retained
-[OK] README/AGENTS updated for repository-first continuation
+[OK] PowerPointLite.exe portable output
+[OK] README / AGENTS repository-first workflow
 
-office-foundation branch
-------------------------
-[DEV] independent dark UI theme without Office/Hancom UI assets
-[DEV] legal / trademark / third-party asset policy
-[DEV] Windows installed font catalog
+feature/office-foundation
+=========================
+
+Safety / licensing
+------------------
+[DEV] legal / trademark / asset policy
+[DEV] independent dark/flat UI theme
+[DEV] Windows installed-font catalog
 [DEV] OpenType OS/2 fsType parser
 [DEV] conservative FontLicenseService
-[DEV] reusable OPC/content-types/relationships helpers
-[DEV] PresentationDocument / PresentationSlide / object model
+[DEV] font bundle deny-by-default policy
+[OK] no Microsoft/Hancom executables, DLLs, logos or templates bundled
+[OK] no automatic unreviewed TTF/OTF bundling
+[OK] generated/project-owned test documents only
+
+Shared package layers
+---------------------
+[DEV] OPC/content-types/relationships helpers
+[DEV] OPC unknown-part preservation foundation
+[DEV] ODF package/mimetype/manifest helper
+
+PPTX Writer / Editor
+--------------------
+[DEV] PresentationDocument model
 [DEV] multi-slide PPTX Writer
-[DEV] temporary-file plus backup based Save / Save As workflow
-[DEV] guarded editable reader for writer-generated PPTX
-[DEV] read-edit-write round-trip diagnostics
-[DEV] advanced standalone presentation editor window
-[DEV] slide add/delete/reorder
-[DEV] text box add/delete/edit
-[DEV] text/font/alignment/color editing
-[DEV] basic rectangle/rounded rectangle/ellipse/triangle/diamond editing
-[DEV] PNG/JPEG/GIF/BMP insertion and PPTX media-part writing
-[DEV] canvas object select / drag / resize
-[DEV] keyboard object nudge
+[DEV] text / fonts / alignment / color
+[DEV] basic shapes
+[DEV] PNG/JPEG/GIF/BMP media parts
+[DEV] basic tables
+[DEV] safe staged Save / Save As
+[DEV] guarded external-PPTX compatibility analyzer
+[DEV] object select / drag / resize / keyboard nudge
+[DEV] real editor thumbnails
 [DEV] snapshot Undo / Redo
-[DEV] in-editor Copy / Paste for text, shape and image objects
-[DEV] image and shape editable-reader round-trip
-[DEV] code-generated image/shape Writer self-test fixture
-[DEV] Ctrl+N new presentation editor
-[DEV] Ctrl+Shift+E guarded edit-current-PPTX workflow
+[DEV] text/shape/image Copy / Paste
+[DEV] Workspace and guarded edit-current entry
+
+DOCX
+----
+[DEV] TextDocument paragraph/run model
+[DEV] DOCX Reader / Writer
+[DEV] text formatting / alignment
+[DEV] project-generated package safety guard
+[DEV] unified text editor
+[DEV] create/read/edit/write diagnostics
+
+XLSX
+----
+[DEV] SpreadsheetDocument / multiple worksheets
+[DEV] text / number / boolean / formula storage
+[DEV] XLSX Reader / Writer
+[DEV] worksheet editor / formula input bar
+[DEV] project-generated package safety guard
+[DEV] create/read/edit/write diagnostics
+[TODO] formula calculation engine
+[TODO] rich cell styles / formats / merged ranges
+
+HWPX
+----
+[DEV] HWPX package foundation
+[DEV] Reader / Writer using TextDocument
+[DEV] paragraph/run formatting subset
+[DEV] project-generated package safety guard
+[DEV] unified text editor entry
+[DEV] structural self-test
+[TODO] official schema validation
+[TODO] real Hancom open/save validation
+[TODO] richer tables/images/page settings
+
+HWP 5.x
+-------
+[DEV] Compound File Binary reader
+[DEV] FileHeader validation
+[DEV] FAT / MiniFAT / Directory stream access
+[DEV] BodyText SectionN access
+[DEV] raw DEFLATE handling
+[DEV] HWP record parser
+[DEV] PARA_TEXT plain-text extraction
+[DEV] protected-document deny path
+[DEV] read-only Viewer
+[DEV] parser self-test
+[TODO] DocInfo style mapping
+[TODO] tables / images / controls
+[TODO] rights-cleared real-file corpus validation
+[TODO] Writer feasibility review after Reader maturity
+
+ODT
+---
+[DEV] ODT Reader / Writer
+[DEV] TextDocument mapping
+[DEV] project-generated edit safety
+[DEV] unified text editor integration
+[DEV] create/edit/read round-trip self-test
+[TODO] LibreOffice interoperability validation
+
+ODS
+---
+[DEV] ODS Reader / Writer
+[DEV] SpreadsheetDocument mapping
+[DEV] text / number / boolean / formula storage
+[DEV] project-generated edit safety
+[DEV] dedicated ODS worksheet editor
+[DEV] create/edit/read round-trip self-test
+[TODO] LibreOffice interoperability validation
+
+ODP
+---
+[DEV] ODP Reader / Writer
+[DEV] PresentationDocument mapping
+[DEV] text / image / basic shape foundation
+[DEV] project-generated edit safety
+[DEV] dedicated ODP slide editor
+[DEV] create/edit/read round-trip self-test
+[TODO] LibreOffice interoperability validation
+
+PDF Export
+----------
+[DEV] minimal PDF 1.4 raster writer
+[DEV] JPEG XObject pages
+[DEV] PresentationDocument raster export
+[DEV] TextDocument raster export
+[DEV] SpreadsheetDocument raster export
+[DEV] current rendered presentation -> PDF
+[DEV] staged save / backup
+[DEV] structural PDF self-test
+[OK] raster path does not embed source TTF/OTF font files
+[TODO] visual PDF-reader / print validation
+[TODO] searchable/vector text export
+[TODO] any future font embedding must pass FontLicenseService
+
+Workspace UI
+------------
+[DEV] direct Workspace button on main toolbar
+[DEV] PPTX / DOCX / XLSX / HWPX cards
+[DEV] ODT / ODS / ODP cards
+[DEV] existing-file chooser with deny-by-default safety
+[DEV] HWP read-only entry
+[DEV] Ctrl+Shift+P current presentation raster PDF export
+
+Self-tests
+----------
 [DEV] RUN_WRITER_SELFTEST.cmd
+[DEV] RUN_DOCX_SELFTEST.cmd
+[DEV] RUN_XLSX_SELFTEST.cmd
+[DEV] RUN_HWPX_SELFTEST.cmd
+[DEV] RUN_HWP_PARSER_SELFTEST.cmd
+[DEV] RUN_ODT_SELFTEST.cmd
+[DEV] RUN_ODS_SELFTEST.cmd
+[DEV] RUN_ODP_SELFTEST.cmd
+[DEV] RUN_PDF_SELFTEST.cmd
+[DEV] RUN_ALL_FORMAT_SELFTESTS.cmd aggregates all structural tests
 
-Safety rules for editor development
------------------------------------
-[OK] font family names may be referenced without bundling font binaries
-[OK] font embedding remains disabled by default
-[OK] arbitrary external PPTX is not re-saved until unsupported-part preservation exists
-[OK] Microsoft/Hancom executables, DLLs, logos, templates and UI assets are not bundled
-[OK] inserted images come from explicit user selection; no external clip-art is bundled automatically
-[OK] test documents and test images are generated by project code or otherwise project-owned
+Merge gate
+----------
+[TODO] Windows .NET Framework csc.exe BUILD SUCCESS
+[TODO] RUN_ALL_FORMAT_SELFTESTS.cmd passes on Windows
+[TODO] stable PPTX Viewer regression passes
+[TODO] PowerPoint / Word / Excel / LibreOffice / Hancom interoperability checks where applicable
+[TODO] PDF visual / print check
+[TODO] only then decide feature -> main merge
 
-Next office-foundation milestones
----------------------------------
-[TODO] Windows .NET Framework csc.exe build validation
-[TODO] run Writer self-test on Windows
-[TODO] slide thumbnail previews in editor
-[TODO] basic table editing/writing
-[TODO] unknown/unsupported OPC part preservation layer
-[TODO] safe external PPTX limited-edit strategy
-[TODO] Writer-generated PPTX compatibility check in Microsoft PowerPoint/LibreOffice
-[TODO] merge only after Viewer regression checks
-
-Note: [DEV] items are not stable/main features until Windows csc.exe build and runtime tests pass.
+Note: [DEV] means source foundation exists on the feature branch. It does not mean production compatibility has been verified.
