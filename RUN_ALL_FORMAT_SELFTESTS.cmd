@@ -11,7 +11,7 @@ if not exist "PowerPointLite.exe" (
 
 echo ==========================================
 echo PowerPointLite format self-tests
-echo PPTX / DOCX / XLSX / HWPX
+echo PPTX / DOCX / XLSX / HWPX / HWP parser
 echo ==========================================
 echo.
 
@@ -27,6 +27,15 @@ if errorlevel 1 goto :failed
 call :run --hwpx-selftest "TEST_HWPX_OUTPUT.hwpx" "HWPX"
 if errorlevel 1 goto :failed
 
+echo [RUN] HWP parser
+"PowerPointLite.exe" --hwp-parser-selftest
+if errorlevel 1 (
+  echo [FAIL] HWP parser
+  goto :failed
+)
+echo [OK] HWP parser process completed
+echo.
+
 echo.
 echo ==========================================
 echo ALL STRUCTURAL SELF-TESTS FINISHED
@@ -38,6 +47,7 @@ echo - Microsoft PowerPoint / LibreOffice for PPTX
 echo - Microsoft Word / LibreOffice for DOCX
 echo - Microsoft Excel / LibreOffice for XLSX
 echo - Hancom for HWPX
+echo - Rights-cleared real HWP 5.x samples for HWP read-only verification
 echo.
 pause
 exit /b 0
