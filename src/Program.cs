@@ -42,6 +42,9 @@ internal static class Program
                 if (TryRunWriterSelfTest(args))
                     return;
 
+                if (TryRunDocxSelfTest(args))
+                    return;
+
                 string startupFile = null;
                 if (args != null && args.Length > 0 && File.Exists(args[0]))
                     startupFile = args[0];
@@ -75,6 +78,32 @@ internal static class Program
             MessageBox.Show(
                 "PPTX Writer self-test passed.\r\n\r\n" + outputPath,
                 "PowerPointLite Writer Test",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+
+            return true;
+        }
+
+        private static bool TryRunDocxSelfTest(string[] args)
+        {
+            if (args == null || args.Length == 0 ||
+                !string.Equals(args[0], "--docx-selftest", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            string outputPath =
+                args.Length > 1 && !string.IsNullOrEmpty(args[1])
+                    ? Path.GetFullPath(args[1])
+                    : Path.Combine(
+                        AppDomain.CurrentDomain.BaseDirectory,
+                        "TEST_DOCX_OUTPUT.docx");
+
+            DocxDiagnostics.CreateAndValidate(outputPath);
+
+            MessageBox.Show(
+                "DOCX create/read/edit round-trip self-test passed.\r\n\r\n" + outputPath,
+                "PowerPointLite DOCX Test",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
 
