@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Security;
+using System.Text;
 using System.Xml;
 
 namespace PptxViewer
@@ -41,35 +42,73 @@ namespace PptxViewer
 
         public static void CreateNewPresentation(string outputPath, string title)
         {
+            PresentationDocument document = PresentationDocument.CreateNew(title);
+            Save(document, outputPath);
+        }
+
+        public static void Save(PresentationDocument document, string outputPath)
+        {
+            if (document == null)
+                throw new ArgumentNullException("document");
+
             if (string.IsNullOrEmpty(outputPath))
                 throw new ArgumentException("Output path is required.", "outputPath");
+
+            if (document.Slides == null || document.Slides.Count == 0)
+                throw new InvalidOperationException("A presentation must contain at least one slide.");
 
             string directory = Path.GetDirectoryName(Path.GetFullPath(outputPath));
             if (!string.IsNullOrEmpty(directory))
                 Directory.CreateDirectory(directory);
 
-            if (File.Exists(outputPath))
-                File.Delete(outputPath);
+            string temporaryPath = outputPath + ".writing";
 
-            using (ZipArchive archive = ZipFile.Open(outputPath, ZipArchiveMode.Create))
+            if (File.Exists(temporaryPath))
+                File.Delete(temporaryPath);
+
+            try
             {
-                WriteContentTypes(archive);
-                WritePackageRelationships(archive);
-                WriteCoreProperties(archive, title);
-                WriteExtendedProperties(archive);
-                WritePresentation(archive);
-                WritePresentationRelationships(archive);
-                WriteSlideMaster(archive);
-                WriteSlideMasterRelationships(archive);
-                WriteSlideLayout(archive);
-                WriteSlideLayoutRelationships(archive);
-                WriteTheme(archive);
-                WriteFirstSlide(archive, title);
-                WriteSlideRelationships(archive);
+                using (ZipArchive archive = ZipFile.Open(temporaryPath, ZipArchiveMode.Create))
+                {
+                    WriteContentTypes(archive, document.Slides.Count);
+                    WritePackageRelationships(archive);
+                    WriteCoreProperties(archive, document.Title);
+                    WriteExtendedProperties(archive, document.Slides.Count);
+                    WritePresentation(archive, document);
+                    WritePresentationRelationships(archive, document.Slides.Count);
+                    WriteSlideMaster(archive);
+                    WriteSlideMasterRelationships(archive);
+                    WriteSlideLayout(archive);
+                    WriteSlideLayoutRelationships(archive);
+                    WriteTheme(archive);
+
+                    for (int i = 0; i < document.Slides.Count; i++)
+                    {
+                        int slideNumber = i + 1;
+                        WriteSlide(archive, slideNumber, document.Slides[i]);
+                        WriteSlideRelationships(archive, slideNumber);
+                    }
+                }
+
+                if (File.Exists(outputPath))
+                    File.Delete(outputPath);
+
+                File.Move(temporaryPath, outputPath);
+            }
+            catch
+            {
+                try
+                {
+                    if (File.Exists(temporaryPath))
+                        File.Delete(temporaryPath);
+                }
+                catch { }
+
+                throw;
             }
         }
 
-        private static void WriteContentTypes(ZipArchive archive)
+        private static void WriteContentTypes(ZipArchive archive, int slideCount)
         {
             Dictionary<string, string> defaults = new Dictionary<string, string>();
             defaults.Add("rels", "application/vnd.openxmlformats-package.relationships+xml");
@@ -77,12 +116,14 @@ namespace PptxViewer
 
             Dictionary<string, string> overrides = new Dictionary<string, string>();
             overrides.Add("ppt/presentation.xml", PresentationContentType);
-            overrides.Add("ppt/slides/slide1.xml", SlideContentType);
             overrides.Add("ppt/slideMasters/slideMaster1.xml", SlideMasterContentType);
             overrides.Add("ppt/slideLayouts/slideLayout1.xml", SlideLayoutContentType);
             overrides.Add("ppt/theme/theme1.xml", ThemeContentType);
             overrides.Add("docProps/core.xml", CorePropertiesContentType);
             overrides.Add("docProps/app.xml", ExtendedPropertiesContentType);
+
+            for (int i = 1; i <= slideCount; i++)
+                overrides.Add("ppt/slides/slide" + i.ToString() + ".xml", SlideContentType);
 
             XmlDocument document = OpcPackageUtility.CreateContentTypesDocument(defaults, overrides);
             OpcPackageUtility.WriteXmlPart(archive, "[Content_Types].xml", document);
@@ -99,16 +140,40 @@ namespace PptxViewer
             OpcPackageUtility.WriteXmlPart(archive, "_rels/.rels", document);
         }
 
-        private static void WritePresentation(ZipArchive archive)
+        private static void WritePresentation(ZipArchive archive, PresentationDocument document)
         {
+            StringBuilder slideIds = new StringBuilder();
+
+            for (int i = 0; i < document.Slides.Count; i++)
+            {
+                slideIds.Append("<p:sldId id=\"");
+                slideIds.Append((256 + i).ToString());
+                slideIds.Append("\" r:id=\"rId");
+                slideIds.Append((i + 2).ToString());
+                slideIds.Append("\"/>");
+            }
+
+            long width = document.WidthEmu > 0
+                ? document.WidthEmu
+                : PresentationDocument.DefaultWidthEmu;
+            long height = document.HeightEmu > 0
+                ? document.HeightEmu
+                : PresentationDocument.DefaultHeightEmu;
+
+            string sizeType =
+                width == PresentationDocument.DefaultWidthEmu &&
+                height == PresentationDocument.DefaultHeightEmu
+                    ? " type=\"screen16x9\""
+                    : string.Empty;
+
             string xml =
                 "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
                 "<p:presentation xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" " +
                 "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" " +
                 "xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\">" +
                 "<p:sldMasterIdLst><p:sldMasterId id=\"2147483648\" r:id=\"rId1\"/></p:sldMasterIdLst>" +
-                "<p:sldIdLst><p:sldId id=\"256\" r:id=\"rId2\"/></p:sldIdLst>" +
-                "<p:sldSz cx=\"12192000\" cy=\"6858000\" type=\"screen16x9\"/>" +
+                "<p:sldIdLst>" + slideIds.ToString() + "</p:sldIdLst>" +
+                "<p:sldSz cx=\"" + width.ToString() + "\" cy=\"" + height.ToString() + "\"" + sizeType + "/>" +
                 "<p:notesSz cx=\"6858000\" cy=\"9144000\"/>" +
                 "<p:defaultTextStyle/>" +
                 "</p:presentation>";
@@ -116,11 +181,18 @@ namespace PptxViewer
             WriteXmlString(archive, "ppt/presentation.xml", xml);
         }
 
-        private static void WritePresentationRelationships(ZipArchive archive)
+        private static void WritePresentationRelationships(ZipArchive archive, int slideCount)
         {
             List<OpcRelationship> relationships = new List<OpcRelationship>();
             relationships.Add(Relationship("rId1", SlideMasterRelationship, "slideMasters/slideMaster1.xml"));
-            relationships.Add(Relationship("rId2", SlideRelationship, "slides/slide1.xml"));
+
+            for (int i = 1; i <= slideCount; i++)
+            {
+                relationships.Add(Relationship(
+                    "rId" + (i + 1).ToString(),
+                    SlideRelationship,
+                    "slides/slide" + i.ToString() + ".xml"));
+            }
 
             XmlDocument document = OpcPackageUtility.CreateRelationshipsDocument(relationships);
             OpcPackageUtility.WriteXmlPart(archive, "ppt/_rels/presentation.xml.rels", document);
@@ -183,47 +255,152 @@ namespace PptxViewer
             OpcPackageUtility.WriteXmlPart(archive, "ppt/slideLayouts/_rels/slideLayout1.xml.rels", document);
         }
 
-        private static void WriteFirstSlide(ZipArchive archive, string title)
+        private static void WriteSlide(
+            ZipArchive archive,
+            int slideNumber,
+            PresentationSlide slide)
         {
-            string safeTitle = EscapeXml(string.IsNullOrEmpty(title) ? "New Presentation" : title);
+            if (slide == null)
+                slide = new PresentationSlide();
 
-            string textShape =
-                "<p:sp>" +
-                "<p:nvSpPr><p:cNvPr id=\"2\" name=\"Title\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr>" +
-                "<p:spPr>" +
-                "<a:xfrm><a:off x=\"914400\" y=\"2057400\"/><a:ext cx=\"10363200\" cy=\"1371600\"/></a:xfrm>" +
-                "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln>" +
-                "</p:spPr>" +
-                "<p:txBody><a:bodyPr anchor=\"ctr\"/><a:lstStyle/>" +
-                "<a:p><a:pPr algn=\"ctr\"/>" +
-                "<a:r><a:rPr lang=\"ko-KR\" sz=\"2800\" b=\"1\"><a:solidFill><a:srgbClr val=\"20242A\"/></a:solidFill><a:latin typeface=\"Arial\"/></a:rPr>" +
-                "<a:t>" + safeTitle + "</a:t></a:r><a:endParaRPr lang=\"ko-KR\" sz=\"2800\"/></a:p>" +
-                "</p:txBody>" +
-                "</p:sp>";
+            StringBuilder shapes = new StringBuilder();
+
+            for (int i = 0; i < slide.TextBoxes.Count; i++)
+                shapes.Append(BuildTextShape(slide.TextBoxes[i], i + 2));
+
+            string slideName = EscapeXml(
+                string.IsNullOrEmpty(slide.Name)
+                    ? "Slide " + slideNumber.ToString()
+                    : slide.Name);
 
             string xml =
                 "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
                 "<p:sld xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" " +
                 "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" " +
                 "xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\">" +
-                "<p:cSld><p:spTree>" + EmptyShapeTreeXml() + textShape + "</p:spTree></p:cSld>" +
+                "<p:cSld name=\"" + slideName + "\"><p:spTree>" +
+                EmptyShapeTreeXml() + shapes.ToString() +
+                "</p:spTree></p:cSld>" +
                 "<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>" +
                 "</p:sld>";
 
-            WriteXmlString(archive, "ppt/slides/slide1.xml", xml);
+            WriteXmlString(
+                archive,
+                "ppt/slides/slide" + slideNumber.ToString() + ".xml",
+                xml);
         }
 
-        private static void WriteSlideRelationships(ZipArchive archive)
+        private static string BuildTextShape(PresentationTextBox box, int shapeId)
+        {
+            if (box == null)
+                box = new PresentationTextBox();
+
+            long x = Math.Max(0L, box.X);
+            long y = Math.Max(0L, box.Y);
+            long width = Math.Max(1L, box.Width);
+            long height = Math.Max(1L, box.Height);
+
+            int fontSize = (int)Math.Round(box.FontSizePoints * 100.0f);
+            fontSize = Math.Max(100, Math.Min(40000, fontSize));
+
+            string fontFamily = EscapeXml(
+                string.IsNullOrEmpty(box.FontFamily)
+                    ? "Arial"
+                    : box.FontFamily);
+
+            string color = NormalizeColor(box.ColorHex);
+            string alignment = AlignmentValue(box.Alignment);
+            string bold = box.Bold ? " b=\"1\"" : string.Empty;
+            string italic = box.Italic ? " i=\"1\"" : string.Empty;
+            string name = EscapeXml(
+                string.IsNullOrEmpty(box.Name)
+                    ? "Text Box " + shapeId.ToString()
+                    : box.Name);
+
+            string runProperties =
+                "<a:rPr lang=\"ko-KR\" sz=\"" + fontSize.ToString() + "\"" +
+                bold + italic + ">" +
+                "<a:solidFill><a:srgbClr val=\"" + color + "\"/></a:solidFill>" +
+                "<a:latin typeface=\"" + fontFamily + "\"/>" +
+                "<a:ea typeface=\"" + fontFamily + "\"/>" +
+                "</a:rPr>";
+
+            string paragraphXml = BuildParagraphs(
+                box.Text,
+                alignment,
+                fontSize,
+                runProperties);
+
+            return
+                "<p:sp>" +
+                "<p:nvSpPr><p:cNvPr id=\"" + shapeId.ToString() + "\" name=\"" + name + "\"/>" +
+                "<p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr>" +
+                "<p:spPr>" +
+                "<a:xfrm><a:off x=\"" + x.ToString() + "\" y=\"" + y.ToString() + "\"/>" +
+                "<a:ext cx=\"" + width.ToString() + "\" cy=\"" + height.ToString() + "\"/></a:xfrm>" +
+                "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>" +
+                "<a:noFill/><a:ln><a:noFill/></a:ln>" +
+                "</p:spPr>" +
+                "<p:txBody><a:bodyPr wrap=\"square\" anchor=\"ctr\"/><a:lstStyle/>" +
+                paragraphXml +
+                "</p:txBody>" +
+                "</p:sp>";
+        }
+
+        private static string BuildParagraphs(
+            string text,
+            string alignment,
+            int fontSize,
+            string runProperties)
+        {
+            string normalized = (text ?? string.Empty)
+                .Replace("\r\n", "\n")
+                .Replace('\r', '\n');
+
+            string[] lines = normalized.Split('\n');
+            StringBuilder result = new StringBuilder();
+
+            if (lines.Length == 0)
+                lines = new string[] { string.Empty };
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                result.Append("<a:p><a:pPr algn=\"");
+                result.Append(alignment);
+                result.Append("\"/>");
+
+                if (!string.IsNullOrEmpty(lines[i]))
+                {
+                    result.Append("<a:r>");
+                    result.Append(runProperties);
+                    result.Append("<a:t>");
+                    result.Append(EscapeXml(lines[i]));
+                    result.Append("</a:t></a:r>");
+                }
+
+                result.Append("<a:endParaRPr lang=\"ko-KR\" sz=\"");
+                result.Append(fontSize.ToString());
+                result.Append("\"/></a:p>");
+            }
+
+            return result.ToString();
+        }
+
+        private static void WriteSlideRelationships(ZipArchive archive, int slideNumber)
         {
             List<OpcRelationship> relationships = new List<OpcRelationship>();
             relationships.Add(Relationship("rId1", SlideLayoutRelationship, "../slideLayouts/slideLayout1.xml"));
 
             XmlDocument document = OpcPackageUtility.CreateRelationshipsDocument(relationships);
-            OpcPackageUtility.WriteXmlPart(archive, "ppt/slides/_rels/slide1.xml.rels", document);
+            OpcPackageUtility.WriteXmlPart(
+                archive,
+                "ppt/slides/_rels/slide" + slideNumber.ToString() + ".xml.rels",
+                document);
         }
 
         private static void WriteTheme(ZipArchive archive)
         {
+            // Typeface names are references only. No font file is bundled or redistributed.
             string xml =
                 "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
                 "<a:theme xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" name=\"PowerPointLite Neutral\">" +
@@ -269,14 +446,14 @@ namespace PptxViewer
             WriteXmlString(archive, "docProps/core.xml", xml);
         }
 
-        private static void WriteExtendedProperties(ZipArchive archive)
+        private static void WriteExtendedProperties(ZipArchive archive, int slideCount)
         {
             string xml =
                 "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
                 "<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\" " +
                 "xmlns:vt=\"http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes\">" +
                 "<Application>PowerPointLite</Application><PresentationFormat>Widescreen</PresentationFormat>" +
-                "<Slides>1</Slides><Notes>0</Notes><HiddenSlides>0</HiddenSlides><MMClips>0</MMClips>" +
+                "<Slides>" + slideCount.ToString() + "</Slides><Notes>0</Notes><HiddenSlides>0</HiddenSlides><MMClips>0</MMClips>" +
                 "<ScaleCrop>false</ScaleCrop><Company></Company><LinksUpToDate>false</LinksUpToDate>" +
                 "<SharedDoc>false</SharedDoc><HyperlinksChanged>false</HyperlinksChanged><AppVersion>1.0</AppVersion>" +
                 "</Properties>";
@@ -323,6 +500,41 @@ namespace PptxViewer
         {
             return "<a:ln w=\"" + width + "\" cap=\"flat\" cmpd=\"sng\" algn=\"ctr\">" +
                    "<a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill><a:prstDash val=\"solid\"/></a:ln>";
+        }
+
+        private static string AlignmentValue(PresentationTextAlignment alignment)
+        {
+            if (alignment == PresentationTextAlignment.Center)
+                return "ctr";
+
+            if (alignment == PresentationTextAlignment.Right)
+                return "r";
+
+            return "l";
+        }
+
+        private static string NormalizeColor(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return "20242A";
+
+            string candidate = value.Trim().TrimStart('#').ToUpperInvariant();
+
+            if (candidate.Length != 6)
+                return "20242A";
+
+            for (int i = 0; i < candidate.Length; i++)
+            {
+                char ch = candidate[i];
+                bool isHex =
+                    (ch >= '0' && ch <= '9') ||
+                    (ch >= 'A' && ch <= 'F');
+
+                if (!isHex)
+                    return "20242A";
+            }
+
+            return candidate;
         }
 
         private static string EscapeXml(string value)
