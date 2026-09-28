@@ -81,6 +81,75 @@ namespace PptxViewer
             return moved;
         }
 
+        public PresentationTextBox AddTextBox(int slideIndex, string text)
+        {
+            PresentationSlide slide = GetSlide(slideIndex);
+            if (slide == null)
+                return null;
+
+            PresentationTextBox box = slide.AddTextBox(text);
+            MarkDirty();
+            return box;
+        }
+
+        public PresentationShape AddShape(
+            int slideIndex,
+            PresentationShapeKind kind)
+        {
+            PresentationSlide slide = GetSlide(slideIndex);
+            if (slide == null)
+                return null;
+
+            PresentationShape shape = slide.AddShape(kind);
+            MarkDirty();
+            return shape;
+        }
+
+        public PresentationImage AddImage(
+            int slideIndex,
+            byte[] data,
+            string extension,
+            string contentType)
+        {
+            PresentationSlide slide = GetSlide(slideIndex);
+            if (slide == null)
+                return null;
+
+            PresentationImage image = slide.AddImage(
+                data,
+                extension,
+                contentType);
+            MarkDirty();
+            return image;
+        }
+
+        public bool RemoveTextBox(int slideIndex, int index)
+        {
+            PresentationSlide slide = GetSlide(slideIndex);
+            bool removed = slide != null && slide.RemoveTextBox(index);
+            if (removed)
+                MarkDirty();
+            return removed;
+        }
+
+        public bool RemoveShape(int slideIndex, int index)
+        {
+            PresentationSlide slide = GetSlide(slideIndex);
+            bool removed = slide != null && slide.RemoveShape(index);
+            if (removed)
+                MarkDirty();
+            return removed;
+        }
+
+        public bool RemoveImage(int slideIndex, int index)
+        {
+            PresentationSlide slide = GetSlide(slideIndex);
+            bool removed = slide != null && slide.RemoveImage(index);
+            if (removed)
+                MarkDirty();
+            return removed;
+        }
+
         public bool SetText(int slideIndex, int textBoxIndex, string text)
         {
             PresentationTextBox box = GetTextBox(slideIndex, textBoxIndex);
@@ -121,6 +190,15 @@ namespace PptxViewer
             return true;
         }
 
+        public void ReplaceDocument(PresentationDocument document, bool dirty)
+        {
+            if (document == null)
+                throw new ArgumentNullException("document");
+
+            Document = document;
+            IsDirty = dirty;
+        }
+
         public void MarkDirty()
         {
             IsDirty = true;
@@ -152,12 +230,17 @@ namespace PptxViewer
             LastSavedUtc = DateTime.UtcNow;
         }
 
-        private PresentationTextBox GetTextBox(int slideIndex, int textBoxIndex)
+        private PresentationSlide GetSlide(int slideIndex)
         {
             if (slideIndex < 0 || slideIndex >= Document.Slides.Count)
                 return null;
 
-            PresentationSlide slide = Document.Slides[slideIndex];
+            return Document.Slides[slideIndex];
+        }
+
+        private PresentationTextBox GetTextBox(int slideIndex, int textBoxIndex)
+        {
+            PresentationSlide slide = GetSlide(slideIndex);
 
             if (slide == null ||
                 textBoxIndex < 0 ||
