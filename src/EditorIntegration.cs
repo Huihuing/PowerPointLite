@@ -145,11 +145,12 @@ namespace PptxViewer
             using (OpenFileDialog dialog = new OpenFileDialog())
             {
                 dialog.Filter =
-                    "Supported editable documents (*.pptx;*.docx;*.xlsx;*.hwpx)|*.pptx;*.docx;*.xlsx;*.hwpx|" +
+                    "Supported documents (*.pptx;*.docx;*.xlsx;*.hwpx;*.hwp)|*.pptx;*.docx;*.xlsx;*.hwpx;*.hwp|" +
                     "PowerPoint Open XML (*.pptx)|*.pptx|" +
                     "Word Open XML (*.docx)|*.docx|" +
                     "Excel Open XML (*.xlsx)|*.xlsx|" +
-                    "HWPX (*.hwpx)|*.hwpx|All files (*.*)|*.*";
+                    "HWPX (*.hwpx)|*.hwpx|" +
+                    "HWP 5.x read-only (*.hwp)|*.hwp|All files (*.*)|*.*";
                 dialog.CheckFileExists = true;
                 dialog.Multiselect = false;
 
@@ -184,11 +185,19 @@ namespace PptxViewer
                             ShowSavedNonPresentation(editor.SavedFilePath, "XLSX");
                         }
                     }
+                    else if (extension == ".hwp")
+                    {
+                        using (HwpReadOnlyViewerForm viewerForm =
+                            new HwpReadOnlyViewerForm(path))
+                        {
+                            viewerForm.ShowDialog(this);
+                        }
+                    }
                     else
                     {
                         MessageBox.Show(
                             this,
-                            "The selected file is not supported by the current editable workspace.",
+                            "The selected file is not supported by the current workspace.",
                             "Open document",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Information);
@@ -199,8 +208,9 @@ namespace PptxViewer
                     MessageBox.Show(
                         this,
                         ex.Message +
-                        "\r\n\r\nThe original file has not been simplified or overwritten. Experimental editors use deny-by-default safety checks for unsupported content.",
-                        "Editing is not safe yet",
+                        "\r\n\r\nThe original file has not been simplified or overwritten. " +
+                        "Experimental editors use deny-by-default safety checks, and HWP is read-only.",
+                        "Document could not be opened safely",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
                 }
@@ -312,7 +322,7 @@ namespace PptxViewer
 
             status.Text =
                 format + " saved: " + Path.GetFileName(savedPath) +
-                "  •  Use Ctrl+Alt+O to reopen editable project-generated documents.";
+                "  •  Use Ctrl+Alt+O to reopen supported documents.";
         }
     }
 }
