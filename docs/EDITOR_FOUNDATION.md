@@ -1,6 +1,6 @@
 # Presentation Editor Foundation
 
-`feature/office-foundation`의 초기 PPTX Editor는 기존 Viewer를 대체하지 않고 별도 창으로 동작한다.
+`feature/office-foundation`의 PPTX Editor는 기존 Viewer를 대체하지 않고 별도 창으로 동작한다.
 
 ## 진입
 
@@ -23,16 +23,29 @@ Ctrl+Shift+E 현재 열려 있는 PPTX를 안전 편집 모드로 시도
 
 ## 현재 Editor UI
 
+주 Editor는 `AdvancedPresentationEditorForm`이다.
+
 - 독립 dark application chrome
-- 왼쪽 slide list
+- 왼쪽 model-rendered slide thumbnail list
 - 가운데 16:9 canvas
-- 오른쪽 text properties
+- 오른쪽 object properties
 - slide 추가/삭제/순서 이동
+- text box 추가/삭제
 - text 수정
 - Windows 설치 font family 선택
 - font size / bold / italic
 - left / center / right alignment
 - text color
+- 기본 shape 추가 및 fill/line color
+- PNG/JPEG/GIF/BMP 로컬 이미지 삽입
+- object drag / resize
+- keyboard nudge
+- snapshot undo / redo
+- text / shape / image copy-paste
+- basic table manager/editor
+- table cell text edit
+- table first-row header style
+- table preview overlay 및 double-click 재편집
 - Save / Save As
 - dirty-state 표시
 - 닫을 때 저장 확인
@@ -44,23 +57,18 @@ Microsoft Office/Hancom Ribbon, 공식 아이콘, 이미지 자산을 복제하�
 ```text
 PresentationDocument
  └─ PresentationSlide[]
-     └─ PresentationTextBox[]
+     ├─ PresentationTextBox[]
+     ├─ PresentationShape[]
+     ├─ PresentationImage[]
+     └─ PresentationTable[]
+         └─ PresentationTableCell[]
 ```
 
-`PresentationTextBox`는 현재 다음 정보를 가진다.
-
-```text
-Text
-FontFamily
-FontSizePoints
-Bold
-Italic
-ColorHex
-Alignment
-X / Y / Width / Height (EMU)
-```
+모델은 UI와 PPTX XML을 직접 결합하지 않는다. Editor는 모델을 수정하고 Writer가 모델을 OOXML로 직렬화한다.
 
 폰트는 **family 이름만 문서에 기록**하며 TTF/OTF를 자동 embedding하지 않는다.
+
+이미지는 사용자가 명시적으로 선택한 로컬 파일만 읽는다. 외부 클립아트/템플릿을 자동 다운로드하지 않는다.
 
 ## Save 구조
 
@@ -71,18 +79,18 @@ PresentationEditSession
  ↓
 PresentationDocument
  ↓
-PptxWriter
+PresentationPackageWriter
+ ├─ PptxWriter
+ └─ PptxTableWriter
  ↓
-<destination>.writing
- ↓ successful package close
-atomic-style replace
+staged package
+ ↓
+backup/replace
  ↓
 <destination>.pptx
 ```
 
-Writer 중간 실패 시 가능한 한 `.writing` 파일을 제거하고 기존 destination을 건드리지 않는다.
-
-현재는 destination 교체 전에 기존 파일을 삭제하고 `File.Move`하는 방식이므로, 향후 backup/replace 전략을 추가해 crash-safe 저장을 더 강화한다.
+Writer 중간 실패 시 stage 파일을 제거하고 기존 destination을 가능한 한 복원하도록 구성한다.
 
 ## Writer 자체 테스트
 
@@ -92,29 +100,33 @@ Windows 실제 빌드 후:
 RUN_WRITER_SELFTEST.cmd
 ```
 
-테스트 내용:
+현재 자체 테스트는 프로젝트 코드만으로 다음을 만든다.
 
-1. 자체 생성 3-slide PPTX 저장
-2. 필수 OPC part 존재 검사
-3. `presentation.xml` slide count 검사
-4. `PptxEditableReader`로 다시 읽기
-5. 텍스트 수정
-6. 다시 PPTX 저장
-7. 두 번째 Reader로 수정 내용 검증
+1. 3-slide PPTX
+2. text box
+3. rounded rectangle
+4. 자체 생성 PNG test image
+5. basic table
+6. 필수 OPC part 검사
+7. `PptxEditableReader` 재열기
+8. text / shape / table 수정
+9. 재저장
+10. 두 번째 Reader로 round-trip 결과 확인
 
 인터넷 문서나 Microsoft/Hancom 템플릿을 fixture로 사용하지 않는다.
 
-## 다음 Editor 작업
+## 현재 남은 Editor 작업
 
-- Add Text / Delete Object
-- object drag/resize
-- undo/redo command stack
-- copy/paste
-- image insert
-- basic shapes
-- slide thumbnail preview
-- keyboard object navigation
-- accessible focus order
-- existing arbitrary PPTX unknown-part preservation
+- table을 일반 object selection과 통합해 drag/resize
+- object z-order controls
+- multi-selection
+- system clipboard interoperability
+- accessible focus order 강화
+- arbitrary existing PPTX unknown/unsupported part preservation
+- Windows 실제 `BUILD_EXE.cmd` / `RUN_WRITER_SELFTEST.cmd` 검증
 
-임의의 외부 PPTX를 Writer로 다시 저장하는 기능은 unknown-part preservation이 준비되기 전까지 활성화하지 않는다.
+## 외부 PPTX 편집 안전 정책
+
+임의의 외부 PPTX를 현재 모델로 축소해 읽은 뒤 그대로 덮어쓰면 SmartArt, animation, chart extension, unknown relationship 등이 손실될 수 있다.
+
+따라서 unknown-part preservation이 준비되기 전까지는 `PptxEditableReader`가 안전하다고 판정한 파일만 Writer 경로로 저장한다.
