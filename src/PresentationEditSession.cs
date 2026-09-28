@@ -27,6 +27,33 @@ namespace PptxViewer
                 PresentationDocument.CreateNew(title));
         }
 
+        public static PresentationEditSession OpenEditable(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                throw new FileNotFoundException("PPTX file was not found.", path);
+
+            PptxEditableLoadResult loaded = PptxEditableReader.Read(path);
+
+            if (loaded == null || loaded.Document == null)
+                throw new InvalidDataException("The presentation could not be loaded into the editable model.");
+
+            if (!loaded.CanRoundTripSafely)
+            {
+                throw new InvalidOperationException(
+                    string.IsNullOrEmpty(loaded.Warning)
+                        ? "This presentation cannot yet be edited without risking unsupported-content loss."
+                        : loaded.Warning);
+            }
+
+            PresentationEditSession session =
+                new PresentationEditSession(loaded.Document);
+
+            session.FilePath = Path.GetFullPath(path);
+            session.IsDirty = false;
+            session.LastSavedUtc = File.GetLastWriteTimeUtc(path);
+            return session;
+        }
+
         public PresentationSlide AddSlide(string title)
         {
             PresentationSlide slide = Document.AddSlide(title);
