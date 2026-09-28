@@ -198,6 +198,15 @@ namespace PptxViewer
                     else
                         result.HasUnsupportedContent = true;
                 }
+                else if (node.LocalName == "graphicFrame")
+                {
+                    PresentationTable table = PptxTableReader.Read(node);
+
+                    if (table != null)
+                        slide.Tables.Add(table);
+                    else
+                        result.HasUnsupportedContent = true;
+                }
                 else if (node.LocalName != "nvGrpSpPr" &&
                          node.LocalName != "grpSpPr")
                 {
