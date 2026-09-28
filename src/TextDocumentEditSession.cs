@@ -3,45 +3,116 @@ using System.IO;
 
 namespace PptxViewer
 {
+    internal enum TextDocumentFileFormat
+    {
+        Docx,
+        Hwpx
+    }
+
     internal sealed class TextDocumentEditSession
     {
         public TextDocument Document { get; private set; }
         public string FilePath { get; private set; }
         public bool IsDirty { get; private set; }
+        public TextDocumentFileFormat Format { get; private set; }
 
-        private TextDocumentEditSession(TextDocument document)
+        public string FormatDisplayName
+        {
+            get { return Format == TextDocumentFileFormat.Hwpx ? "HWPX" : "DOCX"; }
+        }
+
+        public string DefaultExtension
+        {
+            get { return Format == TextDocumentFileFormat.Hwpx ? "hwpx" : "docx"; }
+        }
+
+        public string SaveDialogFilter
+        {
+            get
+            {
+                return Format == TextDocumentFileFormat.Hwpx
+                    ? "HWPX Document (*.hwpx)|*.hwpx"
+                    : "Word Open XML Document (*.docx)|*.docx";
+            }
+        }
+
+        private TextDocumentEditSession(
+            TextDocument document,
+            TextDocumentFileFormat format)
         {
             if (document == null)
                 throw new ArgumentNullException("document");
 
             Document = document;
+            Format = format;
             FilePath = string.Empty;
             IsDirty = true;
         }
 
         public static TextDocumentEditSession CreateNew(string title)
         {
+            return CreateNew(title, TextDocumentFileFormat.Docx);
+        }
+
+        public static TextDocumentEditSession CreateNewHwpx(string title)
+        {
+            return CreateNew(title, TextDocumentFileFormat.Hwpx);
+        }
+
+        public static TextDocumentEditSession CreateNew(
+            string title,
+            TextDocumentFileFormat format)
+        {
             TextDocument document = TextDocument.CreateNew(title);
             document.AddParagraph(string.Empty);
-            return new TextDocumentEditSession(document);
+            return new TextDocumentEditSession(document, format);
         }
 
         public static TextDocumentEditSession Open(string path)
         {
-            DocxEditSafetyResult safety =
-                DocxEditSafety.Analyze(path);
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                throw new FileNotFoundException("Document file was not found.", path);
 
-            if (safety == null || !safety.CanEditSafely)
+            string extension = Path.GetExtension(path).ToLowerInvariant();
+
+            if (extension == ".hwpx")
             {
-                throw new InvalidOperationException(
-                    safety == null || string.IsNullOrEmpty(safety.Warning)
-                        ? "This DOCX cannot yet be edited without risking unsupported-content loss."
-                        : safety.Warning);
+                HwpxEditSafetyResult safety = HwpxEditSafety.Analyze(path);
+                if (safety == null || !safety.CanEditSafely)
+                {
+                    throw new InvalidOperationException(
+                        safety == null || string.IsNullOrEmpty(safety.Warning)
+                            ? "This HWPX cannot yet be edited without risking unsupported-content loss."
+                            : safety.Warning);
+                }
+
+                TextDocumentEditSession hwpx =
+                    new TextDocumentEditSession(
+                        HwpxReader.Read(path),
+                        TextDocumentFileFormat.Hwpx);
+                hwpx.FilePath = Path.GetFullPath(path);
+                hwpx.IsDirty = false;
+                return hwpx;
             }
 
-            TextDocument document = DocxReader.Read(path);
+            if (extension != ".docx")
+                throw new NotSupportedException("Only DOCX and HWPX are supported by the text document editor.");
+
+            DocxEditSafetyResult docxSafety =
+                DocxEditSafety.Analyze(path);
+
+            if (docxSafety == null || !docxSafety.CanEditSafely)
+            {
+                throw new InvalidOperationException(
+                    docxSafety == null || string.IsNullOrEmpty(docxSafety.Warning)
+                        ? "This DOCX cannot yet be edited without risking unsupported-content loss."
+                        : docxSafety.Warning);
+            }
+
             TextDocumentEditSession session =
-                new TextDocumentEditSession(document);
+                new TextDocumentEditSession(
+                    DocxReader.Read(path),
+                    TextDocumentFileFormat.Docx);
             session.FilePath = Path.GetFullPath(path);
             session.IsDirty = false;
             return session;
@@ -93,7 +164,7 @@ namespace PptxViewer
             if (string.IsNullOrEmpty(FilePath))
                 throw new InvalidOperationException("Save As is required for a new document.");
 
-            DocxWriter.Save(Document, FilePath);
+            SaveTo(FilePath);
             IsDirty = false;
         }
 
@@ -102,17 +173,26 @@ namespace PptxViewer
             if (string.IsNullOrEmpty(path))
                 throw new ArgumentException("A destination path is required.", "path");
 
+            string expected = "." + DefaultExtension;
             if (!string.Equals(
                     Path.GetExtension(path),
-                    ".docx",
+                    expected,
                     StringComparison.OrdinalIgnoreCase))
             {
-                path += ".docx";
+                path = Path.ChangeExtension(path, DefaultExtension);
             }
 
-            DocxWriter.Save(Document, path);
+            SaveTo(path);
             FilePath = Path.GetFullPath(path);
             IsDirty = false;
+        }
+
+        private void SaveTo(string path)
+        {
+            if (Format == TextDocumentFileFormat.Hwpx)
+                HwpxWriter.Save(Document, path);
+            else
+                DocxWriter.Save(Document, path);
         }
     }
 }
