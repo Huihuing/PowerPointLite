@@ -123,6 +123,20 @@ namespace PptxViewer
             return image;
         }
 
+        public PresentationTable AddTable(
+            int slideIndex,
+            int rows,
+            int columns)
+        {
+            PresentationSlide slide = GetSlide(slideIndex);
+            if (slide == null)
+                return null;
+
+            PresentationTable table = slide.AddTable(rows, columns);
+            MarkDirty();
+            return table;
+        }
+
         public bool RemoveTextBox(int slideIndex, int index)
         {
             PresentationSlide slide = GetSlide(slideIndex);
@@ -145,6 +159,15 @@ namespace PptxViewer
         {
             PresentationSlide slide = GetSlide(slideIndex);
             bool removed = slide != null && slide.RemoveImage(index);
+            if (removed)
+                MarkDirty();
+            return removed;
+        }
+
+        public bool RemoveTable(int slideIndex, int index)
+        {
+            PresentationSlide slide = GetSlide(slideIndex);
+            bool removed = slide != null && slide.RemoveTable(index);
             if (removed)
                 MarkDirty();
             return removed;
