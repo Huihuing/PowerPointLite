@@ -1,6 +1,5 @@
 using System;
 using System.Drawing;
-using System.IO;
 using System.Windows.Forms;
 
 namespace PptxViewer
@@ -12,6 +11,9 @@ namespace PptxViewer
         NewDocx,
         NewXlsx,
         NewHwpx,
+        NewOdt,
+        NewOds,
+        NewOdp,
         OpenExisting
     }
 
@@ -23,23 +25,23 @@ namespace PptxViewer
         {
             SelectedAction = WorkspaceAction.None;
 
-            Text = "New / Open";
+            Text = "Document Workspace";
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MinimizeBox = false;
             MaximizeBox = false;
             ShowInTaskbar = false;
-            Width = 720;
-            Height = 470;
+            Width = 820;
+            Height = 650;
             BackColor = ApplicationTheme.Window;
             ForeColor = ApplicationTheme.PrimaryText;
             Font = new Font("Segoe UI", 9f);
 
             Label title = new Label();
             title.Left = 28;
-            title.Top = 24;
-            title.Width = 640;
-            title.Height = 36;
+            title.Top = 22;
+            title.Width = 740;
+            title.Height = 38;
             title.Text = "Create or open a document";
             title.Font = new Font(Font.FontFamily, 17f, FontStyle.Bold);
             title.ForeColor = ApplicationTheme.PrimaryText;
@@ -48,49 +50,103 @@ namespace PptxViewer
             Label subtitle = new Label();
             subtitle.Left = 30;
             subtitle.Top = 62;
-            subtitle.Width = 640;
-            subtitle.Height = 34;
-            subtitle.Text = "Independent document tools. No Microsoft or Hancom application assets are bundled.";
+            subtitle.Width = 740;
+            subtitle.Height = 38;
+            subtitle.Text =
+                "Independent readers and writers with project-owned UI. " +
+                "Microsoft/Hancom application assets are not bundled.";
             subtitle.ForeColor = ApplicationTheme.SecondaryText;
             Controls.Add(subtitle);
 
             AddCard(
                 "Presentation",
                 "PPTX",
-                "Slides, text, images, shapes, tables and presentation mode.",
+                "Slides, text, images, shapes, tables, viewer and presentation mode.",
                 30,
-                112,
+                110,
                 WorkspaceAction.NewPresentation);
 
             AddCard(
                 "Document",
                 "DOCX",
                 "Paragraphs and styled text using the shared document model.",
-                360,
-                112,
+                410,
+                110,
                 WorkspaceAction.NewDocx);
 
             AddCard(
                 "Spreadsheet",
                 "XLSX",
-                "Worksheets, text, numbers, booleans and formulas.",
+                "Worksheets, cells and formula storage. Calculation engine is still limited.",
                 30,
-                232,
+                210,
                 WorkspaceAction.NewXlsx);
 
             AddCard(
-                "Open document format",
+                "Korean XML document",
                 "HWPX · experimental",
-                "Public-format clean-room reader/writer. Real Hancom compatibility still requires verification.",
-                360,
-                232,
+                "Public-format reader/writer. Real Hancom compatibility still requires verification.",
+                410,
+                210,
                 WorkspaceAction.NewHwpx);
+
+            AddCard(
+                "OpenDocument text",
+                "ODT · experimental",
+                "ODF text reader/writer connected to the shared document editor.",
+                30,
+                310,
+                WorkspaceAction.NewOdt);
+
+            AddCard(
+                "OpenDocument sheet",
+                "ODS · experimental",
+                "ODF spreadsheet reader/writer with a lightweight worksheet editor.",
+                410,
+                310,
+                WorkspaceAction.NewOds);
+
+            AddCard(
+                "OpenDocument presentation",
+                "ODP · experimental",
+                "ODF presentation reader/writer with independent slide editing tools.",
+                30,
+                410,
+                WorkspaceAction.NewOdp);
+
+            Panel note = new Panel();
+            note.Left = 410;
+            note.Top = 410;
+            note.Width = 350;
+            note.Height = 90;
+            note.BackColor = ApplicationTheme.Surface;
+            Controls.Add(note);
+
+            Label noteTitle = new Label();
+            noteTitle.Left = 16;
+            noteTitle.Top = 12;
+            noteTitle.Width = 318;
+            noteTitle.Height = 22;
+            noteTitle.Text = "Safety first";
+            noteTitle.Font = new Font(Font, FontStyle.Bold);
+            noteTitle.ForeColor = ApplicationTheme.PrimaryText;
+            note.Controls.Add(noteTitle);
+
+            Label noteBody = new Label();
+            noteBody.Left = 16;
+            noteBody.Top = 38;
+            noteBody.Width = 318;
+            noteBody.Height = 44;
+            noteBody.Text =
+                "Existing files are edited only when the current parser can round-trip them without known content loss.";
+            noteBody.ForeColor = ApplicationTheme.SecondaryText;
+            note.Controls.Add(noteBody);
 
             Button open = new Button();
             open.Text = "Open existing editable file...";
             open.Left = 30;
-            open.Top = 366;
-            open.Width = 330;
+            open.Top = 528;
+            open.Width = 350;
             open.Height = 38;
             ApplicationTheme.ApplyButton(open);
             open.Click += delegate
@@ -103,8 +159,8 @@ namespace PptxViewer
 
             Button cancel = new Button();
             cancel.Text = "Cancel";
-            cancel.Left = 570;
-            cancel.Top = 366;
+            cancel.Left = 660;
+            cancel.Top = 528;
             cancel.Width = 100;
             cancel.Height = 38;
             ApplicationTheme.ApplyButton(cancel);
@@ -129,17 +185,17 @@ namespace PptxViewer
             Panel card = new Panel();
             card.Left = left;
             card.Top = top;
-            card.Width = 310;
-            card.Height = 100;
+            card.Width = 350;
+            card.Height = 90;
             card.BackColor = ApplicationTheme.Surface;
             card.Cursor = Cursors.Hand;
             card.TabStop = true;
 
             Label title = new Label();
             title.Left = 16;
-            title.Top = 12;
-            title.Width = 180;
-            title.Height = 24;
+            title.Top = 11;
+            title.Width = 210;
+            title.Height = 23;
             title.Text = titleText;
             title.Font = new Font(Font, FontStyle.Bold);
             title.ForeColor = ApplicationTheme.PrimaryText;
@@ -147,10 +203,10 @@ namespace PptxViewer
             card.Controls.Add(title);
 
             Label format = new Label();
-            format.Left = 202;
-            format.Top = 12;
-            format.Width = 92;
-            format.Height = 24;
+            format.Left = 224;
+            format.Top = 11;
+            format.Width = 110;
+            format.Height = 23;
             format.TextAlign = ContentAlignment.MiddleRight;
             format.Text = formatText;
             format.ForeColor = ApplicationTheme.Accent;
@@ -159,9 +215,9 @@ namespace PptxViewer
 
             Label body = new Label();
             body.Left = 16;
-            body.Top = 42;
-            body.Width = 278;
-            body.Height = 46;
+            body.Top = 39;
+            body.Width = 318;
+            body.Height = 43;
             body.Text = description;
             body.ForeColor = ApplicationTheme.SecondaryText;
             body.Cursor = Cursors.Hand;
