@@ -84,7 +84,7 @@ PowerPoint/LibreOffice 실행 파일이나 DLL을 프로그램 패키지에 포�
 
 메인 Viewer 상단의 **Workspace** 버튼 또는 `Ctrl+Alt+N`으로 열 수 있습니다.
 
-현재 Workspace 카드:
+현재 Workspace:
 
 ```text
 PPTX
@@ -95,6 +95,7 @@ ODT
 ODS
 ODP
 Open existing
+Export document to PDF
 ```
 
 주요 단축키:
@@ -177,9 +178,11 @@ ODP는 `PresentationDocument` 모델을 사용합니다.
 - system font family / size / style
 - object drag/resize
 - images
-- rectangle/rounded rectangle/ellipse/triangle/diamond
+- rectangle / ellipse
 - Save / Save As
 - project-generated ODP safety guard
+
+ODF custom-shape mapping이 구현되기 전에는 다른 shape kind를 ODP에 조용히 단순화하지 않습니다. 현재 Editor는 Rectangle/Ellipse만 생성하도록 제한하고, Writer가 정확하게 보존할 수 없는 shape가 model에 있으면 저장을 중단합니다.
 
 실제 LibreOffice round-trip 검증 전에는 안정 지원으로 표시하지 않습니다.
 
@@ -218,11 +221,16 @@ TextDocument
 - PresentationDocument → PDF
 - TextDocument → PDF
 - SpreadsheetDocument → PDF
+- DOCX/HWPX/HWP/ODT/XLSX/ODS/ODP 파일 → PDF
 - 현재 Viewer에서 렌더된 PPTX 슬라이드 → PDF (`Ctrl+Shift+P`)
+
+PPTX는 일반 문서 export picker에서 단순 model conversion을 하지 않고, Viewer에서 실제 렌더한 결과를 PDF로 내보내는 경로를 우선합니다.
 
 현재 raster PDF 경로는 사용자가 선택한 TTF/OTF 파일 자체를 PDF 안에 embedding하지 않습니다. 따라서 초기 Export에서 폰트 바이너리 재배포를 피할 수 있습니다.
 
 향후 searchable/vector text PDF를 구현하면서 font subset/full embedding이 필요해질 경우 **반드시 `FontLicenseService`의 라이선스 검사를 거친 뒤** 포함합니다.
+
+상세: [`docs/PDF_EXPORT_FOUNDATION.md`](docs/PDF_EXPORT_FOUNDATION.md)
 
 현재 PDF 출력은 구조 self-test 외에 실제 PDF Viewer/인쇄 결과의 수동 검증이 필요합니다.
 
@@ -323,13 +331,20 @@ PowerPointLite.exe
 
 ## 자체 테스트
 
-Windows에서 빌드 후 전체 structural test:
+Windows에서 빌드 + 전체 structural test를 한 번에 실행하려면:
 
 ```bat
+RUN_PREMERGE_CHECKS.cmd
+```
+
+개별 실행:
+
+```bat
+BUILD_EXE.cmd
 RUN_ALL_FORMAT_SELFTESTS.cmd
 ```
 
-개별 테스트:
+포맷별 테스트:
 
 ```bat
 RUN_WRITER_SELFTEST.cmd
@@ -374,7 +389,7 @@ src/
 ├─ HwpReader.cs / CompoundFileReader.cs
 ├─ HwpReadOnlyViewerForm.cs
 ├─ OdfPackage.cs
-├─ PdfExport.cs
+├─ PdfExport.cs / DocumentPdfExport.cs
 ├─ OpcPackage.cs / OpcPreservation.cs
 ├─ FontLicensing.cs / FontLicenseService.cs
 ├─ OfficeWorkspaceDialog.cs
@@ -385,6 +400,8 @@ docs/
 ├─ EDITOR_FOUNDATION.md
 ├─ HWPX_FOUNDATION.md
 ├─ HWP_FOUNDATION.md
+├─ ODF_FOUNDATION.md
+├─ PDF_EXPORT_FOUNDATION.md
 ├─ LEGAL_ASSET_POLICY.md
 └─ UI_DESIGN_GUIDE.md
 ```
@@ -393,6 +410,8 @@ docs/
 
 새 AI/ChatGPT/Codex 세션에서 개발을 이어갈 경우 [`AGENTS.md`](AGENTS.md)를 먼저 읽습니다.
 
-## 프로젝트 라이선스
+## 라이선스
 
-프로젝트 코드 라이선스는 아직 최종 확정하지 않았습니다. 공개 배포 전에 코드 라이선스와 각 서드파티/폰트/자산 라이선스를 구분해 확정합니다.
+프로젝트 자체 코드는 루트 [`LICENSE`](LICENSE)의 **MIT License**를 사용합니다.
+
+서드파티 폰트, 라이브러리, 아이콘, 이미지, 문서 샘플, 상표 등 외부 권리는 MIT License로 다시 허가되는 것이 아니며 각각의 원 라이선스를 따릅니다. 현재 고지 정책은 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)와 `licenses/`에 분리해 관리합니다.
