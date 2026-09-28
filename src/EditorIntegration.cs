@@ -8,6 +8,46 @@ namespace PptxViewer
     {
         protected override void OnKeyDown(KeyEventArgs e)
         {
+            if (e.Control && e.Alt && e.KeyCode == Keys.N)
+            {
+                ShowOfficeWorkspace();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
+
+            if (e.Control && e.Alt && e.KeyCode == Keys.O)
+            {
+                OpenExistingEditableOfficeFile();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
+
+            if (e.Control && e.Alt && e.KeyCode == Keys.D)
+            {
+                OpenNewDocxEditor();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
+
+            if (e.Control && e.Alt && e.KeyCode == Keys.X)
+            {
+                OpenNewXlsxEditor();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
+
+            if (e.Control && e.Alt && e.KeyCode == Keys.H)
+            {
+                OpenNewHwpxEditor();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
+
             if (e.Control && e.Shift && e.KeyCode == Keys.I)
             {
                 ShowCurrentPresentationCompatibilityReport();
@@ -35,6 +75,26 @@ namespace PptxViewer
             base.OnKeyDown(e);
         }
 
+        private void ShowOfficeWorkspace()
+        {
+            using (OfficeWorkspaceDialog dialog = new OfficeWorkspaceDialog())
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                    return;
+
+                if (dialog.SelectedAction == WorkspaceAction.NewPresentation)
+                    OpenNewPresentationEditor();
+                else if (dialog.SelectedAction == WorkspaceAction.NewDocx)
+                    OpenNewDocxEditor();
+                else if (dialog.SelectedAction == WorkspaceAction.NewXlsx)
+                    OpenNewXlsxEditor();
+                else if (dialog.SelectedAction == WorkspaceAction.NewHwpx)
+                    OpenNewHwpxEditor();
+                else if (dialog.SelectedAction == WorkspaceAction.OpenExisting)
+                    OpenExistingEditableOfficeFile();
+            }
+        }
+
         private void OpenNewPresentationEditor()
         {
             PresentationEditSession session =
@@ -47,6 +107,103 @@ namespace PptxViewer
                 AdvancedEditorThumbnailExtension.Attach(editor, session);
                 editor.ShowDialog(this);
                 LoadSavedEditorOutput(editor.SavedFilePath);
+            }
+        }
+
+        private void OpenNewDocxEditor()
+        {
+            using (UnifiedTextDocumentEditorForm editor =
+                UnifiedTextDocumentEditorForm.CreateNewDocx("New Document"))
+            {
+                editor.ShowDialog(this);
+                ShowSavedNonPresentation(editor.SavedFilePath, "DOCX");
+            }
+        }
+
+        private void OpenNewHwpxEditor()
+        {
+            using (UnifiedTextDocumentEditorForm editor =
+                UnifiedTextDocumentEditorForm.CreateNewHwpx("New HWPX Document"))
+            {
+                editor.ShowDialog(this);
+                ShowSavedNonPresentation(editor.SavedFilePath, "HWPX");
+            }
+        }
+
+        private void OpenNewXlsxEditor()
+        {
+            using (SpreadsheetEditorForm editor =
+                SpreadsheetEditorForm.CreateNew("New Workbook"))
+            {
+                editor.ShowDialog(this);
+                ShowSavedNonPresentation(editor.SavedFilePath, "XLSX");
+            }
+        }
+
+        private void OpenExistingEditableOfficeFile()
+        {
+            using (OpenFileDialog dialog = new OpenFileDialog())
+            {
+                dialog.Filter =
+                    "Supported editable documents (*.pptx;*.docx;*.xlsx;*.hwpx)|*.pptx;*.docx;*.xlsx;*.hwpx|" +
+                    "PowerPoint Open XML (*.pptx)|*.pptx|" +
+                    "Word Open XML (*.docx)|*.docx|" +
+                    "Excel Open XML (*.xlsx)|*.xlsx|" +
+                    "HWPX (*.hwpx)|*.hwpx|All files (*.*)|*.*";
+                dialog.CheckFileExists = true;
+                dialog.Multiselect = false;
+
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                    return;
+
+                string path = dialog.FileName;
+                string extension = Path.GetExtension(path).ToLowerInvariant();
+
+                try
+                {
+                    if (extension == ".pptx")
+                    {
+                        OpenPresentationEditorForPath(path);
+                    }
+                    else if (extension == ".docx" || extension == ".hwpx")
+                    {
+                        using (UnifiedTextDocumentEditorForm editor =
+                            UnifiedTextDocumentEditorForm.Open(path))
+                        {
+                            editor.ShowDialog(this);
+                            ShowSavedNonPresentation(
+                                editor.SavedFilePath,
+                                extension == ".hwpx" ? "HWPX" : "DOCX");
+                        }
+                    }
+                    else if (extension == ".xlsx")
+                    {
+                        using (SpreadsheetEditorForm editor = SpreadsheetEditorForm.Open(path))
+                        {
+                            editor.ShowDialog(this);
+                            ShowSavedNonPresentation(editor.SavedFilePath, "XLSX");
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            this,
+                            "The selected file is not supported by the current editable workspace.",
+                            "Open document",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        this,
+                        ex.Message +
+                        "\r\n\r\nThe original file has not been simplified or overwritten. Experimental editors use deny-by-default safety checks for unsupported content.",
+                        "Editing is not safe yet",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
             }
         }
 
@@ -70,17 +227,7 @@ namespace PptxViewer
 
             try
             {
-                PresentationEditSession session =
-                    PresentationEditSession.OpenEditable(currentFile);
-
-                using (AdvancedPresentationEditorForm editor =
-                    new AdvancedPresentationEditorForm(session))
-                {
-                    AdvancedEditorTableExtension.Attach(editor, session);
-                    AdvancedEditorThumbnailExtension.Attach(editor, session);
-                    editor.ShowDialog(this);
-                    LoadSavedEditorOutput(editor.SavedFilePath);
-                }
+                OpenPresentationEditorForPath(currentFile);
             }
             catch (Exception ex)
             {
@@ -91,6 +238,21 @@ namespace PptxViewer
                     "Editing is not safe yet",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
+            }
+        }
+
+        private void OpenPresentationEditorForPath(string path)
+        {
+            PresentationEditSession session =
+                PresentationEditSession.OpenEditable(path);
+
+            using (AdvancedPresentationEditorForm editor =
+                new AdvancedPresentationEditorForm(session))
+            {
+                AdvancedEditorTableExtension.Attach(editor, session);
+                AdvancedEditorThumbnailExtension.Attach(editor, session);
+                editor.ShowDialog(this);
+                LoadSavedEditorOutput(editor.SavedFilePath);
             }
         }
 
@@ -141,6 +303,16 @@ namespace PptxViewer
             {
                 LoadPresentation(savedPath);
             }
+        }
+
+        private void ShowSavedNonPresentation(string savedPath, string format)
+        {
+            if (string.IsNullOrEmpty(savedPath) || !File.Exists(savedPath))
+                return;
+
+            status.Text =
+                format + " saved: " + Path.GetFileName(savedPath) +
+                "  •  Use Ctrl+Alt+O to reopen editable project-generated documents.";
         }
     }
 }
