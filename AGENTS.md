@@ -2,13 +2,17 @@
 
 새 ChatGPT/Codex/다른 AI 세션이 기존 대화를 복원하지 않고 바로 개발을 이어가기 위한 기준 문서다.
 
-## 1. 프로젝트 현재 상태와 장기 목표
+## 1. 현재 프로젝트 상태
 
-저장소: `Huihuing/PowerPointLite`
+저장소:
 
-현재 안정 기능은 Windows용 `.pptx/.pptm` Viewer다.
+```text
+Huihuing/PowerPointLite
+```
 
-장기적으로는 기존 PPTX 기능을 유지하면서 다음 포맷을 읽고 작성/편집/저장할 수 있는 경량 문서 프로그램으로 확장하는 방향을 검토한다.
+현재 `main`의 안정 기능은 Windows용 PPTX/PPTM Viewer다.
+
+장기 목표는 Viewer를 유지하면서 다음 포맷을 읽고 작성/편집/저장할 수 있는 경량 문서 프로그램으로 단계적으로 확장하는 것이다.
 
 ```text
 PPTX
@@ -21,13 +25,14 @@ ODS
 ODP
 ```
 
-우선순위는 반드시:
+우선순위:
 
 ```text
 PPTX Viewer 안정화
 → 법적/폰트/자산 안전 기반
 → PPTX Writer
 → 공통 OOXML/OPC 계층
+→ Presentation internal model
 → PPTX Editor
 → DOCX
 → XLSX
@@ -36,19 +41,33 @@ PPTX Viewer 안정화
 → ODF / PDF Export
 ```
 
-현재 안정 기준 버전: **1.3**
+현재 안정 기준 버전은 **1.3**이며 office/editor 기능은 feature 단계다.
 
-## 2. 현재 브랜치 전략
+## 2. 브랜치 전략
 
-- `main` — Windows 실빌드/실행 검증을 통과한 안정 기반
-- `feature/presentation-tools` — 레이저/펜/자동 진행/내부 미디어 등 발표 기능 개발
-- `feature/office-foundation` — 멀티포맷 아키텍처, 폰트/라이선스, 독립 UI 기반 개발
+```text
+main
+  Windows 실빌드/실행 검증을 통과한 안정 기반
 
-두 feature 브랜치는 각각 안정화한 뒤 의미 단위로 main에 병합한다.
+feature/presentation-tools
+  레이저/펜/자동진행/내부 미디어 등 발표 기능 개발
 
-## 3. 저작권/상표/자산 최우선 규칙
+feature/office-foundation
+  멀티포맷 아키텍처, 폰트/라이선스, OPC, Writer, Editor 개발
+```
 
-먼저 [`docs/LEGAL_ASSET_POLICY.md`](docs/LEGAL_ASSET_POLICY.md)를 읽는다.
+feature 브랜치를 Windows에서 검증하기 전 main으로 합치지 않는다.
+
+## 3. 저작권 / 상표 / 자산 최우선 규칙
+
+먼저 읽을 문서:
+
+```text
+docs/LEGAL_ASSET_POLICY.md
+docs/UI_DESIGN_GUIDE.md
+docs/ARCHITECTURE_ROADMAP.md
+docs/EDITOR_FOUNDATION.md
+```
 
 허용 방향:
 
@@ -64,54 +83,62 @@ PPTX Viewer 안정화
 - Hancom 실행 파일/DLL 재배포
 - Office/Hancom 공식 로고/아이콘/UI 이미지 복제
 - 상용 템플릿/클립아트 무단 포함
-- 라이선스 불명확 폰트 TTF/OTF 번들
-- 인터넷에서 가져온 타인 문서를 테스트 fixture로 커밋
+- 라이선스 불명확 TTF/OTF 번들
+- 인터넷에서 가져온 타인 문서를 fixture로 커밋
 
-새 외부 라이브러리/폰트/아이콘은 `THIRD_PARTY_NOTICES.md`와 `licenses/`를 갱신한다.
-
-상표명은 호환성 설명에만 사실적으로 사용하고 앱 브랜딩은 독립적으로 만든다.
-
-## 4. 폰트 규칙
-
-`src/FontLicensing.cs`가 초기 폰트 안전 계층이다.
-
-현재 원칙:
-
-- Windows 설치 폰트 family를 열거해 사용 가능
-- 시스템 폰트 파일을 앱에 복사하지 않음
-- 문서에는 기본적으로 font family 이름만 기록
-- font embedding은 기본 OFF
-- OpenType/TrueType `OS/2.fsType`은 보조 판단 정보
-- 실제 LICENSE 원문이 fsType보다 우선
-- 불명확하면 embedding을 허용하지 않는 방향
-
-`FontLicenseInfo`에서 확인할 항목:
+외부 라이브러리/폰트/아이콘을 추가하면 반드시:
 
 ```text
-EmbeddingLevel
-CanEmbed
-CanEmbedForEditing
-CanPreviewAndPrint
-CanSubset
-BitmapEmbeddingOnly
-RawFsType
-RequiresLicenseTextReview
+THIRD_PARTY_NOTICES.md
+licenses/
 ```
 
-향후 PPTX/DOCX/XLSX/HWPX/PDF embedding은 같은 `FontLicenseService`를 공유해야 한다.
+를 갱신한다.
+
+## 4. 폰트 안전 규칙
+
+관련 파일:
+
+```text
+src/FontLicensing.cs
+src/FontLicenseService.cs
+```
+
+현재 정책:
+
+- Windows 설치 font family를 사용할 수 있다.
+- 시스템 font binary를 앱에 복사하지 않는다.
+- 문서에는 기본적으로 font family 이름만 기록한다.
+- font embedding은 기본 OFF다.
+- OpenType/TrueType `OS/2.fsType`은 보조 정보다.
+- 실제 LICENSE 원문이 fsType보다 우선한다.
+- metadata가 허용처럼 보여도 명시적 license review가 없으면 embedding을 기본 거부한다.
+- app font bundling 권리는 fsType으로 판정하지 않는다.
+
+향후 PPTX/DOCX/XLSX/HWPX/PDF embedding은 같은 `FontLicenseService`를 사용한다.
 
 ## 5. UI 원칙
 
-[`docs/UI_DESIGN_GUIDE.md`](docs/UI_DESIGN_GUIDE.md)를 따른다.
+Microsoft Office 또는 Hancom UI를 시각적으로 복제하지 않는다.
 
-- Microsoft Office Ribbon이나 Hancom UI를 시각적으로 복제하지 않는다.
-- 공식 제품 아이콘/로고를 사용하지 않는다.
-- 자체 dark palette / flat controls 사용
-- UI 기본 글꼴은 시스템 `Segoe UI` 사용 가능하나 폰트 파일은 번들하지 않는다.
-- 100/125/150% DPI를 고려한다.
-- TOC가 보일 때 Fit은 반드시 실제 `SplitContainer.Panel2` viewport 기준이다.
+현재 기반:
 
-`src/UiTheme.cs`는 기존 Viewer 구조를 건드리지 않고 독립 테마를 덧씌우는 기반이다.
+```text
+src/UiTheme.cs
+src/PresentationEditorForm.cs
+```
+
+UI 방향:
+
+- 자체 dark palette
+- flat controls
+- slide/document canvas 중심
+- 공식 Office/Hancom icons/logos 사용 금지
+- 시스템 `Segoe UI` 사용 가능, 폰트 파일 번들 금지
+- 100/125/150% DPI 고려
+- Viewer의 TOC/Fit 회귀 금지
+
+Editor는 왼쪽 slide list / 중앙 canvas / 오른쪽 properties 구조를 사용한다.
 
 ## 6. 빌드 제약
 
@@ -127,65 +154,62 @@ fallback:
 C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe
 ```
 
-따라서 다음을 피한다.
+피해야 할 것:
 
 - 최신 C# 전용 문법
 - .NET 8 전용 API
 - 필수 NuGet 의존성
-- WPF/.NET 8로 임의 전환
+- 임의의 WPF/.NET 8 전환
 
-현재 `BUILD_EXE.cmd`는 `src\*.cs` 전체를 한 번에 컴파일한다.
+현재 빌드:
 
-Windows `BUILD_EXE.cmd` 실빌드가 최종 기준이다.
+```text
+BUILD_EXE.cmd
+→ src\*.cs
+→ PowerPointLite.exe
+```
 
-### 과거 오류 — Timer
+Windows 실제 `BUILD SUCCESS`가 최종 기준이다.
 
-`System.Threading`과 `System.Windows.Forms`가 함께 import될 수 있으므로 GUI 타이머는 반드시:
+### 과거 컴파일 오류 — Timer
+
+`System.Threading`과 `System.Windows.Forms`가 함께 import될 수 있다.
+
+GUI Timer는 반드시:
 
 ```csharp
 System.Windows.Forms.Timer
 ```
 
-로 명시한다.
+처럼 완전 수식한다.
 
-### 과거 오류 — Graphics.DrawImage
+### 과거 컴파일 오류 — Graphics.DrawImage
 
-.NET Framework `Graphics.DrawImage` 오버로드는 최신 런타임과 다르다.
+.NET Framework `Graphics.DrawImage` overload는 최신 런타임과 다를 수 있다.
 
-7인자 호출에서 destination이 `RectangleF`일 경우 문제가 발생한 적이 있으므로 필요하면:
+7인자 destination에 `RectangleF`를 전달해 `CS1502/CS1503`이 발생한 적이 있으므로 필요하면:
 
 ```csharp
 Rectangle.Round(rect)
 ```
 
-처럼 맞는 오버로드를 사용한다.
+을 사용한다.
 
-## 7. 현재 소스 구조
+## 7. 현재 Viewer 구조
+
+주요 파일:
 
 ```text
-src/
-├─ Program.cs
-├─ MainForm.Part01.cs ... MainForm.Part05.cs
-├─ PresenterView.cs
-├─ Printing.cs
-├─ RecentFileStore.cs
-├─ ViewerDialogs.cs
-├─ InternalPptxRenderer.Part01.cs ... Part08.cs
-├─ FontLicensing.cs
-└─ UiTheme.cs
+src/Program.cs
+src/MainForm.Part01.cs ... Part05.cs
+src/InternalPptxRenderer.Part01.cs ... Part08.cs
+src/PresenterView.cs
+src/Printing.cs
+src/RecentFileStore.cs
+src/ViewerDialogs.cs
 ```
 
-`MainForm.Part*.cs`는 `public sealed partial class MainForm : Form`이다.
-
-`InternalPptxRenderer.Part*.cs`는 `internal static partial class InternalPptxRenderer`다.
-
-private 필드/메서드는 partial class 전체에서 공유된다.
-
-현재 `src\*.cs` 빌드 구조 때문에 실제 하위 디렉터리 분리는 아직 하지 않는다. 향후 빌드 스크립트를 재귀 소스 수집 방식으로 변경한 뒤 `Core/Formats/Renderer/Editor/UI` 폴더로 이동한다.
-
-## 8. 현재 PPTX 렌더링 전략
-
-우선순위:
+렌더링 우선순위:
 
 ```text
 1. Microsoft PowerPoint Native
@@ -193,51 +217,183 @@ private 필드/메서드는 partial class 전체에서 공유된다.
 3. LibreOffice fallback
 ```
 
-Office/LibreOffice 바이너리를 앱 배포물에 포함하지 않는다.
+Office/LibreOffice 바이너리를 앱에 포함하지 않는다.
 
-### Internal OpenXML 처리 범위
+### 반드시 유지할 Viewer 동작
 
-- slide size/background
-- theme color/font
-- master/layout/placeholder
-- text/basic formatting
-- bullets/numbering
-- images/crop/alpha/rotation/flip
-- basic SVG subset / GDI+ EMF/WMF
-- shapes/custom geometry 일부
-- line/connectors/arrowheads
-- groups/tables
-- basic charts
-- SmartArt static approximation
-- hyperlinks/internal slide actions
-- media extraction fallback
-- gradient/pattern/basic shadow
-- 일부 transition/animation fallback
+- TOC를 켜도 Fit은 `SplitContainer.Panel2` 실제 viewport 기준
+- slide area wheel = previous/next
+- Ctrl+wheel = zoom
+- TOC 위 wheel = TOC 자체 scroll
+- F5 / Shift+F5
+- Presenter View / Notes / Print
+- startup crash logging
 
-## 9. Reader / Writer 분리 원칙
+## 8. 공통 OOXML / OPC 기반
 
-향후 포맷 코드는 반드시 다음 패턴으로 간다.
+관련 파일:
 
 ```text
-PPTX → PptxReader → PresentationDocument → Renderer
-                                      ↓
-                                    Editor
-                                      ↓
-                                  PptxWriter → PPTX
+src/OpcPackage.cs
 ```
 
-같은 원칙:
+현재 구현:
+
+- XML part read/write
+- `[Content_Types].xml` helper
+- relationships read/write
+- target part resolution
+- content type mapping
+
+향후 PPTX/DOCX/XLSX가 이 공통 계층을 공유한다.
+
+기존 PPTX Reader를 한 번에 rewrite하지 말고 테스트 가능한 단위로 옮긴다.
+
+## 9. Presentation internal model
+
+관련 파일:
 
 ```text
-DocxReader / DocxWriter
-XlsxReader / XlsxWriter
-HwpxReader / HwpxWriter
-HwpReader / HwpWriter
+src/PresentationModel.cs
 ```
 
-UI에서 포맷 XML을 직접 수정하지 않는다.
+현재 구조:
 
-## 10. Macro 문서
+```text
+PresentationDocument
+ └─ PresentationSlide[]
+     └─ PresentationTextBox[]
+```
+
+`PresentationTextBox`는:
+
+```text
+Text
+FontFamily
+FontSizePoints
+Bold
+Italic
+ColorHex
+Alignment
+X / Y / Width / Height (EMU)
+```
+
+를 가진다.
+
+UI는 OOXML XML을 직접 수정하지 않는다.
+
+## 10. PPTX Writer
+
+관련 파일:
+
+```text
+src/PptxWriter.cs
+src/PptxWriterDiagnostics.cs
+RUN_WRITER_SELFTEST.cmd
+```
+
+현재 Writer 기능:
+
+- new PPTX package
+- content types / relationships
+- 자체 neutral theme/master/layout
+- multi-slide presentation
+- multiple text boxes
+- font family name / size / bold / italic
+- alignment / text color
+- slide add/delete/reorder model 결과 저장
+- 임시 `.writing` 파일을 만든 뒤 destination으로 교체
+
+Writer는 Microsoft/Hancom template을 복사하지 않는다.
+
+Theme에 font family 이름을 참조할 수 있으나 font binary를 번들하지 않는다.
+
+Windows 빌드 후:
+
+```bat
+RUN_WRITER_SELFTEST.cmd
+```
+
+을 실행한다.
+
+이 테스트는 자체 생성 3-slide 문서에 대해 package 구조와 read-edit-write round trip을 검사한다.
+
+## 11. 편집 세션 / 안전 Reader
+
+관련 파일:
+
+```text
+src/PresentationEditSession.cs
+src/PptxEditableReader.cs
+src/EditorIntegration.cs
+```
+
+새 문서:
+
+```text
+Ctrl+N
+```
+
+현재 파일 편집 시도:
+
+```text
+Ctrl+Shift+E
+```
+
+매우 중요:
+
+**아무 외부 PPTX나 Writer로 다시 저장하면 안 된다.**
+
+현재 `PptxEditableReader`는:
+
+- 현재 PowerPointLite Writer가 만든 문서인지
+- model이 표현하지 못하는 slide content가 있는지
+
+를 검사한다.
+
+안전 round-trip 조건을 만족하지 않으면 Editor를 열지 않고 Viewer만 유지한다.
+
+이 guard를 제거하지 않는다.
+
+향후 arbitrary PPTX edit은 unknown/unsupported part preservation이 구현된 뒤에만 허용한다.
+
+## 12. 초기 Presentation Editor UI
+
+관련 파일:
+
+```text
+src/PresentationEditorForm.cs
+```
+
+현재 기능:
+
+- slide list
+- slide add/delete/reorder
+- slide canvas
+- text box selection
+- text editing
+- Windows installed font picker
+- font size / bold / italic
+- left/center/right alignment
+- text color
+- Save / Save As
+- dirty status
+- close-save confirmation
+
+다음 작업:
+
+- Add Text / Delete Object
+- drag/resize object
+- undo/redo
+- copy/paste
+- image insert
+- basic shapes
+- better thumbnails
+- keyboard accessibility
+
+Office Ribbon을 복제하지 않는다.
+
+## 13. Macro 문서
 
 향후:
 
@@ -247,9 +403,9 @@ UI에서 포맷 XML을 직접 수정하지 않는다.
 .xlsm
 ```
 
-을 열 수 있어도 VBA를 실행하지 않는다.
+을 열 수 있어도 VBA 실행은 기본 지원하지 않는다.
 
-권장 동작:
+권장:
 
 ```text
 open
@@ -259,45 +415,18 @@ open
 → macro execution = disabled
 ```
 
-보안상 매크로 실행은 기본 지원 대상이 아니다.
+## 14. 테스트 자산
 
-## 11. Viewer UX 반드시 유지할 동작
-
-현재 기능:
-
-- Drag & Drop / Recent
-- thumbnails / TOC / Auto TOC
-- actual right viewport Fit
-- wheel previous/next
-- Ctrl+wheel zoom
-- arrow/PageUp/PageDown/Home/End
-- F11
-- search / go-to / sorter
-- speaker notes / hidden slides
-- F5 / Shift+F5
-- Presenter View
-- print full/notes/2·4·6 handout
-
-### Fit 회귀 금지
-
-TOC 폭을 포함한 전체 창 크기로 Fit 계산하면 슬라이드가 잘린다.
-
-반드시 `SplitContainer.Panel2`의 실제 viewport를 사용한다.
-
-## 12. 테스트 자산
-
-테스트 문서는 프로젝트 자체 제작 자산만 사용한다.
+프로젝트가 직접 만든 자산만 저장소 fixture로 사용한다.
 
 금지:
 
 - 인터넷 강의자료
 - 회사/학교 문서
-- 타인의 HWP
+- 타인 HWP
 - 상용 PPT/XLSX template
 
-새 포맷은 generator 기반 fixture를 우선한다.
-
-예:
+예정 fixture:
 
 ```text
 TEST_BASIC_PPTX.pptx
@@ -306,7 +435,7 @@ TEST_BASIC_XLSX.xlsx
 TEST_BASIC_HWPX.hwpx
 ```
 
-## 13. 테스트 절차
+## 15. 테스트 절차
 
 모든 수정 후 최소 확인:
 
@@ -316,22 +445,27 @@ TEST_BASIC_HWPX.hwpx
 4. Windows `BUILD_EXE.cmd`
 5. `BUILD SUCCESS`
 6. `PowerPointLite.exe` 실행
-7. 기본 PPTX 테스트
-8. 실제 사용자 PPTX
-9. TOC on/off Fit
-10. wheel / Ctrl+wheel
-11. F5 / Shift+F5
-12. Presenter / Notes
-13. Print
-14. 새 기능별 fixture
+7. 기존 PPTX Viewer 테스트
+8. TOC on/off Fit
+9. wheel / Ctrl+wheel
+10. F5 / Shift+F5
+11. Presenter / Notes / Print
+12. `RUN_WRITER_SELFTEST.cmd`
+13. Writer output을 Viewer에서 다시 열기
+14. Editor 새 문서 생성/저장/재열기
+15. external PPTX safe-edit guard 확인
 
-이 환경에서 Windows EXE를 컴파일하지 못하면 성공했다고 주장하지 않는다.
+Windows EXE를 실제 컴파일할 수 없는 환경에서는 성공했다고 주장하지 않는다.
 
-## 14. Git 규칙
+## 16. Git 규칙
 
-기본 브랜치: `main`
+기본 브랜치:
 
-커밋 메시지는 반드시:
+```text
+main
+```
+
+커밋 메시지:
 
 ```text
 한글 - English
@@ -340,36 +474,40 @@ TEST_BASIC_HWPX.hwpx
 예:
 
 ```text
-폰트 라이선스 검사 기반 추가 - Add OpenType font licensing foundation
-독립 UI 테마 기반 추가 - Add clean independent application theme
-PPTX Writer 패키지 생성 추가 - Add initial PPTX writer package creation
+프레젠테이션 내부 모델 추가 - Add editable presentation document model
+다중 슬라이드 PPTX Writer 확장 - Connect presentation model to multi-slide PPTX writer
+PPTX 편집용 안전 Reader 기반 추가 - Add guarded editable PPTX model reader
 ```
 
 원칙:
 
 - 의미 단위 commit
 - main에 micro-commit 남발 금지
-- 작업 전 최신 main 확인
-- cache/log/debug 산출물 금지
-- 안정 EXE는 Windows 실빌드/실행 검증 후에만 갱신
+- cache/log/debug output 커밋 금지
+- 안정 EXE는 Windows 실빌드/실행 검증 후 갱신
 
-## 15. 다음 구현 우선순위
+## 17. 다음 구현 우선순위
 
 `feature/office-foundation` 기준:
 
-1. 법적/자산 문서 ✅
-2. 독립 UI theme foundation ✅
-3. OpenType fsType reader ✅ 초기 구현
-4. FontLicenseService / font picker
-5. OOXML 공통 package abstraction 설계
-6. PPTX Writer MVP
-7. Presentation internal model
-8. basic Editor UI
-9. DOCX
-10. XLSX
-11. HWPX
-12. HWP
+1. Windows `csc.exe` compile 오류 0 확인
+2. Writer self-test 실제 실행
+3. Editor Add Text / delete object
+4. object drag/resize
+5. undo/redo command stack
+6. image insert + media part abstraction
+7. basic shapes
+8. unknown-part preservation
+9. existing PPTX editable import 범위 확대
+10. DOCX Reader/Writer
+11. XLSX Reader/Writer
+12. HWPX
+13. HWP
 
-상세 로드맵은 [`docs/ARCHITECTURE_ROADMAP.md`](docs/ARCHITECTURE_ROADMAP.md)를 본다.
+상세 로드맵:
 
-**새 기능보다 기존 PPTX Viewer 회귀 방지, 저작권/라이선스 안전, 실제 Windows 빌드 안정성이 우선이다.**
+```text
+docs/ARCHITECTURE_ROADMAP.md
+```
+
+**기능 추가보다 기존 PPTX Viewer 회귀 방지, 저작권/라이선스 안전, 사용자 문서 손실 방지, 실제 Windows 빌드 안정성이 우선이다.**
