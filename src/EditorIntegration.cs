@@ -8,6 +8,14 @@ namespace PptxViewer
     {
         protected override void OnKeyDown(KeyEventArgs e)
         {
+            if (e.Control && e.Shift && e.KeyCode == Keys.I)
+            {
+                ShowCurrentPresentationCompatibilityReport();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
+
             if (e.Control && e.Shift && e.KeyCode == Keys.E)
             {
                 OpenCurrentPresentationEditor();
@@ -79,10 +87,50 @@ namespace PptxViewer
                 MessageBox.Show(
                     this,
                     ex.Message +
-                    "\r\n\r\nThe file remains unchanged and can still be opened in Viewer mode.",
+                    "\r\n\r\nThe file remains unchanged and can still be opened in Viewer mode.\r\nUse Ctrl+Shift+I for a read-only compatibility report.",
                     "Editing is not safe yet",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
+            }
+        }
+
+        private void ShowCurrentPresentationCompatibilityReport()
+        {
+            if (string.IsNullOrEmpty(currentFile) ||
+                !File.Exists(currentFile) ||
+                !string.Equals(
+                    Path.GetExtension(currentFile),
+                    ".pptx",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show(
+                    this,
+                    "Open a PPTX file first.",
+                    "PPTX compatibility",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                PptxCompatibilityReport report =
+                    PptxCompatibilityAnalyzer.Analyze(currentFile);
+
+                using (PptxCompatibilityReportForm form =
+                    new PptxCompatibilityReportForm(report))
+                {
+                    form.ShowDialog(this);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    this,
+                    ex.Message,
+                    "Compatibility scan failed",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 
