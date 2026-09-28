@@ -14,7 +14,8 @@ namespace PptxViewer
         NewOdt,
         NewOds,
         NewOdp,
-        OpenExisting
+        OpenExisting,
+        ExportPdf
     }
 
     internal sealed class OfficeWorkspaceDialog : Form
@@ -42,7 +43,7 @@ namespace PptxViewer
             title.Top = 22;
             title.Width = 740;
             title.Height = 38;
-            title.Text = "Create or open a document";
+            title.Text = "Create, open, or export a document";
             title.Font = new Font(Font.FontFamily, 17f, FontStyle.Bold);
             title.ForeColor = ApplicationTheme.PrimaryText;
             Controls.Add(title);
@@ -156,6 +157,21 @@ namespace PptxViewer
                 Close();
             };
             Controls.Add(open);
+
+            Button exportPdf = new Button();
+            exportPdf.Text = "Export document to PDF...";
+            exportPdf.Left = 410;
+            exportPdf.Top = 528;
+            exportPdf.Width = 220;
+            exportPdf.Height = 38;
+            ApplicationTheme.ApplyButton(exportPdf);
+            exportPdf.Click += delegate
+            {
+                SelectedAction = WorkspaceAction.ExportPdf;
+                DialogResult = DialogResult.OK;
+                Close();
+            };
+            Controls.Add(exportPdf);
 
             Button cancel = new Button();
             cancel.Text = "Cancel";
