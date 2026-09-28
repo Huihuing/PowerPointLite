@@ -51,6 +51,9 @@ internal static class Program
                 if (TryRunHwpxSelfTest(args))
                     return;
 
+                if (TryRunHwpParserSelfTest(args))
+                    return;
+
                 string startupFile = null;
                 if (args != null && args.Length > 0 && File.Exists(args[0]))
                     startupFile = args[0];
@@ -164,6 +167,26 @@ internal static class Program
                 outputPath +
                 "\r\n\r\nHancom compatibility still requires a real Windows/Hancom test before this feature is considered stable.",
                 "PowerPointLite HWPX Test",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+
+            return true;
+        }
+
+        private static bool TryRunHwpParserSelfTest(string[] args)
+        {
+            if (args == null || args.Length == 0 ||
+                !string.Equals(args[0], "--hwp-parser-selftest", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            HwpDiagnostics.ValidateParserFoundation();
+
+            MessageBox.Show(
+                "HWP FileHeader / record parser synthetic self-test passed.\r\n\r\n" +
+                "A real HWP compatibility test is still required before HWP read support is considered stable.",
+                "PowerPointLite HWP Parser Test",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
 
