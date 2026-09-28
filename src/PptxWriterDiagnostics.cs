@@ -21,7 +21,7 @@ namespace PptxViewer
             body.X = 1371600;
             body.Y = 2743200;
             body.Width = 9448800;
-            body.Height = 1828800;
+            body.Height = 1371600;
             body.FontSizePoints = 18f;
             body.Alignment = PresentationTextAlignment.Center;
             body.ColorHex = "44546A";
@@ -30,7 +30,7 @@ namespace PptxViewer
                 PresentationShapeKind.RoundedRectangle);
             shape.Name = "Generated Shape";
             shape.X = 914400;
-            shape.Y = 4800600;
+            shape.Y = 4572000;
             shape.Width = 2743200;
             shape.Height = 1143000;
             shape.FillColorHex = "31B6A1";
@@ -42,9 +42,29 @@ namespace PptxViewer
                 "image/png");
             generatedImage.Name = "Generated test image";
             generatedImage.X = 8229600;
-            generatedImage.Y = 4572000;
+            generatedImage.Y = 4343400;
             generatedImage.Width = 2286000;
             generatedImage.Height = 1371600;
+
+            PresentationTable table = second.AddTable(2, 3);
+            table.Name = "Generated Table";
+            table.X = 1371600;
+            table.Y = 960120;
+            table.Width = 9448800;
+            table.Height = 1143000;
+
+            for (int row = 0; row < table.Rows; row++)
+            {
+                for (int column = 0; column < table.Columns; column++)
+                {
+                    PresentationTableCell cell = table.GetCell(row, column);
+                    cell.Text = "R" + (row + 1).ToString() + " C" + (column + 1).ToString();
+                    cell.FontSizePoints = 13f;
+                    cell.Alignment = PresentationTextAlignment.Center;
+                    cell.FillColorHex = row == 0 ? "EAF0FF" : "FFFFFF";
+                    cell.Bold = row == 0;
+                }
+            }
 
             PresentationSlide third = document.AddSlide("Formatting Test");
             PresentationTextBox sample = third.AddTextBox("Bold / italic writer test");
@@ -59,7 +79,7 @@ namespace PptxViewer
             sample.Alignment = PresentationTextAlignment.Center;
             sample.ColorHex = "5B8CFF";
 
-            PptxWriter.Save(document, outputPath);
+            PresentationPackageWriter.Save(document, outputPath);
             ValidatePackage(outputPath, document.Slides.Count, true);
             ValidateEditableRoundTrip(outputPath);
         }
@@ -111,9 +131,18 @@ namespace PptxViewer
                 throw new InvalidOperationException("Editable reader did not preserve the generated image.");
             }
 
+            if (second.Tables.Count != 1 ||
+                second.Tables[0].Rows != 2 ||
+                second.Tables[0].Columns != 3 ||
+                second.Tables[0].GetCell(0, 1).Text != "R1 C2")
+            {
+                throw new InvalidOperationException("Editable reader did not preserve the generated table.");
+            }
+
             second.TextBoxes[1].Text =
                 "Round-trip edit completed successfully.";
             second.Shapes[0].FillColorHex = "F4A261";
+            second.Tables[0].GetCell(1, 2).Text = "Table round-trip OK";
 
             string roundTripPath = path + ".roundtrip.pptx";
 
@@ -122,7 +151,7 @@ namespace PptxViewer
                 if (File.Exists(roundTripPath))
                     File.Delete(roundTripPath);
 
-                PptxWriter.Save(loaded.Document, roundTripPath);
+                PresentationPackageWriter.Save(loaded.Document, roundTripPath);
                 ValidatePackage(roundTripPath, loaded.Document.Slides.Count, true);
 
                 PptxEditableLoadResult secondRead =
@@ -157,6 +186,12 @@ namespace PptxViewer
                     verify.Images[0].Data.Length == 0)
                 {
                     throw new InvalidOperationException("Image round-trip verification failed.");
+                }
+
+                if (verify.Tables.Count != 1 ||
+                    verify.Tables[0].GetCell(1, 2).Text != "Table round-trip OK")
+                {
+                    throw new InvalidOperationException("Table round-trip verification failed.");
                 }
             }
             finally
@@ -216,6 +251,15 @@ namespace PptxViewer
                         "Expected " + expectedSlides.ToString() +
                         " slides but presentation.xml contains " +
                         (slideIds == null ? "0" : slideIds.Count.ToString()) + ".");
+                }
+
+                XmlDocument slide2 =
+                    OpcPackageUtility.ReadXmlPart(archive, "ppt/slides/slide2.xml");
+
+                if (slide2 == null ||
+                    slide2.GetElementsByTagName("a:tbl").Count != 1)
+                {
+                    throw new InvalidOperationException("Generated table XML was not found in slide2.xml.");
                 }
             }
         }
