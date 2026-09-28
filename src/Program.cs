@@ -41,29 +41,23 @@ namespace PptxViewer
 
                 if (TryRunWriterSelfTest(args))
                     return;
-
                 if (TryRunDocxSelfTest(args))
                     return;
-
                 if (TryRunXlsxSelfTest(args))
                     return;
-
                 if (TryRunHwpxSelfTest(args))
                     return;
-
                 if (TryRunHwpParserSelfTest(args))
                     return;
-
                 if (TryRunOdtSelfTest(args))
                     return;
-
                 if (TryRunOdsSelfTest(args))
                     return;
-
                 if (TryRunOdpSelfTest(args))
                     return;
-
                 if (TryRunPdfSelfTest(args))
+                    return;
+                if (TryRunConversionSelfTest(args))
                     return;
 
                 string startupFile = null;
@@ -100,7 +94,8 @@ namespace PptxViewer
                 string.Equals(args[0], "--odt-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--ods-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--odp-selftest", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(args[0], "--pdf-selftest", StringComparison.OrdinalIgnoreCase);
+                string.Equals(args[0], "--pdf-selftest", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "--conversion-selftest", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool TryRunWriterSelfTest(string[] args)
@@ -108,10 +103,7 @@ namespace PptxViewer
             if (!MatchesCommand(args, "--writer-selftest"))
                 return false;
 
-            string outputPath = ResolveOutputFile(
-                args,
-                "TEST_WRITER_OUTPUT.pptx");
-
+            string outputPath = ResolveOutputFile(args, "TEST_WRITER_OUTPUT.pptx");
             PptxWriterDiagnostics.CreateAndValidate(outputPath);
             Environment.ExitCode = 0;
             CrashReporter.WriteLine("PPTX Writer self-test passed: " + outputPath);
@@ -123,10 +115,7 @@ namespace PptxViewer
             if (!MatchesCommand(args, "--docx-selftest"))
                 return false;
 
-            string outputPath = ResolveOutputFile(
-                args,
-                "TEST_DOCX_OUTPUT.docx");
-
+            string outputPath = ResolveOutputFile(args, "TEST_DOCX_OUTPUT.docx");
             DocxDiagnostics.CreateAndValidate(outputPath);
             Environment.ExitCode = 0;
             CrashReporter.WriteLine("DOCX self-test passed: " + outputPath);
@@ -138,10 +127,7 @@ namespace PptxViewer
             if (!MatchesCommand(args, "--xlsx-selftest"))
                 return false;
 
-            string outputPath = ResolveOutputFile(
-                args,
-                "TEST_XLSX_OUTPUT.xlsx");
-
+            string outputPath = ResolveOutputFile(args, "TEST_XLSX_OUTPUT.xlsx");
             XlsxDiagnostics.CreateAndValidate(outputPath);
             Environment.ExitCode = 0;
             CrashReporter.WriteLine("XLSX self-test passed: " + outputPath);
@@ -153,10 +139,7 @@ namespace PptxViewer
             if (!MatchesCommand(args, "--hwpx-selftest"))
                 return false;
 
-            string outputPath = ResolveOutputFile(
-                args,
-                "TEST_HWPX_OUTPUT.hwpx");
-
+            string outputPath = ResolveOutputFile(args, "TEST_HWPX_OUTPUT.hwpx");
             HwpxDiagnostics.CreateAndValidate(outputPath);
             Environment.ExitCode = 0;
             CrashReporter.WriteLine("HWPX structural self-test passed: " + outputPath);
@@ -179,10 +162,7 @@ namespace PptxViewer
             if (!MatchesCommand(args, "--odt-selftest"))
                 return false;
 
-            string outputPath = ResolveOutputFile(
-                args,
-                "TEST_ODT_OUTPUT.odt");
-
+            string outputPath = ResolveOutputFile(args, "TEST_ODT_OUTPUT.odt");
             OdtDiagnostics.CreateAndValidate(outputPath);
             Environment.ExitCode = 0;
             CrashReporter.WriteLine("ODT self-test passed: " + outputPath);
@@ -194,10 +174,7 @@ namespace PptxViewer
             if (!MatchesCommand(args, "--ods-selftest"))
                 return false;
 
-            string outputPath = ResolveOutputFile(
-                args,
-                "TEST_ODS_OUTPUT.ods");
-
+            string outputPath = ResolveOutputFile(args, "TEST_ODS_OUTPUT.ods");
             OdsDiagnostics.CreateAndValidate(outputPath);
             Environment.ExitCode = 0;
             CrashReporter.WriteLine("ODS self-test passed: " + outputPath);
@@ -209,10 +186,7 @@ namespace PptxViewer
             if (!MatchesCommand(args, "--odp-selftest"))
                 return false;
 
-            string outputPath = ResolveOutputFile(
-                args,
-                "TEST_ODP_OUTPUT.odp");
-
+            string outputPath = ResolveOutputFile(args, "TEST_ODP_OUTPUT.odp");
             OdpDiagnostics.CreateAndValidate(outputPath);
             Environment.ExitCode = 0;
             CrashReporter.WriteLine("ODP self-test passed: " + outputPath);
@@ -234,6 +208,24 @@ namespace PptxViewer
             PdfExportDiagnostics.CreateAndValidate(outputDirectory);
             Environment.ExitCode = 0;
             CrashReporter.WriteLine("PDF raster export self-test passed: " + outputDirectory);
+            return true;
+        }
+
+        private static bool TryRunConversionSelfTest(string[] args)
+        {
+            if (!MatchesCommand(args, "--conversion-selftest"))
+                return false;
+
+            string outputDirectory =
+                args != null && args.Length > 1 && !string.IsNullOrEmpty(args[1])
+                    ? Path.GetFullPath(args[1])
+                    : Path.Combine(
+                        AppDomain.CurrentDomain.BaseDirectory,
+                        "CONVERSION_SELFTEST_OUTPUT");
+
+            DocumentConversionDiagnostics.CreateAndValidate(outputDirectory);
+            Environment.ExitCode = 0;
+            CrashReporter.WriteLine("Cross-format conversion self-test passed: " + outputDirectory);
             return true;
         }
 
