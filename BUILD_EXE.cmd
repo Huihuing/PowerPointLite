@@ -2,6 +2,9 @@
 setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 
+set "QUIET_BUILD=0"
+if /i "%~1"=="--quiet" set "QUIET_BUILD=1"
+
 echo ==========================================
 echo PowerPointLite - EXE Builder
 echo Recursive source build enabled
@@ -21,13 +24,13 @@ if not defined CSC if exist "%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe
 
 if not defined CSC (
   echo ERROR: Windows .NET Framework C# compiler was not found.
-  pause
+  if "%QUIET_BUILD%"=="0" pause
   exit /b 1
 )
 
 if not exist "src" (
   echo ERROR: src directory was not found.
-  pause
+  if "%QUIET_BUILD%"=="0" pause
   exit /b 1
 )
 
@@ -43,7 +46,7 @@ for /r "src" %%F in (*.cs) do (
 if !SOURCE_COUNT! LEQ 0 (
   echo ERROR: No C# source files were found under src.
   if exist "%SOURCE_LIST%" del /q "%SOURCE_LIST%"
-  pause
+  if "%QUIET_BUILD%"=="0" pause
   exit /b 1
 )
 
@@ -74,7 +77,7 @@ if exist "%SOURCE_LIST%" del /q "%SOURCE_LIST%"
 if not "%BUILD_RESULT%"=="0" (
   echo.
   echo BUILD FAILED
-  pause
+  if "%QUIET_BUILD%"=="0" pause
   exit /b %BUILD_RESULT%
 )
 
@@ -88,5 +91,10 @@ echo %CD%\PowerPointLite.exe
 echo.
 echo This EXE can be launched directly without BUILD_EXE.cmd.
 echo.
-start "" explorer.exe /select,"%CD%\PowerPointLite.exe"
-pause
+
+if "%QUIET_BUILD%"=="0" (
+  start "" explorer.exe /select,"%CD%\PowerPointLite.exe"
+  pause
+)
+
+exit /b 0
