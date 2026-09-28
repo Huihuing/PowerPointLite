@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -16,7 +16,7 @@ using System.Xml;
 
 namespace PptxViewer
 {
-internal static class Program
+    internal static class Program
     {
         [STAThread]
         private static void Main(string[] args)
@@ -54,6 +54,18 @@ internal static class Program
                 if (TryRunHwpParserSelfTest(args))
                     return;
 
+                if (TryRunOdtSelfTest(args))
+                    return;
+
+                if (TryRunOdsSelfTest(args))
+                    return;
+
+                if (TryRunOdpSelfTest(args))
+                    return;
+
+                if (TryRunPdfSelfTest(args))
+                    return;
+
                 string startupFile = null;
                 if (args != null && args.Length > 0 && File.Exists(args[0]))
                     startupFile = args[0];
@@ -84,23 +96,21 @@ internal static class Program
                 string.Equals(args[0], "--docx-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--xlsx-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--hwpx-selftest", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(args[0], "--hwp-parser-selftest", StringComparison.OrdinalIgnoreCase);
+                string.Equals(args[0], "--hwp-parser-selftest", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "--odt-selftest", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "--ods-selftest", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "--odp-selftest", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "--pdf-selftest", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool TryRunWriterSelfTest(string[] args)
         {
-            if (args == null || args.Length == 0 ||
-                !string.Equals(args[0], "--writer-selftest", StringComparison.OrdinalIgnoreCase))
-            {
+            if (!MatchesCommand(args, "--writer-selftest"))
                 return false;
-            }
 
-            string outputPath =
-                args.Length > 1 && !string.IsNullOrEmpty(args[1])
-                    ? Path.GetFullPath(args[1])
-                    : Path.Combine(
-                        AppDomain.CurrentDomain.BaseDirectory,
-                        "TEST_WRITER_OUTPUT.pptx");
+            string outputPath = ResolveOutputFile(
+                args,
+                "TEST_WRITER_OUTPUT.pptx");
 
             PptxWriterDiagnostics.CreateAndValidate(outputPath);
             Environment.ExitCode = 0;
@@ -110,18 +120,12 @@ internal static class Program
 
         private static bool TryRunDocxSelfTest(string[] args)
         {
-            if (args == null || args.Length == 0 ||
-                !string.Equals(args[0], "--docx-selftest", StringComparison.OrdinalIgnoreCase))
-            {
+            if (!MatchesCommand(args, "--docx-selftest"))
                 return false;
-            }
 
-            string outputPath =
-                args.Length > 1 && !string.IsNullOrEmpty(args[1])
-                    ? Path.GetFullPath(args[1])
-                    : Path.Combine(
-                        AppDomain.CurrentDomain.BaseDirectory,
-                        "TEST_DOCX_OUTPUT.docx");
+            string outputPath = ResolveOutputFile(
+                args,
+                "TEST_DOCX_OUTPUT.docx");
 
             DocxDiagnostics.CreateAndValidate(outputPath);
             Environment.ExitCode = 0;
@@ -131,18 +135,12 @@ internal static class Program
 
         private static bool TryRunXlsxSelfTest(string[] args)
         {
-            if (args == null || args.Length == 0 ||
-                !string.Equals(args[0], "--xlsx-selftest", StringComparison.OrdinalIgnoreCase))
-            {
+            if (!MatchesCommand(args, "--xlsx-selftest"))
                 return false;
-            }
 
-            string outputPath =
-                args.Length > 1 && !string.IsNullOrEmpty(args[1])
-                    ? Path.GetFullPath(args[1])
-                    : Path.Combine(
-                        AppDomain.CurrentDomain.BaseDirectory,
-                        "TEST_XLSX_OUTPUT.xlsx");
+            string outputPath = ResolveOutputFile(
+                args,
+                "TEST_XLSX_OUTPUT.xlsx");
 
             XlsxDiagnostics.CreateAndValidate(outputPath);
             Environment.ExitCode = 0;
@@ -152,18 +150,12 @@ internal static class Program
 
         private static bool TryRunHwpxSelfTest(string[] args)
         {
-            if (args == null || args.Length == 0 ||
-                !string.Equals(args[0], "--hwpx-selftest", StringComparison.OrdinalIgnoreCase))
-            {
+            if (!MatchesCommand(args, "--hwpx-selftest"))
                 return false;
-            }
 
-            string outputPath =
-                args.Length > 1 && !string.IsNullOrEmpty(args[1])
-                    ? Path.GetFullPath(args[1])
-                    : Path.Combine(
-                        AppDomain.CurrentDomain.BaseDirectory,
-                        "TEST_HWPX_OUTPUT.hwpx");
+            string outputPath = ResolveOutputFile(
+                args,
+                "TEST_HWPX_OUTPUT.hwpx");
 
             HwpxDiagnostics.CreateAndValidate(outputPath);
             Environment.ExitCode = 0;
@@ -173,20 +165,103 @@ internal static class Program
 
         private static bool TryRunHwpParserSelfTest(string[] args)
         {
-            if (args == null || args.Length == 0 ||
-                !string.Equals(args[0], "--hwp-parser-selftest", StringComparison.OrdinalIgnoreCase))
-            {
+            if (!MatchesCommand(args, "--hwp-parser-selftest"))
                 return false;
-            }
 
             HwpDiagnostics.ValidateParserFoundation();
             Environment.ExitCode = 0;
             CrashReporter.WriteLine("HWP FileHeader/record parser self-test passed.");
             return true;
         }
+
+        private static bool TryRunOdtSelfTest(string[] args)
+        {
+            if (!MatchesCommand(args, "--odt-selftest"))
+                return false;
+
+            string outputPath = ResolveOutputFile(
+                args,
+                "TEST_ODT_OUTPUT.odt");
+
+            OdtDiagnostics.CreateAndValidate(outputPath);
+            Environment.ExitCode = 0;
+            CrashReporter.WriteLine("ODT self-test passed: " + outputPath);
+            return true;
+        }
+
+        private static bool TryRunOdsSelfTest(string[] args)
+        {
+            if (!MatchesCommand(args, "--ods-selftest"))
+                return false;
+
+            string outputPath = ResolveOutputFile(
+                args,
+                "TEST_ODS_OUTPUT.ods");
+
+            OdsDiagnostics.CreateAndValidate(outputPath);
+            Environment.ExitCode = 0;
+            CrashReporter.WriteLine("ODS self-test passed: " + outputPath);
+            return true;
+        }
+
+        private static bool TryRunOdpSelfTest(string[] args)
+        {
+            if (!MatchesCommand(args, "--odp-selftest"))
+                return false;
+
+            string outputPath = ResolveOutputFile(
+                args,
+                "TEST_ODP_OUTPUT.odp");
+
+            OdpDiagnostics.CreateAndValidate(outputPath);
+            Environment.ExitCode = 0;
+            CrashReporter.WriteLine("ODP self-test passed: " + outputPath);
+            return true;
+        }
+
+        private static bool TryRunPdfSelfTest(string[] args)
+        {
+            if (!MatchesCommand(args, "--pdf-selftest"))
+                return false;
+
+            string outputDirectory =
+                args != null && args.Length > 1 && !string.IsNullOrEmpty(args[1])
+                    ? Path.GetFullPath(args[1])
+                    : Path.Combine(
+                        AppDomain.CurrentDomain.BaseDirectory,
+                        "PDF_SELFTEST_OUTPUT");
+
+            PdfExportDiagnostics.CreateAndValidate(outputDirectory);
+            Environment.ExitCode = 0;
+            CrashReporter.WriteLine("PDF raster export self-test passed: " + outputDirectory);
+            return true;
+        }
+
+        private static bool MatchesCommand(string[] args, string command)
+        {
+            return args != null &&
+                args.Length > 0 &&
+                string.Equals(
+                    args[0],
+                    command,
+                    StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string ResolveOutputFile(
+            string[] args,
+            string defaultFileName)
+        {
+            return args != null &&
+                args.Length > 1 &&
+                !string.IsNullOrEmpty(args[1])
+                    ? Path.GetFullPath(args[1])
+                    : Path.Combine(
+                        AppDomain.CurrentDomain.BaseDirectory,
+                        defaultFileName);
+        }
     }
 
-internal static class CrashReporter
+    internal static class CrashReporter
     {
         private static string LogDirectory
         {
