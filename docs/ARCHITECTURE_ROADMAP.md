@@ -87,7 +87,7 @@ Renderer      Editor
 
 ## Phase 2 — PPTX Writer MVP
 
-현재 `src/PptxWriter.cs`는 UI에 노출하지 않은 실험적 Writer다.
+현재 Writer와 편집 모델은 아직 feature 단계이며 main 안정 기능으로 간주하지 않는다.
 
 - [x] 새 presentation package 생성 초기 구현
 - [x] `[Content_Types].xml`
@@ -95,17 +95,24 @@ Renderer      Editor
 - [x] 자체 neutral theme/master/layout 최소 세트
 - [x] 첫 슬라이드와 text box 생성
 - [x] 기본 font/style XML 생성
-- [ ] Presentation internal model 연결
-- [ ] slide add/delete/reorder
-- [ ] 기존 text box 편집
+- [x] `PresentationDocument` internal model 초기 구현
+- [x] multi-slide Writer 연결
+- [x] model 단계 slide add/delete/reorder
+- [x] model 단계 text box / font / alignment 편집
+- [x] 임시 파일을 거치는 안전한 Save 교체 방식
+- [x] Save / Save As 세션 기반
+- [x] 자체 Writer package 진단 모드
 - [ ] image insert
 - [ ] basic shapes
 - [ ] basic table
-- [ ] Save / Save As UI
+- [ ] 기존 PPTX를 editable model로 안전하게 import
+- [ ] unknown/unsupported part preservation
 - [ ] Writer 생성물을 Windows PowerPoint/PowerPointLite에서 실제 검증
 - [ ] 생성 → 재열기 → 수정 → 재저장 round-trip
 
-Writer의 기본 패키지 구조는 독립 테스트에서 일반 PPTX parser가 1-slide presentation으로 읽을 수 있는지 확인했지만, Windows `csc.exe` 실빌드와 Microsoft PowerPoint 실제 호환성 검증 전에는 안정 기능으로 간주하지 않는다.
+Writer는 `src/PptxWriter.cs`가 `PresentationDocument`를 받아 PPTX를 생성한다. 사용자 PC의 폰트 family 이름을 문서에 기록할 수 있지만 font 파일 자체를 자동 embedding하지 않는다.
+
+Windows `csc.exe` 실빌드와 Microsoft PowerPoint 실제 호환성 검증 전에는 안정 기능으로 간주하지 않는다.
 
 ## Phase 3 — 공통 OOXML 계층
 
@@ -123,17 +130,26 @@ Writer의 기본 패키지 구조는 독립 테스트에서 일반 PPTX parser�
 
 ## Phase 4 — PPTX Editor UI
 
-- [ ] File → New/Open/Save/Save As
-- [ ] edit mode / viewer mode 분리
-- [ ] object selection
-- [ ] text edit
-- [ ] slide add/delete/reorder
+`src/PresentationEditorForm.cs`는 Office/Hancom UI를 복제하지 않는 독립적인 초기 Editor UI다.
+
+- [x] Ctrl+N 새 프레젠테이션 진입점
+- [x] slide list
+- [x] text box 선택 canvas
+- [x] text edit
+- [x] system font picker
+- [x] font size / bold / italic
+- [x] alignment / color
+- [x] slide add/delete/reorder
+- [x] Save / Save As
+- [x] dirty state / close confirmation
+- [ ] toolbar File 메뉴 정리
+- [ ] add/remove text box UI
+- [ ] drag/resize object selection
 - [ ] image insert
 - [ ] basic shapes
-- [ ] font picker
 - [ ] undo/redo
 - [ ] copy/paste
-- [ ] dirty state / save confirmation
+- [ ] existing PPTX edit mode
 
 Editor UI는 `docs/UI_DESIGN_GUIDE.md`에 따라 독립 디자인을 사용하고 Office UI 자산을 복제하지 않는다.
 
@@ -200,6 +216,14 @@ tests/
 6. Round-trip preservation
 7. Unsupported part preservation where practical
 
+Writer Windows 진단은 빌드 후 다음으로 실행한다.
+
+```bat
+RUN_WRITER_SELFTEST.cmd
+```
+
+이 테스트가 만든 `TEST_WRITER_OUTPUT.pptx`는 코드가 직접 생성한 테스트 자산이다.
+
 ## Merge 기준
 
 새 포맷/Editor 작업보다 기존 PPTX 기능 회귀 방지가 우선이다.
@@ -208,7 +232,9 @@ tests/
 - Viewer 실행 확인
 - 기존 PPTX 샘플 열기
 - Fit / TOC / slideshow / notes / print 확인
-- 새 기능 자체 테스트
+- `RUN_WRITER_SELFTEST.cmd` 통과
+- 새 Writer 파일을 PowerPointLite에서 다시 열기
+- 가능하면 Microsoft PowerPoint/LibreOffice에서도 구조 확인
 - 외부 자산/폰트 라이선스 확인
 
 이 조건을 통과한 뒤 main에 병합한다.
