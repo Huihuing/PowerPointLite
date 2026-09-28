@@ -12,7 +12,7 @@ if not exist "PowerPointLite.exe" (
 echo ==========================================
 echo PowerPointLite format self-tests
 echo PPTX / DOCX / XLSX / HWPX / HWP
-echo ODT / ODS / ODP / PDF
+echo ODT / ODS / ODP / PDF / Conversion
 echo ==========================================
 echo.
 
@@ -55,6 +55,17 @@ if errorlevel 1 (
   goto :failed
 )
 echo [OK] PDF raster exporter process completed
+echo.
+
+if exist "CONVERSION_SELFTEST_OUTPUT" rmdir /s /q "CONVERSION_SELFTEST_OUTPUT"
+mkdir "CONVERSION_SELFTEST_OUTPUT"
+echo [RUN] Cross-format conversion
+"PowerPointLite.exe" --conversion-selftest "%CD%\CONVERSION_SELFTEST_OUTPUT"
+if errorlevel 1 (
+  echo [FAIL] Cross-format conversion
+  goto :failed
+)
+echo [OK] Cross-format conversion process completed
 echo.
 
 echo ==========================================
