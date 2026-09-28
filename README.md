@@ -252,3 +252,28 @@ PowerPointLite.exe
 현재 `.gitignore`는 `PowerPointLite.exe`를 의도적으로 제외하지 않습니다. 따라서 private 저장소에서 최신 안정판 EXE 하나를 추적할 수 있습니다.
 
 개발 과정에서는 모든 작은 수정마다 바이너리를 갱신하지 않고, **Windows 실제 빌드와 실행 확인이 끝난 안정 버전에서만 EXE를 교체**하는 것을 권장합니다.
+
+## 개발 중: 발표 포인터 / 잉크
+
+`feature/presentation-tools` 브랜치에서는 내부 슬라이드쇼용 발표 도구를 개발 중입니다.
+
+- Arrow
+- Laser Pointer
+- Pen
+- Highlighter
+- Eraser
+- 현재 슬라이드 잉크 삭제
+- 전체 잉크 삭제
+
+단축키:
+
+```text
+Ctrl+A       Arrow
+Ctrl+L       Laser Pointer
+Ctrl+P       Pen
+Ctrl+H       Highlighter
+Ctrl+E       Eraser
+Ctrl+Shift+E 현재 슬라이드 잉크 삭제
+```
+
+잉크는 normalized slide coordinate로 저장되어 Fit/Zoom 변경 뒤에도 같은 위치에 표시됩니다. 이 기능은 Windows 실빌드 확인 전까지 `main`에 합치지 않습니다.

@@ -1,0 +1,14 @@
+PowerPointLite presentation tools - development
+=================================================
+
+Branch: feature/presentation-tools
+
+- Laser pointer overlay
+- Pen and highlighter annotations
+- Stroke eraser
+- Clear current/all ink
+- PowerPoint-like keyboard shortcuts
+- Normalized slide-relative ink coordinates
+- Guard normal slide click navigation while a drawing tool is selected
+
+This branch is intentionally not marked stable until Windows csc.exe build and runtime slideshow tests pass.

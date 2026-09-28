@@ -229,7 +229,7 @@ OPEN_LOGS.cmd
 - main에 micro-commit 남발 금지
 - 작업 전 최신 main 확인
 - cache/로그/디버그 산출물 커밋 금지
-- `PowerPointLite.exe`는 Windows 실빌드/실행 검증이 끝난 안정판만 private repo에 갱신 가능
+- `PowerPointLite.exe`는 Windows 실빌드/실행 검증이 끝난 안정판만 private 저장소에 갱신 가능
 
 ## 9. 포터블 EXE
 
@@ -268,3 +268,35 @@ private repo에 안정판 EXE 하나를 보관하는 것은 허용한다. 단 �
 12. Glow/Reflection/3D
 
 **새 기능 추가보다 현재 빌드/실행 상태를 깨뜨리지 않는 것이 우선이다.**
+
+## 개발 브랜치: feature/presentation-tools
+
+내부 슬라이드쇼의 발표 포인터/잉크 기능을 개발 중이다.
+
+관련 파일:
+
+```text
+src/Annotations.cs
+src/MainForm.Part03.cs
+```
+
+설계:
+
+- `Annotations.cs`의 `OnShown`에서 viewer overlay 이벤트 연결
+- `ProcessCmdKey`에서 PowerPoint 계열 포인터 단축키 처리
+- stroke는 슬라이드 상대(normalized) 좌표로 저장
+- 내부 슬라이드쇼에서만 overlay 표시
+- pointer tool이 Arrow가 아니면 `OnViewerMouseClick`이 slide advance/hyperlink를 실행하지 않도록 Part03에 guard 유지
+
+단축키:
+
+```text
+Ctrl+A       Arrow
+Ctrl+L       Laser
+Ctrl+P       Pen
+Ctrl+H       Highlighter
+Ctrl+E       Eraser
+Ctrl+Shift+E 현재 슬라이드 잉크 삭제
+```
+
+Windows 실제 `BUILD SUCCESS`와 기본 슬라이드쇼 테스트 전에 main으로 병합하지 않는다.

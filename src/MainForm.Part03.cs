@@ -250,6 +250,12 @@ public sealed partial class MainForm : Form
             if (e.Button != MouseButtons.Left)
                 return;
 
+            if (internalSlideShowMode &&
+                pointerTool != PointerTool.Arrow)
+            {
+                return;
+            }
+
             InternalPptxRenderer.InteractiveRegion region = HitTestInteractiveRegion(e.Location);
             if (region == null)
             {
