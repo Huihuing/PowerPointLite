@@ -150,7 +150,12 @@ namespace PptxViewer
             notesBox.BackColor = Color.FromArgb(246, 247, 249);
             notesBox.ForeColor = Color.FromArgb(30, 33, 38);
 
-            ApplicationTheme.ApplyRecursively(toolbar);
+            for (int i = 0; i < toolbar.Controls.Count; i++)
+                ApplicationTheme.ApplyRecursively(toolbar.Controls[i]);
+
+            // Keep the toolbar itself visually distinct from ordinary surfaces.
+            toolbar.BackColor = ApplicationTheme.Toolbar;
+
             ApplicationTheme.ApplyContextMenu(slideshowMenu);
 
             thumbnails.ControlAdded += delegate(object sender, ControlEventArgs e)
