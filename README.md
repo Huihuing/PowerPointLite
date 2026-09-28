@@ -1,134 +1,171 @@
 # PowerPointLite
 
-PowerPointLite는 Windows에서 `.pptx` / `.pptm` 프레젠테이션을 **읽기 전용으로 열고 발표하는 경량 PowerPoint Viewer**를 목표로 하는 프로젝트입니다.
+PowerPointLite는 현재 Windows용 `.pptx` / `.pptm` 프레젠테이션 Viewer로 개발 중이며, 장기적으로는 **PPTX/DOCX/XLSX/HWPX 등 문서·스프레드시트·프레젠테이션을 읽고 작성/편집/저장할 수 있는 경량 문서 프로그램**으로 확장하는 것을 검토하고 있습니다.
 
-Microsoft PowerPoint가 설치되어 있으면 네이티브 PowerPoint 렌더러를 우선 사용하고, 설치되어 있지 않은 환경에서는 자체 Open XML 렌더러로 PPTX를 직접 읽습니다.
+현재 안정 기능은 PPTX Viewer이며, 멀티포맷 확장은 기존 Viewer를 깨뜨리지 않는 단계적 방식으로 진행합니다.
 
-> 현재 버전: **1.3**
+> 현재 안정 기준: **1.3**
 
-## 목표
+## 현재 목표
 
-- PowerPoint가 없어도 일반적인 PPTX를 열 수 있는 독립 Viewer
-- PowerPoint Viewer에 가까운 탐색/발표 UX
-- 편집 기능보다 **보기 정확도와 발표 기능**을 우선
-- 별도의 .NET 8 SDK 설치 없이 Windows에서 EXE를 빌드할 수 있는 구조 유지
+- Microsoft PowerPoint가 없어도 일반적인 PPTX를 열 수 있는 독립 Viewer
+- PowerPoint가 설치되어 있으면 네이티브 렌더러/슬라이드쇼를 선택적으로 활용
+- 별도 .NET 8 SDK 없이 Windows .NET Framework `csc.exe`로 빌드 가능한 구조 유지
+- 향후 Reader / Writer / Internal Model을 분리해 PPTX 편집 기능부터 단계적으로 확장
+- 상용 프로그램의 코드·DLL·아이콘·템플릿을 복사하지 않는 독립 구현
+- 폰트 embedding/재배포 권한을 구조적으로 검사하는 안전한 문서 엔진
 
 ## 현재 지원 기능
 
-### 파일 및 탐색
+### PPTX Viewer
 
 - `.pptx`, `.pptm` 직접 열기
-- `.ppt`는 PowerPoint 또는 LibreOffice가 있을 때 지원
-- Drag & Drop
-- 최근 파일
-- 왼쪽 슬라이드 썸네일 / TOC
-- TOC 자동 숨김
-- 슬라이드 정렬기
-- 슬라이드 검색
-- 특정 슬라이드 번호로 이동
-- 숨김 슬라이드 표시/건너뛰기
-- 화면 맞춤(Fit)
-- 확대/축소
-- 전체화면
+- `.ppt`는 PowerPoint 또는 LibreOffice가 있을 때 fallback
+- Drag & Drop / Recent files
+- 슬라이드 썸네일 / TOC / Auto TOC
+- 실제 오른쪽 viewport 기준 Fit
+- 확대/축소 / F11 fullscreen
+- 슬라이드 검색 / 번호 이동 / sorter
+- 숨김 슬라이드
+- Speaker Notes
+- Presenter View
+- 인쇄: full slide / notes / 2·4·6 handout
 
-### 입력
+### 발표 입력
 
-- 마우스 휠: 이전/다음 슬라이드
-- `Ctrl + 휠`: 확대/축소
+- 마우스 휠: 이전/다음
+- `Ctrl + 휠`: zoom
 - `← / →`, `PageUp / PageDown`, `Home / End`
 - `F5`: 처음부터 슬라이드쇼
-- `Shift + F5`: 현재 슬라이드부터 슬라이드쇼
-- `N / P`: 발표 중 다음/이전
-- 숫자 + `Enter`: 발표 중 특정 슬라이드 이동
-- `B`: 검은 화면
-- `W`: 흰 화면
-- `H`: 인접 숨김 슬라이드 표시
-- `F11`: 전체화면
-
-### Presenter View
-
-- 현재 슬라이드
-- 다음 슬라이드
-- 발표자 노트
-- 슬라이드 제목 / 번호
-- 발표 경과시간
-- 이전 / 다음 / 특정 슬라이드 이동
-
-### 인쇄
-
-- 전체 슬라이드
-- Notes Page
-- 2장 Handout
-- 4장 Handout
-- 6장 Handout
+- `Shift + F5`: 현재 슬라이드부터
+- `N / P`
+- 숫자 + `Enter`
+- `B`: black screen
+- `W`: white screen
+- `H`: hidden slide
 
 ### 자체 Open XML 렌더러
 
-현재 내부 렌더러는 다음 요소를 처리합니다.
+현재 내부 렌더러는 다음 영역을 처리합니다.
 
-- 슬라이드 크기 / 비율
-- 테마 색상 및 기본 테마 폰트
-- Slide Master / Layout
-- Placeholder 위치 상속
-- 텍스트 / 기본 단락
-- 굵게 / 기울임 / 밑줄
-- 기본 글머리표 / 번호
-- 이미지 및 Crop
-- 이미지 / 도형 회전과 Flip
-- 기본 도형
-- 선 / 커넥터 / 화살표
-- 그룹 도형
-- 기본 표
-- 기본 차트
-- SmartArt 정적 fallback
-- 하이퍼링크
-- 미디어 추출/실행 fallback
-- 그라데이션 / 기본 그림자
-- 일부 SVG 기본 요소
-- 일부 전환 효과 및 애니메이션 fallback
+- slide size / background
+- theme color/font
+- master/layout/placeholder
+- text / paragraph / basic formatting
+- bullets / numbering
+- images / crop / alpha / rotation / flip
+- basic SVG subset / GDI+ EMF/WMF fallback
+- shapes / custom geometry 일부
+- line/connectors/arrowheads
+- groups / tables
+- basic charts
+- SmartArt static approximation
+- hyperlinks / slide actions
+- media extraction fallback
+- gradients / pattern fill / basic shadow
+- 일부 transition / entrance animation fallback
 
-## 렌더링 엔진 우선순위
+## 렌더링 엔진
 
 ```text
-Microsoft PowerPoint 설치됨
+Microsoft PowerPoint installed
         ↓
 PowerPoint Native Renderer
 
-PowerPoint 없음
+PowerPoint unavailable
         ↓
 Internal OpenXML Renderer
 
-구형 .ppt 또는 일부 fallback
+Legacy .ppt / selected fallback
         ↓
-LibreOffice (설치되어 있을 때)
+LibreOffice if installed
 ```
 
-PowerPoint 네이티브 엔진을 사용할 수 있는 환경에서는 호환성을 위해 항상 우선합니다.
+Microsoft 또는 LibreOffice 바이너리를 프로그램에 포함하지 않습니다.
+
+## 향후 확장 방향
+
+우선순위는 다음과 같습니다.
+
+```text
+1. PPTX Viewer 안정화
+2. 법적/폰트/자산 안전 기반
+3. PPTX Writer
+4. 공통 OOXML/OPC 계층
+5. PPTX Editor
+6. DOCX Reader/Writer
+7. XLSX Reader/Writer
+8. HWPX
+9. HWP
+10. ODF / PDF Export
+```
+
+상세 체크리스트는 [`docs/ARCHITECTURE_ROADMAP.md`](docs/ARCHITECTURE_ROADMAP.md)를 참고하세요.
+
+## 저작권 / 상표 / 자산 정책
+
+이 프로젝트는 파일 포맷을 독립적으로 구현합니다.
+
+하지 않는 것:
+
+- Microsoft Office 실행 파일/DLL 재배포
+- Hancom 실행 파일/DLL 재배포
+- Office/Hancom 공식 로고·아이콘 복사
+- 상용 템플릿/클립아트 무단 포함
+- 라이선스 불명확 폰트 파일 번들
+
+개발 정책은 [`docs/LEGAL_ASSET_POLICY.md`](docs/LEGAL_ASSET_POLICY.md)에 정리되어 있습니다.
+
+Microsoft, Word, Excel and PowerPoint are trademarks of Microsoft Corporation. This project is not affiliated with or endorsed by Microsoft.
+
+Hancom and related product names are trademarks of their respective owners. This project is not affiliated with or endorsed by Hancom.
+
+## 폰트 정책
+
+기본 원칙:
+
+- Windows에 설치된 폰트를 런타임에 사용
+- 앱 패키지에 시스템 폰트 파일을 복사하지 않음
+- 문서에는 기본적으로 font family 이름만 기록
+- 번들 폰트는 재배포 권한이 명확한 경우만 포함
+- 문서/PDF embedding은 `OS/2.fsType` 메타데이터와 실제 라이선스 원문을 함께 확인
+
+`src/FontLicensing.cs`에는 OpenType `OS/2.fsType`을 읽기 위한 초기 안전 계층이 포함되어 있습니다. 이 메타데이터는 보조 판단용이며 실제 라이선스 문구가 우선합니다.
+
+서드파티 고지는 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md), 라이선스 원문은 `licenses/`에서 관리합니다.
+
+## UI 원칙
+
+UI는 Microsoft Office 또는 Hancom UI를 복제하지 않고 자체적인 경량 데스크톱 디자인을 사용합니다.
+
+- 독립 dark palette
+- flat controls
+- viewer canvas 중심 레이아웃
+- 자체 제작 또는 재배포 가능한 자산만 사용
+- 시스템 `Segoe UI`를 UI에 사용할 수 있으나 폰트 파일은 번들하지 않음
+
+상세 내용: [`docs/UI_DESIGN_GUIDE.md`](docs/UI_DESIGN_GUIDE.md)
 
 ## 빌드
 
 ### 요구사항
 
 - Windows 10/11
-- Windows에 포함된 .NET Framework 4.x C# 컴파일러
+- Windows .NET Framework 4.x C# compiler
 
 `.NET 8 SDK`는 필요하지 않습니다.
-
-### 빌드 방법
-
-저장소 루트에서:
 
 ```bat
 BUILD_EXE.cmd
 ```
 
-정상적으로 완료되면 저장소 루트에 바로 실행 가능한 포터블 EXE가 생성됩니다.
+정상 빌드 시:
 
 ```text
 PowerPointLite.exe
 ```
 
-빌드 스크립트는 다음 컴파일러를 자동 탐색합니다.
+빌드 스크립트는 다음을 탐색합니다.
 
 ```text
 C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe
@@ -137,25 +174,25 @@ C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe
 
 ## 실행
 
-```text
+```bat
 PowerPointLite.exe
 ```
 
-또는 파일을 인자로 전달할 수 있습니다.
+또는:
 
 ```bat
 PowerPointLite.exe "C:\Presentations\sample.pptx"
 ```
 
-PPTX 파일을 프로그램 창에 Drag & Drop할 수도 있습니다.
+## Windows 연결 프로그램
 
-## Windows 연결 프로그램 등록
+등록:
 
 ```bat
 REGISTER_PPTX.cmd
 ```
 
-등록 해제:
+해제:
 
 ```bat
 UNREGISTER_PPTX.cmd
@@ -163,27 +200,15 @@ UNREGISTER_PPTX.cmd
 
 ## 진단
 
-프로그램이 실행되지 않거나 시작 중 오류가 발생하면:
-
 ```bat
 RUN_DIAGNOSTIC.cmd
 ```
 
-로그 위치:
+로그:
 
 ```text
 %LOCALAPPDATA%\PptxViewer\logs\last-startup.log
 ```
-
-로그 폴더 열기:
-
-```bat
-OPEN_LOGS.cmd
-```
-
-## 테스트 자산
-
-개발용 배포 ZIP에는 `TEST_INTERNAL_READER.pptx`, `TEST_BASIC_FEATURES.pptx` 같은 렌더러 확인용 샘플이 포함될 수 있습니다. GitHub의 바이너리 테스트 자산은 Windows 실빌드 검증과 함께 안정판 기준으로 동기화합니다.
 
 ## 저장소 구조
 
@@ -192,63 +217,33 @@ PowerPointLite/
 ├─ src/
 │  ├─ Program.cs
 │  ├─ MainForm.Part*.cs
+│  ├─ InternalPptxRenderer.Part*.cs
 │  ├─ PresenterView.cs
 │  ├─ Printing.cs
 │  ├─ RecentFileStore.cs
 │  ├─ ViewerDialogs.cs
-│  └─ InternalPptxRenderer.Part*.cs
-├─ PowerPointLite.exe.config
+│  ├─ FontLicensing.cs
+│  └─ UiTheme.cs
+├─ docs/
+│  ├─ ARCHITECTURE_ROADMAP.md
+│  ├─ LEGAL_ASSET_POLICY.md
+│  └─ UI_DESIGN_GUIDE.md
+├─ licenses/
+├─ THIRD_PARTY_NOTICES.md
 ├─ BUILD_EXE.cmd
-├─ REGISTER_PPTX.cmd
-├─ UNREGISTER_PPTX.cmd
-├─ RUN_DIAGNOSTIC.cmd
-├─ OPEN_LOGS.cmd
 ├─ FEATURES.txt
 ├─ README.md
 └─ AGENTS.md
 ```
 
-1.3부터 GitHub에서 소스를 직접 관리할 수 있도록 단일 파일을 `src/` 아래 partial class 단위로 분리했습니다. 동작 구조는 유지하면서 이후 Renderer / Viewer / Presentation / Printing 계층으로 점진적으로 정리할 수 있습니다.
+## 개발 상태와 테스트
 
-## 현재 한계
+상세 기능 상태는 [`FEATURES.txt`](FEATURES.txt)를 참고하세요.
 
-PowerPoint가 없는 상태에서 아래 기능을 Microsoft PowerPoint와 100% 동일하게 재현하지는 못합니다.
+AI/Codex/새 ChatGPT 세션에서 작업을 이어갈 경우 [`AGENTS.md`](AGENTS.md)를 먼저 읽습니다.
 
-- 모든 Morph 동작
-- 전체 애니메이션 타임라인
-- 모든 SmartArt 자동 레이아웃
-- 모든 Chart subtype
-- 고급 3D / Glow / Reflection
-- VBA / ActiveX
-- 모든 오디오/비디오 코덱 및 내장 재생
-- PowerPoint 고유 렌더링의 완전한 픽셀 일치
+Windows 실빌드가 불가능한 환경에서는 `BUILD SUCCESS`라고 가정하지 않으며, 안정판 EXE는 실제 Windows 빌드/실행 검증 후에만 갱신합니다.
 
-이 기능들은 지원 범위를 계속 확대하고 있습니다.
+## 프로젝트 라이선스
 
-## 개발 현황
-
-상세 구현 상태는 [`FEATURES.txt`](FEATURES.txt)를 참고하세요.
-
-AI 또는 새 ChatGPT 세션에서 작업을 이어갈 경우 [`AGENTS.md`](AGENTS.md)를 먼저 읽는 것을 권장합니다.
-
-## 라이선스
-
-현재 별도의 라이선스를 지정하지 않았습니다.
-
-## 포터블 실행 파일 운영
-
-`PowerPointLite.exe`는 설치 프로그램이 아니라 포터블 GUI 실행 파일입니다.
-
-Windows에서 한 번 빌드한 뒤 저장소에 `PowerPointLite.exe`를 함께 커밋하면 다른 PC에서는:
-
-```bat
-git clone https://github.com/Huihuing/PowerPointLite.git
-cd PowerPointLite
-PowerPointLite.exe
-```
-
-처럼 별도의 재빌드 없이 바로 실행할 수 있습니다.
-
-현재 `.gitignore`는 `PowerPointLite.exe`를 의도적으로 제외하지 않습니다. 따라서 private 저장소에서 최신 안정판 EXE 하나를 추적할 수 있습니다.
-
-개발 과정에서는 모든 작은 수정마다 바이너리를 갱신하지 않고, **Windows 실제 빌드와 실행 확인이 끝난 안정 버전에서만 EXE를 교체**하는 것을 권장합니다.
+프로젝트 코드 자체 라이선스는 아직 최종 결정되지 않았습니다. 공개 배포 전에 별도 `LICENSE`를 확정할 예정이며, 프로젝트 코드 라이선스와 번들 폰트/외부 자산 라이선스는 별도로 관리합니다.
