@@ -124,6 +124,8 @@ namespace PptxViewer
                     OpenExistingEditableOfficeFile();
                 else if (dialog.SelectedAction == WorkspaceAction.ExportPdf)
                     ExportSupportedDocumentToPdf();
+                else if (dialog.SelectedAction == WorkspaceAction.ConvertFormat)
+                    ConvertSupportedDocument();
             }
         }
 
