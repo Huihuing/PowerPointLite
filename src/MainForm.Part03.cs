@@ -259,8 +259,12 @@ public sealed partial class MainForm : Form
             InternalPptxRenderer.InteractiveRegion region = HitTestInteractiveRegion(e.Location);
             if (region == null)
             {
-                if (internalSlideShowMode)
+                if (internalSlideShowMode &&
+                    CurrentSlideAllowsMouseAdvance())
+                {
                     Next();
+                }
+
                 return;
             }
 
