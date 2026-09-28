@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -190,6 +190,78 @@ internal sealed class PresenterViewForm : Form
                 if (nextPicture.Image != null)
                     nextPicture.Image.Dispose();
             };
+        }
+
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+            PositionOnPreferredScreen();
+        }
+
+        private void PositionOnPreferredScreen()
+        {
+            Screen ownerScreen =
+                Owner != null
+                ? Screen.FromControl(Owner)
+                : Screen.FromPoint(Cursor.Position);
+
+            Screen targetScreen =
+                ownerScreen;
+
+            Screen[] screens =
+                Screen.AllScreens;
+
+            if (screens != null &&
+                screens.Length > 1)
+            {
+                for (int i = 0;
+                     i < screens.Length;
+                     i++)
+                {
+                    if (!string.Equals(
+                            screens[i].DeviceName,
+                            ownerScreen.DeviceName,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        targetScreen =
+                            screens[i];
+                        break;
+                    }
+                }
+            }
+
+            Rectangle area =
+                targetScreen.WorkingArea;
+
+            int width =
+                Math.Max(
+                    400,
+                    Math.Min(
+                        Width,
+                        area.Width));
+
+            int height =
+                Math.Max(
+                    300,
+                    Math.Min(
+                        Height,
+                        area.Height));
+
+            StartPosition =
+                FormStartPosition.Manual;
+
+            Bounds =
+                new Rectangle(
+                    area.Left +
+                        Math.Max(
+                            0,
+                            (area.Width - width) / 2),
+                    area.Top +
+                        Math.Max(
+                            0,
+                            (area.Height - height) / 2),
+                    width,
+                    height);
         }
 
         private static Button MakeButton(string text, int left)
