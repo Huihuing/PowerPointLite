@@ -10,6 +10,15 @@ namespace PptxViewer
         Right
     }
 
+    internal enum PresentationShapeKind
+    {
+        Rectangle,
+        RoundedRectangle,
+        Ellipse,
+        Triangle,
+        Diamond
+    }
+
     internal sealed class PresentationTextBox
     {
         public string Name { get; set; }
@@ -60,16 +69,109 @@ namespace PptxViewer
         }
     }
 
+    internal sealed class PresentationShape
+    {
+        public string Name { get; set; }
+        public PresentationShapeKind Kind { get; set; }
+        public string FillColorHex { get; set; }
+        public string LineColorHex { get; set; }
+        public float LineWidthPoints { get; set; }
+        public long X { get; set; }
+        public long Y { get; set; }
+        public long Width { get; set; }
+        public long Height { get; set; }
+
+        public PresentationShape()
+        {
+            Name = "Shape";
+            Kind = PresentationShapeKind.Rectangle;
+            FillColorHex = "5B8CFF";
+            LineColorHex = "356AE6";
+            LineWidthPoints = 1.25f;
+            X = 1371600;
+            Y = 1371600;
+            Width = 2743200;
+            Height = 1828800;
+        }
+
+        public PresentationShape Clone()
+        {
+            PresentationShape copy = new PresentationShape();
+            copy.Name = Name;
+            copy.Kind = Kind;
+            copy.FillColorHex = FillColorHex;
+            copy.LineColorHex = LineColorHex;
+            copy.LineWidthPoints = LineWidthPoints;
+            copy.X = X;
+            copy.Y = Y;
+            copy.Width = Width;
+            copy.Height = Height;
+            return copy;
+        }
+    }
+
+    internal sealed class PresentationImage
+    {
+        public string Name { get; set; }
+        public string Extension { get; set; }
+        public string ContentType { get; set; }
+        public byte[] Data { get; set; }
+        public long X { get; set; }
+        public long Y { get; set; }
+        public long Width { get; set; }
+        public long Height { get; set; }
+
+        public PresentationImage()
+        {
+            Name = "Image";
+            Extension = "png";
+            ContentType = "image/png";
+            Data = new byte[0];
+            X = 1371600;
+            Y = 1371600;
+            Width = 3657600;
+            Height = 2743200;
+        }
+
+        public PresentationImage Clone()
+        {
+            PresentationImage copy = new PresentationImage();
+            copy.Name = Name;
+            copy.Extension = Extension;
+            copy.ContentType = ContentType;
+            copy.Data = Data == null ? new byte[0] : (byte[])Data.Clone();
+            copy.X = X;
+            copy.Y = Y;
+            copy.Width = Width;
+            copy.Height = Height;
+            return copy;
+        }
+    }
+
     internal sealed class PresentationSlide
     {
         private readonly List<PresentationTextBox> textBoxes =
             new List<PresentationTextBox>();
+        private readonly List<PresentationShape> shapes =
+            new List<PresentationShape>();
+        private readonly List<PresentationImage> images =
+            new List<PresentationImage>();
 
         public string Name { get; set; }
 
         public IList<PresentationTextBox> TextBoxes
         {
             get { return textBoxes; }
+        }
+
+        public IList<PresentationShape> Shapes
+        {
+            get { return shapes; }
+        }
+
+        public IList<PresentationImage> Images
+        {
+            get { return images; }
         }
 
         public PresentationSlide()
@@ -99,6 +201,59 @@ namespace PptxViewer
             return box;
         }
 
+        public PresentationShape AddShape(PresentationShapeKind kind)
+        {
+            PresentationShape shape = new PresentationShape();
+            shape.Kind = kind;
+            shape.Name = kind.ToString();
+            shapes.Add(shape);
+            return shape;
+        }
+
+        public PresentationImage AddImage(
+            byte[] data,
+            string extension,
+            string contentType)
+        {
+            PresentationImage image = new PresentationImage();
+            image.Data = data == null ? new byte[0] : (byte[])data.Clone();
+            image.Extension = string.IsNullOrEmpty(extension)
+                ? "png"
+                : extension.Trim().TrimStart('.').ToLowerInvariant();
+            image.ContentType = string.IsNullOrEmpty(contentType)
+                ? "image/png"
+                : contentType;
+            images.Add(image);
+            return image;
+        }
+
+        public bool RemoveTextBox(int index)
+        {
+            if (index < 0 || index >= textBoxes.Count)
+                return false;
+
+            textBoxes.RemoveAt(index);
+            return true;
+        }
+
+        public bool RemoveShape(int index)
+        {
+            if (index < 0 || index >= shapes.Count)
+                return false;
+
+            shapes.RemoveAt(index);
+            return true;
+        }
+
+        public bool RemoveImage(int index)
+        {
+            if (index < 0 || index >= images.Count)
+                return false;
+
+            images.RemoveAt(index);
+            return true;
+        }
+
         public PresentationSlide Clone()
         {
             PresentationSlide copy = new PresentationSlide();
@@ -106,6 +261,12 @@ namespace PptxViewer
 
             for (int i = 0; i < textBoxes.Count; i++)
                 copy.textBoxes.Add(textBoxes[i].Clone());
+
+            for (int i = 0; i < shapes.Count; i++)
+                copy.shapes.Add(shapes[i].Clone());
+
+            for (int i = 0; i < images.Count; i++)
+                copy.images.Add(images[i].Clone());
 
             return copy;
         }
@@ -171,7 +332,6 @@ namespace PptxViewer
             if (index < 0 || index >= slides.Count)
                 return false;
 
-            // Keep one slide so writer/editor state never becomes ambiguous.
             if (slides.Count <= 1)
                 return false;
 
