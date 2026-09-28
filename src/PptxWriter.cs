@@ -39,6 +39,8 @@ namespace PptxViewer
             "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout";
         private const string ThemeRelationship =
             "http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme";
+        private const string ImageRelationship =
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
 
         public static void CreateNewPresentation(string outputPath, string title)
         {
@@ -57,11 +59,12 @@ namespace PptxViewer
             if (document.Slides == null || document.Slides.Count == 0)
                 throw new InvalidOperationException("A presentation must contain at least one slide.");
 
-            string directory = Path.GetDirectoryName(Path.GetFullPath(outputPath));
+            string fullPath = Path.GetFullPath(outputPath);
+            string directory = Path.GetDirectoryName(fullPath);
             if (!string.IsNullOrEmpty(directory))
                 Directory.CreateDirectory(directory);
 
-            string temporaryPath = outputPath + ".writing";
+            string temporaryPath = fullPath + ".writing";
 
             if (File.Exists(temporaryPath))
                 File.Delete(temporaryPath);
@@ -85,15 +88,14 @@ namespace PptxViewer
                     for (int i = 0; i < document.Slides.Count; i++)
                     {
                         int slideNumber = i + 1;
-                        WriteSlide(archive, slideNumber, document.Slides[i]);
-                        WriteSlideRelationships(archive, slideNumber);
+                        PresentationSlide slide = document.Slides[i];
+                        WriteSlide(archive, slideNumber, slide);
+                        WriteSlideMedia(archive, slideNumber, slide);
+                        WriteSlideRelationships(archive, slideNumber, slide);
                     }
                 }
 
-                if (File.Exists(outputPath))
-                    File.Delete(outputPath);
-
-                File.Move(temporaryPath, outputPath);
+                ReplaceDestinationSafely(temporaryPath, fullPath);
             }
             catch
             {
@@ -108,11 +110,54 @@ namespace PptxViewer
             }
         }
 
+        private static void ReplaceDestinationSafely(
+            string temporaryPath,
+            string destinationPath)
+        {
+            if (!File.Exists(destinationPath))
+            {
+                File.Move(temporaryPath, destinationPath);
+                return;
+            }
+
+            string backupPath = destinationPath + ".backup";
+
+            if (File.Exists(backupPath))
+                File.Delete(backupPath);
+
+            File.Move(destinationPath, backupPath);
+
+            try
+            {
+                File.Move(temporaryPath, destinationPath);
+                File.Delete(backupPath);
+            }
+            catch
+            {
+                try
+                {
+                    if (File.Exists(destinationPath))
+                        File.Delete(destinationPath);
+
+                    if (File.Exists(backupPath))
+                        File.Move(backupPath, destinationPath);
+                }
+                catch { }
+
+                throw;
+            }
+        }
+
         private static void WriteContentTypes(ZipArchive archive, int slideCount)
         {
             Dictionary<string, string> defaults = new Dictionary<string, string>();
             defaults.Add("rels", "application/vnd.openxmlformats-package.relationships+xml");
             defaults.Add("xml", "application/xml");
+            defaults.Add("png", "image/png");
+            defaults.Add("jpg", "image/jpeg");
+            defaults.Add("jpeg", "image/jpeg");
+            defaults.Add("gif", "image/gif");
+            defaults.Add("bmp", "image/bmp");
 
             Dictionary<string, string> overrides = new Dictionary<string, string>();
             overrides.Add("ppt/presentation.xml", PresentationContentType);
@@ -263,10 +308,22 @@ namespace PptxViewer
             if (slide == null)
                 slide = new PresentationSlide();
 
-            StringBuilder shapes = new StringBuilder();
+            StringBuilder objects = new StringBuilder();
+            int shapeId = 2;
+
+            for (int i = 0; i < slide.Shapes.Count; i++)
+                objects.Append(BuildBasicShape(slide.Shapes[i], shapeId++));
+
+            for (int i = 0; i < slide.Images.Count; i++)
+            {
+                objects.Append(BuildImageShape(
+                    slide.Images[i],
+                    shapeId++,
+                    "rId" + (i + 2).ToString()));
+            }
 
             for (int i = 0; i < slide.TextBoxes.Count; i++)
-                shapes.Append(BuildTextShape(slide.TextBoxes[i], i + 2));
+                objects.Append(BuildTextShape(slide.TextBoxes[i], shapeId++));
 
             string slideName = EscapeXml(
                 string.IsNullOrEmpty(slide.Name)
@@ -279,7 +336,7 @@ namespace PptxViewer
                 "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" " +
                 "xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\">" +
                 "<p:cSld name=\"" + slideName + "\"><p:spTree>" +
-                EmptyShapeTreeXml() + shapes.ToString() +
+                EmptyShapeTreeXml() + objects.ToString() +
                 "</p:spTree></p:cSld>" +
                 "<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>" +
                 "</p:sld>";
@@ -288,6 +345,67 @@ namespace PptxViewer
                 archive,
                 "ppt/slides/slide" + slideNumber.ToString() + ".xml",
                 xml);
+        }
+
+        private static string BuildBasicShape(PresentationShape shape, int shapeId)
+        {
+            if (shape == null)
+                shape = new PresentationShape();
+
+            long x = Math.Max(0L, shape.X);
+            long y = Math.Max(0L, shape.Y);
+            long width = Math.Max(1L, shape.Width);
+            long height = Math.Max(1L, shape.Height);
+            long lineWidth = (long)Math.Round(
+                Math.Max(0.25f, Math.Min(20f, shape.LineWidthPoints)) * 12700.0f);
+
+            string name = EscapeXml(
+                string.IsNullOrEmpty(shape.Name)
+                    ? "Shape " + shapeId.ToString()
+                    : shape.Name);
+
+            return
+                "<p:sp>" +
+                "<p:nvSpPr><p:cNvPr id=\"" + shapeId.ToString() + "\" name=\"" + name + "\"/>" +
+                "<p:cNvSpPr/><p:nvPr/></p:nvSpPr>" +
+                "<p:spPr>" +
+                "<a:xfrm><a:off x=\"" + x.ToString() + "\" y=\"" + y.ToString() + "\"/>" +
+                "<a:ext cx=\"" + width.ToString() + "\" cy=\"" + height.ToString() + "\"/></a:xfrm>" +
+                "<a:prstGeom prst=\"" + ShapePreset(shape.Kind) + "\"><a:avLst/></a:prstGeom>" +
+                "<a:solidFill><a:srgbClr val=\"" + NormalizeColor(shape.FillColorHex) + "\"/></a:solidFill>" +
+                "<a:ln w=\"" + lineWidth.ToString() + "\"><a:solidFill><a:srgbClr val=\"" +
+                NormalizeColor(shape.LineColorHex) + "\"/></a:solidFill></a:ln>" +
+                "</p:spPr>" +
+                "</p:sp>";
+        }
+
+        private static string BuildImageShape(
+            PresentationImage image,
+            int shapeId,
+            string relationshipId)
+        {
+            if (image == null)
+                image = new PresentationImage();
+
+            long x = Math.Max(0L, image.X);
+            long y = Math.Max(0L, image.Y);
+            long width = Math.Max(1L, image.Width);
+            long height = Math.Max(1L, image.Height);
+            string name = EscapeXml(
+                string.IsNullOrEmpty(image.Name)
+                    ? "Image " + shapeId.ToString()
+                    : image.Name);
+
+            return
+                "<p:pic>" +
+                "<p:nvPicPr><p:cNvPr id=\"" + shapeId.ToString() + "\" name=\"" + name + "\"/>" +
+                "<p:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>" +
+                "<p:blipFill><a:blip r:embed=\"" + EscapeXml(relationshipId) + "\"/>" +
+                "<a:stretch><a:fillRect/></a:stretch></p:blipFill>" +
+                "<p:spPr><a:xfrm><a:off x=\"" + x.ToString() + "\" y=\"" + y.ToString() + "\"/>" +
+                "<a:ext cx=\"" + width.ToString() + "\" cy=\"" + height.ToString() + "\"/></a:xfrm>" +
+                "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr>" +
+                "</p:pic>";
         }
 
         private static string BuildTextShape(PresentationTextBox box, int shapeId)
@@ -386,10 +504,52 @@ namespace PptxViewer
             return result.ToString();
         }
 
-        private static void WriteSlideRelationships(ZipArchive archive, int slideNumber)
+        private static void WriteSlideMedia(
+            ZipArchive archive,
+            int slideNumber,
+            PresentationSlide slide)
+        {
+            if (slide == null)
+                return;
+
+            for (int i = 0; i < slide.Images.Count; i++)
+            {
+                PresentationImage image = slide.Images[i];
+                if (image == null || image.Data == null || image.Data.Length == 0)
+                    continue;
+
+                string extension = NormalizeImageExtension(image.Extension);
+                string partName = GetImagePartName(slideNumber, i + 1, extension);
+                ZipArchiveEntry entry = archive.CreateEntry(partName, CompressionLevel.Optimal);
+
+                using (Stream stream = entry.Open())
+                    stream.Write(image.Data, 0, image.Data.Length);
+            }
+        }
+
+        private static void WriteSlideRelationships(
+            ZipArchive archive,
+            int slideNumber,
+            PresentationSlide slide)
         {
             List<OpcRelationship> relationships = new List<OpcRelationship>();
             relationships.Add(Relationship("rId1", SlideLayoutRelationship, "../slideLayouts/slideLayout1.xml"));
+
+            if (slide != null)
+            {
+                for (int i = 0; i < slide.Images.Count; i++)
+                {
+                    PresentationImage image = slide.Images[i];
+                    string extension = NormalizeImageExtension(
+                        image == null ? string.Empty : image.Extension);
+
+                    relationships.Add(Relationship(
+                        "rId" + (i + 2).ToString(),
+                        ImageRelationship,
+                        "../media/" + Path.GetFileName(
+                            GetImagePartName(slideNumber, i + 1, extension))));
+                }
+            }
 
             XmlDocument document = OpcPackageUtility.CreateRelationshipsDocument(relationships);
             OpcPackageUtility.WriteXmlPart(
@@ -398,9 +558,48 @@ namespace PptxViewer
                 document);
         }
 
+        private static string GetImagePartName(
+            int slideNumber,
+            int imageNumber,
+            string extension)
+        {
+            return "ppt/media/slide" + slideNumber.ToString() +
+                "_image" + imageNumber.ToString() + "." + extension;
+        }
+
+        private static string NormalizeImageExtension(string extension)
+        {
+            string value = (extension ?? string.Empty)
+                .Trim()
+                .TrimStart('.')
+                .ToLowerInvariant();
+
+            if (value == "png" || value == "jpg" || value == "jpeg" ||
+                value == "gif" || value == "bmp")
+            {
+                return value;
+            }
+
+            throw new InvalidOperationException(
+                "Unsupported image type for PPTX Writer: " + value +
+                ". Supported types are PNG, JPEG, GIF and BMP.");
+        }
+
+        private static string ShapePreset(PresentationShapeKind kind)
+        {
+            if (kind == PresentationShapeKind.RoundedRectangle)
+                return "roundRect";
+            if (kind == PresentationShapeKind.Ellipse)
+                return "ellipse";
+            if (kind == PresentationShapeKind.Triangle)
+                return "triangle";
+            if (kind == PresentationShapeKind.Diamond)
+                return "diamond";
+            return "rect";
+        }
+
         private static void WriteTheme(ZipArchive archive)
         {
-            // Typeface names are references only. No font file is bundled or redistributed.
             string xml =
                 "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
                 "<a:theme xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" name=\"PowerPointLite Neutral\">" +
