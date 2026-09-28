@@ -6,7 +6,8 @@ namespace PptxViewer
     internal enum TextDocumentFileFormat
     {
         Docx,
-        Hwpx
+        Hwpx,
+        Odt
     }
 
     internal sealed class TextDocumentEditSession
@@ -18,21 +19,37 @@ namespace PptxViewer
 
         public string FormatDisplayName
         {
-            get { return Format == TextDocumentFileFormat.Hwpx ? "HWPX" : "DOCX"; }
+            get
+            {
+                if (Format == TextDocumentFileFormat.Hwpx)
+                    return "HWPX";
+                if (Format == TextDocumentFileFormat.Odt)
+                    return "ODT";
+                return "DOCX";
+            }
         }
 
         public string DefaultExtension
         {
-            get { return Format == TextDocumentFileFormat.Hwpx ? "hwpx" : "docx"; }
+            get
+            {
+                if (Format == TextDocumentFileFormat.Hwpx)
+                    return "hwpx";
+                if (Format == TextDocumentFileFormat.Odt)
+                    return "odt";
+                return "docx";
+            }
         }
 
         public string SaveDialogFilter
         {
             get
             {
-                return Format == TextDocumentFileFormat.Hwpx
-                    ? "HWPX Document (*.hwpx)|*.hwpx"
-                    : "Word Open XML Document (*.docx)|*.docx";
+                if (Format == TextDocumentFileFormat.Hwpx)
+                    return "HWPX Document (*.hwpx)|*.hwpx";
+                if (Format == TextDocumentFileFormat.Odt)
+                    return "OpenDocument Text (*.odt)|*.odt";
+                return "Word Open XML Document (*.docx)|*.docx";
             }
         }
 
@@ -57,6 +74,11 @@ namespace PptxViewer
         public static TextDocumentEditSession CreateNewHwpx(string title)
         {
             return CreateNew(title, TextDocumentFileFormat.Hwpx);
+        }
+
+        public static TextDocumentEditSession CreateNewOdt(string title)
+        {
+            return CreateNew(title, TextDocumentFileFormat.Odt);
         }
 
         public static TextDocumentEditSession CreateNew(
@@ -95,8 +117,28 @@ namespace PptxViewer
                 return hwpx;
             }
 
+            if (extension == ".odt")
+            {
+                OdtEditSafetyResult safety = OdtEditSafety.Analyze(path);
+                if (safety == null || !safety.CanEditSafely)
+                {
+                    throw new InvalidOperationException(
+                        safety == null || string.IsNullOrEmpty(safety.Warning)
+                            ? "This ODT cannot yet be edited without risking unsupported-content loss."
+                            : safety.Warning);
+                }
+
+                TextDocumentEditSession odt =
+                    new TextDocumentEditSession(
+                        OdtReader.Read(path),
+                        TextDocumentFileFormat.Odt);
+                odt.FilePath = Path.GetFullPath(path);
+                odt.IsDirty = false;
+                return odt;
+            }
+
             if (extension != ".docx")
-                throw new NotSupportedException("Only DOCX and HWPX are supported by the text document editor.");
+                throw new NotSupportedException("Only DOCX, HWPX and ODT are supported by the text document editor.");
 
             DocxEditSafetyResult docxSafety =
                 DocxEditSafety.Analyze(path);
@@ -191,6 +233,8 @@ namespace PptxViewer
         {
             if (Format == TextDocumentFileFormat.Hwpx)
                 HwpxWriter.Save(Document, path);
+            else if (Format == TextDocumentFileFormat.Odt)
+                OdtWriter.Save(Document, path);
             else
                 DocxWriter.Save(Document, path);
         }
