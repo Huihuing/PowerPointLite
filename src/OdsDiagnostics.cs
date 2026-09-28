@@ -10,15 +10,15 @@ namespace PptxViewer
         {
             SpreadsheetDocument document = SpreadsheetDocument.CreateNew("ODS Writer Self Test");
             SpreadsheetSheet first = document.Sheets[0];
-            first.SetText(1, 1, "Name");
-            first.SetText(1, 2, "Value");
-            first.SetText(2, 1, "Alpha");
-            first.SetNumber(2, 2, 42.5);
-            first.SetBoolean(3, 1, true);
-            first.SetFormula(3, 2, "=1+2");
+            first.SetInput(1, 1, "Name");
+            first.SetInput(1, 2, "Value");
+            first.SetInput(2, 1, "Alpha");
+            first.SetInput(2, 2, "42.5");
+            first.SetInput(3, 1, "true");
+            first.SetInput(3, 2, "=1+2");
 
             SpreadsheetSheet second = document.AddSheet("Second");
-            second.SetText(1, 1, "ODS second worksheet");
+            second.SetInput(1, 1, "ODS second worksheet");
 
             OdsWriter.Save(document, outputPath);
             ValidatePackage(outputPath);
@@ -35,7 +35,7 @@ namespace PptxViewer
             if (number == null || Math.Abs(number.NumberValue - 42.5) > 0.00001)
                 throw new InvalidOperationException("ODS numeric cell round-trip failed.");
 
-            reopened.Sheets[0].SetNumber(2, 2, 99.25);
+            reopened.Sheets[0].SetInput(2, 2, "99.25");
             OdsWriter.Save(reopened, outputPath);
 
             SpreadsheetDocument verify = OdsReader.Read(outputPath);
