@@ -11,6 +11,7 @@
 5. 기존 PPTX Viewer 회귀 테스트를 통과하지 못한 대규모 refactor는 main에 병합하지 않는다.
 6. 매크로 문서는 열 수 있어도 VBA를 실행하지 않는다.
 7. 상표/폰트/템플릿/외부 자산은 라이선스가 명확하지 않으면 포함하지 않는다.
+8. 임의의 외부 문서를 지원 모델보다 좁게 읽은 뒤 덮어써서 내용을 유실시키지 않는다.
 
 ## 목표 구조
 
@@ -99,18 +100,24 @@ Renderer      Editor
 - [x] multi-slide Writer 연결
 - [x] model 단계 slide add/delete/reorder
 - [x] model 단계 text box / font / alignment 편집
-- [x] 임시 파일을 거치는 안전한 Save 교체 방식
+- [x] model 단계 basic shape
+- [x] model 단계 image
+- [x] PNG/JPEG/GIF/BMP media part 작성
+- [x] 이미지 relationship 작성
+- [x] 기본 Rectangle/RoundedRectangle/Ellipse/Triangle/Diamond 작성
+- [x] `.writing` + backup 기반 Save 교체 방식
 - [x] Save / Save As 세션 기반
 - [x] 자체 Writer package 진단 모드
-- [ ] image insert
-- [ ] basic shapes
+- [x] Writer 생성 문서의 text/shape/image editable-reader round-trip 코드
 - [ ] basic table
-- [ ] 기존 PPTX를 editable model로 안전하게 import
+- [ ] 기존 임의 PPTX를 editable model로 안전하게 import
 - [ ] unknown/unsupported part preservation
 - [ ] Writer 생성물을 Windows PowerPoint/PowerPointLite에서 실제 검증
-- [ ] 생성 → 재열기 → 수정 → 재저장 round-trip
+- [ ] Windows에서 생성 → 재열기 → 수정 → 재저장 self-test 통과
 
 Writer는 `src/PptxWriter.cs`가 `PresentationDocument`를 받아 PPTX를 생성한다. 사용자 PC의 폰트 family 이름을 문서에 기록할 수 있지만 font 파일 자체를 자동 embedding하지 않는다.
+
+이미지 삽입은 사용자가 명시적으로 선택한 로컬 PNG/JPEG/GIF/BMP만 사용한다. 프로그램이 외부 클립아트나 상용 이미지 자산을 자동 다운로드/번들하지 않는다.
 
 Windows `csc.exe` 실빌드와 Microsoft PowerPoint 실제 호환성 검증 전에는 안정 기능으로 간주하지 않는다.
 
@@ -125,16 +132,16 @@ Windows `csc.exe` 실빌드와 Microsoft PowerPoint 실제 호환성 검증 전�
 - [ ] existing PPTX Reader가 공통 OPC 계층 사용하도록 점진적 전환
 - [ ] DrawingML common model
 - [ ] theme/color/font common model
-- [ ] media/image store
+- [x] Writer/EditableReader media-image store 초기 경로
 - [ ] unknown part preservation abstraction
 
 ## Phase 4 — PPTX Editor UI
 
-`src/PresentationEditorForm.cs`는 Office/Hancom UI를 복제하지 않는 독립적인 초기 Editor UI다.
+`src/AdvancedPresentationEditorForm.cs`가 현재 feature 브랜치의 주 Editor UI다. 기존 `PresentationEditorForm.cs`는 회귀 비교용 초기 구현으로 남겨둔다.
 
 - [x] Ctrl+N 새 프레젠테이션 진입점
 - [x] slide list
-- [x] text box 선택 canvas
+- [x] object selection canvas
 - [x] text edit
 - [x] system font picker
 - [x] font size / bold / italic
@@ -142,16 +149,23 @@ Windows `csc.exe` 실빌드와 Microsoft PowerPoint 실제 호환성 검증 전�
 - [x] slide add/delete/reorder
 - [x] Save / Save As
 - [x] dirty state / close confirmation
-- [ ] toolbar File 메뉴 정리
-- [ ] add/remove text box UI
-- [ ] drag/resize object selection
-- [ ] image insert
-- [ ] basic shapes
-- [ ] undo/redo
-- [ ] copy/paste
-- [ ] existing PPTX edit mode
+- [x] add/remove text box UI
+- [x] drag/resize object selection
+- [x] image insert
+- [x] basic shapes
+- [x] shape fill/line color edit
+- [x] keyboard object nudge
+- [x] snapshot undo/redo
+- [x] text/shape/image copy/paste
+- [x] guarded edit mode for Writer-generated compatible PPTX
+- [ ] slide thumbnail preview
+- [ ] basic table editor
+- [ ] object z-order controls
+- [ ] multi-selection
+- [ ] system clipboard interoperability for structured objects
+- [ ] arbitrary existing PPTX safe edit mode
 
-Editor UI는 `docs/UI_DESIGN_GUIDE.md`에 따라 독립 디자인을 사용하고 Office UI 자산을 복제하지 않는다.
+Editor UI는 `docs/UI_DESIGN_GUIDE.md`에 따라 독립 디자인을 사용하고 Office/Hancom UI 자산을 복제하지 않는다.
 
 ## Phase 5 — DOCX
 
@@ -222,7 +236,7 @@ Writer Windows 진단은 빌드 후 다음으로 실행한다.
 RUN_WRITER_SELFTEST.cmd
 ```
 
-이 테스트가 만든 `TEST_WRITER_OUTPUT.pptx`는 코드가 직접 생성한 테스트 자산이다.
+현재 self-test는 코드가 직접 만든 text, rounded rectangle, PNG 이미지를 포함한다. 외부 이미지/템플릿을 fixture로 가져오지 않는다.
 
 ## Merge 기준
 
@@ -233,6 +247,7 @@ RUN_WRITER_SELFTEST.cmd
 - 기존 PPTX 샘플 열기
 - Fit / TOC / slideshow / notes / print 확인
 - `RUN_WRITER_SELFTEST.cmd` 통과
+- Writer output의 text/shape/image round-trip 확인
 - 새 Writer 파일을 PowerPointLite에서 다시 열기
 - 가능하면 Microsoft PowerPoint/LibreOffice에서도 구조 확인
 - 외부 자산/폰트 라이선스 확인
