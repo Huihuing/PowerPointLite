@@ -45,6 +45,9 @@ internal static class Program
                 if (TryRunDocxSelfTest(args))
                     return;
 
+                if (TryRunXlsxSelfTest(args))
+                    return;
+
                 if (TryRunHwpxSelfTest(args))
                     return;
 
@@ -107,6 +110,32 @@ internal static class Program
             MessageBox.Show(
                 "DOCX create/read/edit round-trip self-test passed.\r\n\r\n" + outputPath,
                 "PowerPointLite DOCX Test",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+
+            return true;
+        }
+
+        private static bool TryRunXlsxSelfTest(string[] args)
+        {
+            if (args == null || args.Length == 0 ||
+                !string.Equals(args[0], "--xlsx-selftest", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            string outputPath =
+                args.Length > 1 && !string.IsNullOrEmpty(args[1])
+                    ? Path.GetFullPath(args[1])
+                    : Path.Combine(
+                        AppDomain.CurrentDomain.BaseDirectory,
+                        "TEST_XLSX_OUTPUT.xlsx");
+
+            XlsxDiagnostics.CreateAndValidate(outputPath);
+
+            MessageBox.Show(
+                "XLSX create/read/edit round-trip self-test passed.\r\n\r\n" + outputPath,
+                "PowerPointLite XLSX Test",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
 
