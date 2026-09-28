@@ -63,8 +63,28 @@ internal static class Program
             }
             catch (Exception ex)
             {
+                if (IsSelfTestCommand(args))
+                {
+                    Environment.ExitCode = 1;
+                    CrashReporter.WriteLine("SELF-TEST FAILED: " + ex.ToString());
+                    return;
+                }
+
+                Environment.ExitCode = 1;
                 CrashReporter.Report("Startup", ex);
             }
+        }
+
+        private static bool IsSelfTestCommand(string[] args)
+        {
+            if (args == null || args.Length == 0 || string.IsNullOrEmpty(args[0]))
+                return false;
+
+            return string.Equals(args[0], "--writer-selftest", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "--docx-selftest", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "--xlsx-selftest", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "--hwpx-selftest", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "--hwp-parser-selftest", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool TryRunWriterSelfTest(string[] args)
@@ -83,13 +103,8 @@ internal static class Program
                         "TEST_WRITER_OUTPUT.pptx");
 
             PptxWriterDiagnostics.CreateAndValidate(outputPath);
-
-            MessageBox.Show(
-                "PPTX Writer self-test passed.\r\n\r\n" + outputPath,
-                "PowerPointLite Writer Test",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
-
+            Environment.ExitCode = 0;
+            CrashReporter.WriteLine("PPTX Writer self-test passed: " + outputPath);
             return true;
         }
 
@@ -109,13 +124,8 @@ internal static class Program
                         "TEST_DOCX_OUTPUT.docx");
 
             DocxDiagnostics.CreateAndValidate(outputPath);
-
-            MessageBox.Show(
-                "DOCX create/read/edit round-trip self-test passed.\r\n\r\n" + outputPath,
-                "PowerPointLite DOCX Test",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
-
+            Environment.ExitCode = 0;
+            CrashReporter.WriteLine("DOCX self-test passed: " + outputPath);
             return true;
         }
 
@@ -135,13 +145,8 @@ internal static class Program
                         "TEST_XLSX_OUTPUT.xlsx");
 
             XlsxDiagnostics.CreateAndValidate(outputPath);
-
-            MessageBox.Show(
-                "XLSX create/read/edit round-trip self-test passed.\r\n\r\n" + outputPath,
-                "PowerPointLite XLSX Test",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
-
+            Environment.ExitCode = 0;
+            CrashReporter.WriteLine("XLSX self-test passed: " + outputPath);
             return true;
         }
 
@@ -161,15 +166,8 @@ internal static class Program
                         "TEST_HWPX_OUTPUT.hwpx");
 
             HwpxDiagnostics.CreateAndValidate(outputPath);
-
-            MessageBox.Show(
-                "HWPX create/read/edit round-trip structural self-test passed.\r\n\r\n" +
-                outputPath +
-                "\r\n\r\nHancom compatibility still requires a real Windows/Hancom test before this feature is considered stable.",
-                "PowerPointLite HWPX Test",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
-
+            Environment.ExitCode = 0;
+            CrashReporter.WriteLine("HWPX structural self-test passed: " + outputPath);
             return true;
         }
 
@@ -182,14 +180,8 @@ internal static class Program
             }
 
             HwpDiagnostics.ValidateParserFoundation();
-
-            MessageBox.Show(
-                "HWP FileHeader / record parser synthetic self-test passed.\r\n\r\n" +
-                "A real HWP compatibility test is still required before HWP read support is considered stable.",
-                "PowerPointLite HWP Parser Test",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
-
+            Environment.ExitCode = 0;
+            CrashReporter.WriteLine("HWP FileHeader/record parser self-test passed.");
             return true;
         }
     }
