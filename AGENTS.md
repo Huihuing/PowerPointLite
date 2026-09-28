@@ -1,35 +1,27 @@
 # AGENTS.md — PowerPointLite 작업 인수인계
 
-이 문서는 새 ChatGPT 채팅, Codex, 다른 AI 에이전트 또는 새 개발 환경에서 **프로젝트 맥락을 다시 설명하지 않고 바로 작업을 이어가기 위한 인수인계 문서**다.
+새 ChatGPT/Codex/다른 AI 세션이 기존 대화를 다시 복원하지 않고 바로 개발을 이어가기 위한 기준 문서다.
 
-## 1. 프로젝트 목적
+## 1. 프로젝트 목표
 
-프로젝트명: **PowerPointLite**
+저장소: `Huihuing/PowerPointLite`
 
-저장소:
+PowerPointLite는 편집기가 아니라 **Windows용 경량 PPTX/PPTM Viewer**다.
 
-```text
-https://github.com/Huihuing/PowerPointLite
-```
+핵심 목표:
 
-목표는 PowerPoint 편집기가 아니라 **Windows용 경량 PPTX Viewer**다.
+1. `.pptx/.pptm`을 읽기 전용으로 정상 열기
+2. Microsoft PowerPoint가 없어도 일반적인 프레젠테이션 표시
+3. PowerPoint가 설치된 환경에서는 COM 네이티브 렌더러/슬라이드쇼 우선
+4. PowerPoint Viewer에 가까운 보기/발표 UX
+5. `.NET 8 SDK`를 필수 요구하지 않기
+6. Windows .NET Framework `csc.exe`로 GUI EXE 빌드 가능하게 유지
 
-핵심 요구사항:
+현재 개발 기준 버전: **1.3**
 
-1. `.pptx/.pptm` 파일을 읽기 전용으로 정상 열 것.
-2. Microsoft PowerPoint가 설치되지 않아도 기본적인 프레젠테이션을 볼 수 있을 것.
-3. PowerPoint가 설치되어 있으면 네이티브 PowerPoint 엔진을 우선해 최고 호환성을 확보할 것.
-4. Viewer UX는 가능한 한 Microsoft PowerPoint Viewer/Slide Show 사용감에 가깝게 만들 것.
-5. `.NET 8 SDK` 설치를 요구하지 않는다.
-6. Windows 기본 .NET Framework 컴파일러 `csc.exe`로 GUI EXE를 빌드할 수 있어야 한다.
+## 2. 빌드 제약
 
-현재 개발 기준 버전: **1.2.1**
-
-## 2. 반드시 유지할 기술 제약
-
-### 빌드
-
-현재 빌드는 다음 Windows 컴파일러를 사용한다.
+기본 컴파일러:
 
 ```text
 C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe
@@ -41,109 +33,65 @@ fallback:
 C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe
 ```
 
-즉 코드 수정 시 **구형 .NET Framework C# 컴파일러와 호환되는 문법**을 사용해야 한다.
+따라서 최신 C# 전용 문법, .NET 8 전용 API, 필수 NuGet 의존성, WPF/.NET 8 임의 전환을 피한다. Windows의 `BUILD_EXE.cmd` 실빌드가 최종 기준이다.
 
-피해야 할 것:
+### 과거 컴파일 오류 — Timer
 
-- 최신 C# 전용 문법을 무심코 추가
-- .NET 8 API에만 존재하는 API
-- WPF/.NET 8로 무단 전환
-- NuGet 패키지를 필수 조건으로 추가
-
-현재 프로젝트는 SDK 없이 빌드되는 것이 중요한 요구사항이다.
-
-### Timer 주의
-
-`PptxViewer.cs`에는 `System.Threading`과 `System.Windows.Forms`가 함께 사용된다.
-
-따라서 GUI 타이머는 반드시 다음처럼 명시한다.
+`System.Threading`과 `System.Windows.Forms`가 함께 import되어 있다. GUI 타이머는 반드시:
 
 ```csharp
 System.Windows.Forms.Timer
 ```
 
-1.2에서 `Timer`를 짧은 이름으로 썼다가 아래 컴파일 오류가 발생했다.
+처럼 명시한다. 1.2에서 `Timer`만 사용해 `CS0104`가 발생했고 1.2.1에서 수정했다.
 
-```text
-CS0104: 'Timer' is an ambiguous reference between
-System.Threading.Timer and System.Windows.Forms.Timer
-```
+### 과거 컴파일 오류 — Graphics.DrawImage
 
-1.2.1에서 수정했다.
+.NET Framework의 `Graphics.DrawImage` 오버로드는 최신 런타임과 차이가 있다. 7인자 계열에서 대상 `RectangleF`를 그대로 넘겨 `CS1502/CS1503`이 발생한 적이 있다.
 
-### System.Drawing DrawImage 주의
-
-.NET Framework의 `Graphics.DrawImage` 오버로드는 최신 런타임과 차이가 있다.
-
-1.0에서 다음 패턴 때문에 `CS1502/CS1503`이 발생했다.
-
-```csharp
-g.DrawImage(clone, rect, ...);
-```
-
-`rect`가 `RectangleF`일 경우 해당 7인자 오버로드가 없다.
-
-현재는 다음처럼 사용한다.
+현재 해당 경로는:
 
 ```csharp
 Rectangle.Round(rect)
 ```
 
-같은 유형의 코드를 추가할 때 반드시 .NET Framework 오버로드를 확인한다.
+를 사용한다. 이미지 렌더 코드를 추가할 때 .NET Framework 오버로드를 확인한다.
 
-## 3. 현재 파일 구조
+## 3. 현재 소스 구조
 
-주요 파일:
-
-```text
-PptxViewer.cs
-```
-
-현재 약 6천 줄 이상의 단일 WinForms 소스다.
-
-주요 역할:
-
-- `Program`
-  - GUI 시작
-  - 전역 예외 처리
-  - 시작 오류 로그
-- `MainForm`
-  - Viewer UI
-  - TOC/썸네일
-  - 키보드/마우스 이동
-  - 슬라이드쇼
-  - Presenter View 연동
-  - 인쇄
-- `InternalPptxRenderer`
-  - PPTX ZIP/Open XML 직접 파싱
-  - 내부 정적 렌더링
-  - 메타데이터/노트/숨김 슬라이드
-- `PresenterViewForm`
-  - 현재/다음 슬라이드
-  - 노트
-  - 타이머
-- `RecentFileStore`
-  - 최근 파일
-- `ViewerDialogs`
-  - 간단 입력 UI
-
-지원 코드가 안정화되면 파일을 다음 식으로 분리하는 것이 바람직하다.
+1.3부터 기존 단일 `PptxViewer.cs`를 partial class 단위로 분리했다.
 
 ```text
 src/
-├─ Viewer/
-├─ Rendering/
-├─ OpenXml/
-├─ Presentation/
-├─ Printing/
-└─ Platform/
+├─ Program.cs
+├─ MainForm.Part01.cs ... MainForm.Part05.cs
+├─ PresenterView.cs
+├─ Printing.cs
+├─ RecentFileStore.cs
+├─ ViewerDialogs.cs
+└─ InternalPptxRenderer.Part01.cs ... Part08.cs
 ```
 
-하지만 구조 분리를 이유로 기능을 깨뜨리지 말 것.
+규칙:
+
+- `MainForm.Part*.cs`는 `public sealed partial class MainForm : Form`
+- `InternalPptxRenderer.Part*.cs`는 `internal static partial class InternalPptxRenderer`
+- private 필드/메서드는 partial class 전체에서 공유된다.
+- 구조 정리를 이유로 기능을 깨뜨리지 않는다.
+- `BUILD_EXE.cmd`는 `src\*.cs` 전체를 한 번에 컴파일한다.
+
+주요 역할:
+
+- `Program` — GUI 시작, 전역 예외 처리, 시작 로그
+- `MainForm` — Viewer UI, TOC, 탐색, 슬라이드쇼, Presenter 연동, 인쇄
+- `InternalPptxRenderer` — PPTX ZIP/Open XML 파싱 및 System.Drawing 렌더링
+- `PresenterViewForm` — 현재/다음 슬라이드, 노트, 발표 타이머
+- `RecentFileStore` — 최근 파일
+- `ViewerDialogs` — 검색/이동 입력 UI
 
 ## 4. 렌더링 전략
 
-현재 엔진 우선순위:
+우선순위:
 
 ```text
 1. Microsoft PowerPoint Native
@@ -151,154 +99,68 @@ src/
 3. LibreOffice fallback
 ```
 
-### PowerPoint Native
+### Native PowerPoint
 
-PowerPoint가 설치되어 있으면 COM을 통해:
-
-- 일반 슬라이드 렌더링
-- 실제 PowerPoint Slide Show
-
-를 우선 사용한다.
-
-고급 애니메이션/Morph/미디어 호환성은 이 경로가 최고다.
+PowerPoint가 설치되어 있으면 COM을 이용해 `Slide.Export` 기반 정적 렌더링과 실제 PowerPoint Slide Show를 우선 사용한다. Morph/고급 애니메이션/미디어 호환성은 이 경로가 가장 높다.
 
 ### Internal OpenXML
 
-PowerPoint가 없을 때 `.pptx/.pptm` ZIP 패키지를 직접 읽는다.
-
-핵심 경로:
+PowerPoint가 없을 때:
 
 ```text
-PPTX
- ↓
-ZIP
- ↓
-ppt/presentation.xml
- ↓
-slide relationships
- ↓
-slides / layouts / masters / themes / media / charts
- ↓
-System.Drawing
- ↓
-PNG cache
- ↓
-WinForms viewer
+PPTX ZIP
+→ ppt/presentation.xml
+→ slide relationships
+→ slides/layouts/masters/themes/media/charts
+→ System.Drawing
+→ PNG cache
+→ WinForms Viewer
 ```
 
-목표는 외부 Office 프로그램 없이 일반 PPTX를 최대한 정상적으로 표시하는 것이다.
+현재 처리 범위:
+
+- slide size / background / theme color/font
+- master/layout/placeholder 상속
+- 텍스트와 기본 서식, bullets/numbering
+- 이미지, crop, alpha, rotation/flip
+- SVG 기본 subset, GDI+가 지원하는 EMF/WMF
+- 기본/커스텀 geometry 도형
+- line/connectors/dash/arrowheads
+- groups / tables
+- 기본 column/bar/line/pie chart
+- SmartArt 정적 approximation
+- hyperlinks / internal slide actions
+- media 추출 후 외부 실행 fallback
+- gradients / pattern fill / 기본 shadow
+- 일부 transition 및 entrance animation fallback
 
 ### LibreOffice
 
-현재는 주로:
+주로 구형 `.ppt` 또는 fallback 용도다. 사용자 필수 의존성으로 만들지 않는다.
 
-- 구형 `.ppt`
-- 일부 fallback
+## 5. Viewer UX 요구사항
 
-용도다.
+현재 기능:
 
-LibreOffice를 사용자 필수 설치 조건으로 만들지 않는 것이 원칙이다.
-
-## 5. 현재 Viewer 기능
-
-### 일반 보기
-
-- PPTX/PPTM 열기
-- PPT fallback
-- Drag & Drop
-- 최근 파일
-- 썸네일
-- TOC
-- Auto TOC
-- Fit
-- 확대/축소
-- F11
-- 검색
-- 특정 슬라이드 이동
-- 슬라이드 정렬기
-- 발표자 노트
-- 숨김 슬라이드
-- 인쇄
-
-### 발표
-
-- F5: 처음부터
-- Shift+F5: 현재부터
-- N/P
-- 방향키
-- PageUp/PageDown
-- 숫자+Enter
-- B 검은 화면
-- W 흰 화면
-- H 숨김 슬라이드
-- 우클릭 발표 메뉴
+- Drag & Drop / Recent files
+- thumbnails / TOC / Auto TOC
+- 정확한 right viewport 기준 Fit
+- wheel previous/next / Ctrl+wheel zoom
+- arrow/PageUp/PageDown/Home/End
+- F11 fullscreen
+- search / go-to / slide sorter
+- speaker notes / hidden slides
+- F5 / Shift+F5
+- N/P, 숫자+Enter, B/W, H
+- 우클릭 slideshow menu
 - Presenter View
-- 발표 경과시간
-- 일부 전환/애니메이션 fallback
+- print: full slide / notes / 2·4·6 handout
 
-### 인쇄
+### 반드시 유지할 Fit 동작
 
-- Full slide
-- Notes Page
-- 2/4/6 Handout
+과거 TOC 폭을 제외하지 않고 전체 창 기준으로 Fit을 계산해 슬라이드가 잘리는 문제가 있었다. 현재는 `SplitContainer.Panel2` 실제 viewport 크기를 기준으로 계산한다. 이 동작을 깨뜨리지 않는다.
 
-## 6. 내부 렌더러 지원 현황
-
-구현된 기본 영역:
-
-- slide size
-- solid background
-- theme color
-- theme font
-- master/layout
-- inherited placeholder
-- text
-- font formatting
-- bullets
-- images
-- image crop
-- rotation/flip
-- common shapes
-- custom geometry 일부
-- line/connectors
-- groups
-- tables
-- basic charts
-- SmartArt static fallback
-- hyperlinks
-- media extraction/fallback
-- gradients
-- basic shadow
-- basic SVG elements
-- transition fallback
-- basic entrance animation fallback
-
-아직 고급 구현이 필요한 영역:
-
-1. PowerPoint 애니메이션 타임라인 정확도
-2. Morph object interpolation
-3. SmartArt 실제 자동 레이아웃
-4. 모든 Chart subtype
-5. SVG/EMF/WMF 렌더러 정확도
-6. 뷰어 내부 오디오/비디오 재생
-7. 고급 효과(Glow/Reflection/3D)
-8. embedded font 처리
-9. 수식/Office Math 고급 렌더링
-10. PowerPoint 픽셀 단위 호환성
-
-## 7. UI 중요 요구사항
-
-과거 실제 테스트에서 다음 문제가 있었다.
-
-### Fit
-
-왼쪽 TOC가 존재하는데 전체 창 크기로 Fit을 계산해 슬라이드가 잘렸다.
-
-현재는 `SplitContainer.Panel2`의 실제 Viewport를 기준으로 계산한다.
-
-**이 동작을 깨뜨리지 말 것.**
-
-### 휠
+### Wheel
 
 슬라이드 화면 위:
 
@@ -308,19 +170,11 @@ Wheel Down → Next
 Ctrl+Wheel → Zoom
 ```
 
-TOC 위에서는 목록 자체 스크롤이 가능해야 한다.
+TOC 위에서는 TOC 목록 자체가 스크롤되어야 한다.
 
-### TOC
+## 6. 오류 진단
 
-- 직접 표시/숨김
-- Auto TOC
-- Fullscreen에서는 폭을 완전히 회수
-
-## 8. 오류 진단
-
-GUI 프로그램은 `WinExe`이므로 시작 예외가 콘솔에 보이지 않을 수 있다.
-
-현재 오류 로그:
+WinExe라 시작 예외가 콘솔에 보이지 않을 수 있다.
 
 ```text
 %LOCALAPPDATA%\PptxViewer\logs\last-startup.log
@@ -333,99 +187,84 @@ RUN_DIAGNOSTIC.cmd
 OPEN_LOGS.cmd
 ```
 
-시작 오류 처리 코드를 제거하지 말 것.
+전역 오류 처리 코드를 제거하지 않는다.
 
-## 9. 테스트 절차
+## 7. 테스트 절차
 
-코드 수정 후 최소한 다음 순서로 확인한다.
+수정 후 최소 확인:
 
-### 정적 검사
-
-- 괄호 구조
-- 동일 메서드 중복 여부
-- 이벤트 핸들러 존재 여부
-- 구형 C# 문법 호환 여부
-- `Timer` 모호성
-- `Graphics.DrawImage` 오버로드
-
-### Windows 실제 빌드
-
-```bat
-BUILD_EXE.cmd
-```
-
-반드시 `BUILD SUCCESS`까지 확인한다.
-
-### 실행 테스트
-
-1. `PptxViewer.exe` 창이 정상적으로 뜨는지
-2. `TEST_INTERNAL_READER.pptx`
-3. `TEST_BASIC_FEATURES.pptx`
-4. 실제 사용자 PPTX
-5. TOC를 켠 상태에서 Fit
-6. TOC 숨김 후 Fit
-7. 휠 이전/다음
-8. Ctrl+휠 zoom
-9. F5
-10. Shift+F5
-11. Presenter View
-12. Notes
+1. 정적 괄호/중복 메서드 검사
+2. `Timer` 모호성 검사
+3. `Graphics.DrawImage` 오버로드 검사
+4. Windows에서 `BUILD_EXE.cmd`
+5. 반드시 `BUILD SUCCESS` 확인
+6. `PowerPointLite.exe` 실행
+7. 개발 ZIP의 `TEST_INTERNAL_READER.pptx` / `TEST_BASIC_FEATURES.pptx`가 있으면 확인
+8. 실제 사용자 PPTX
+9. TOC on/off 각각 Fit
+10. wheel / Ctrl+wheel
+11. F5 / Shift+F5
+12. Presenter View / Notes
 13. Print dialog
 
-## 10. Git 규칙
+이 AI 환경에서 Windows EXE를 실제 컴파일할 수 없으면 **빌드 성공했다고 주장하지 않는다.**
 
-기본 브랜치:
+## 8. Git 규칙
 
-```text
-main
-```
+기본 브랜치: `main`
 
-커밋 메시지는 사용자 요청에 따라 **한글 - 영어** 형식을 사용한다.
+커밋 메시지는 반드시 **한글 - English** 형식.
 
-예시:
+예:
 
 ```text
+소스 구조 분리 및 포터블 빌드 정리 - Sync split source and portable build workflow
 빌드 Timer 충돌 수정 - Fix ambiguous WinForms Timer references
-뷰어 문서 및 인수인계 추가 - Add README and AI handoff documentation
 발표자 보기 기능 추가 - Add presenter view support
 ```
 
 원칙:
 
-- 의미 단위로 커밋
-- 아주 작은 수정마다 micro-commit을 남발하지 않기
-- 작업 시작 전 최신 `main` 상태 확인
-- 작업 후 테스트 가능한 상태로 `main`에 반영
-- 생성된 EXE, cache, 사용자 로그는 저장소에 커밋하지 않기
+- 의미 단위 커밋
+- main에 micro-commit 남발 금지
+- 작업 전 최신 main 확인
+- cache/로그/디버그 산출물 커밋 금지
+- `PowerPointLite.exe`는 Windows 실빌드/실행 검증이 끝난 안정판만 private repo에 갱신 가능
 
-## 11. Git에 올리지 말아야 할 것
+## 9. 포터블 EXE
+
+최종 실행 파일명:
 
 ```text
-PptxViewer.exe
-*.pdb
-bin/
-obj/
-.vs/
-logs/
-Cache/
-*.user
+PowerPointLite.exe
 ```
 
-테스트용 PPTX/PNG는 프로젝트 테스트 자산이므로 저장소에 포함 가능하다.
+`BUILD_EXE.cmd`는 빌드 도구일 뿐 런처가 아니다.
 
-## 12. 다음 작업 우선순위
+```text
+src\*.cs
+→ Windows csc.exe
+→ PowerPointLite.exe
+→ GUI 직접 실행
+```
 
-다른 AI가 다음 작업을 이어갈 경우 권장 순서:
+private repo에 안정판 EXE 하나를 보관하는 것은 허용한다. 단 실제 Windows 빌드 검증 전에는 EXE를 올리지 않는다.
 
-1. Windows `csc.exe` 빌드 오류 0 유지
-2. 뷰어 내부 미디어 재생
-3. 애니메이션 timeline 확장
+## 10. 아직 남은 고급 영역
+
+우선순위:
+
+1. Windows 실빌드 오류 0 유지
+2. 뷰어 내부 audio/video 재생
+3. PowerPoint animation timeline 정확도 확대
 4. 레이저 포인터/펜
 5. Presenter View 멀티모니터 배치
 6. SmartArt 실제 정적 레이아웃 개선
 7. chart subtype 확대
-8. SVG/EMF/WMF 호환성
+8. SVG/EMF/WMF 정확도
 9. embedded fonts
-10. 소스 모듈 분리
+10. Office Math
+11. Morph object interpolation
+12. Glow/Reflection/3D
 
-**기능 추가보다 먼저 현재 빌드/실행 상태를 깨뜨리지 않는 것이 우선이다.**
+**새 기능 추가보다 현재 빌드/실행 상태를 깨뜨리지 않는 것이 우선이다.**

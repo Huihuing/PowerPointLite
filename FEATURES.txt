@@ -1,5 +1,5 @@
-PPTX Viewer 1.2.1 - Feature Matrix
-=================================
+PPTX Viewer 1.0 - Feature Matrix
+================================
 
 Viewer UX
 [OK] GUI EXE / no console window
@@ -11,11 +11,8 @@ Viewer UX
 [OK] mouse wheel navigation
 [OK] Ctrl+wheel zoom
 [OK] keyboard navigation
-[OK] F5 / Shift+F5 slideshow
-[OK] recent files / search / go-to-slide / slide sorter
-[OK] speaker notes / hidden slide metadata
-[OK] Presenter View with next slide, notes and elapsed timer
-[OK] full-slide / Notes Page / 2, 4, 6 slide handout printing
+[OK] F5 slideshow
+[OK] printing
 [OK] startup diagnostics/logging
 [OK] per-file render cache
 [OK] Windows Open With registration script
@@ -42,13 +39,12 @@ Interactive / presentation
 [OK] internal slide hyperlinks
 [OK] PowerPoint first/last/next/previous/end-show actions
 [OK] embedded audio/video click-to-open
-[OK] fade / wipe / push / cut transition
+[OK] fade transition
+[OK] wipe transition
+[OK] push transition
+[OK] cut transition
 [OK] unsupported/Morph transition graceful fade fallback
 [OK] simple entrance reveal animation approximation
-[OK] N/P and number+Enter slide navigation
-[OK] B/W blank screen
-[OK] hidden-slide handling
-[OK] right-click slideshow menu
 
 Native PowerPoint backend
 [OK] uses native PowerPoint rendering when available
@@ -64,5 +60,55 @@ Not claimed as pixel-perfect in internal renderer
 - VBA/macros/ActiveX execution
 - inline codec-independent video player
 
-These items require a PowerPoint-class rendering/runtime engine. The viewer
-uses the native PowerPoint backend automatically when it exists.
+PowerPoint Viewer-style controls added in 1.1
+----------------------------------------------
+[OK] F5 from beginning
+[OK] Shift+F5 from current slide
+[OK] speaker notes panel
+[OK] slide sorter
+[OK] text search
+[OK] go-to-slide
+[OK] recent files
+[OK] hidden slide detection
+[OK] hidden slide skip in slideshow
+[OK] H shortcut for adjacent hidden slide
+[OK] N/P slideshow keys
+[OK] number + Enter direct slide jump
+[OK] B black-screen toggle
+[OK] W white-screen toggle
+[OK] slideshow right-click navigation menu
+[OK] presentation info
+
+PowerPoint Viewer-style controls added in 1.2
+----------------------------------------------
+[OK] Presenter View
+[OK] current slide preview
+[OK] next slide preview
+[OK] presenter notes
+[OK] elapsed presentation timer
+[OK] presenter navigation
+[OK] auto-hide slide thumbnail pane
+[OK] full-page slide printing
+[OK] notes-page printing
+[OK] 2-slide handout
+[OK] 4-slide handout
+[OK] 6-slide handout
+
+1.2.2 repository/portable changes
+----------------------------------
+[OK] final executable name standardized to PowerPointLite.exe
+[OK] build script emits portable GUI EXE directly
+[OK] file association scripts use PowerPointLite.exe
+[OK] diagnostic launcher uses PowerPointLite.exe
+[OK] config renamed to PowerPointLite.exe.config
+[OK] repository allows tracking the stable portable EXE
+
+1.3 repository source synchronization
+-------------------------------------
+[OK] monolithic PptxViewer.cs split into compilable partial-class source files
+[OK] source moved under src/
+[OK] BUILD_EXE.cmd compiles src\*.cs
+[OK] portable PowerPointLite.exe output retained
+[OK] README/AGENTS updated for repository-first continuation
+
+Note: tests are maintained as project assets and should be added/updated in the repository together with a verified Windows build when binary upload is available.

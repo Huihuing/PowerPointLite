@@ -3,7 +3,7 @@ setlocal EnableExtensions
 cd /d "%~dp0"
 
 echo ==========================================
-echo PPTX Viewer 1.2.1 - EXE Builder
+echo PowerPointLite 1.3 - EXE Builder
 echo Internal PPTX reader included
 echo .NET 8 SDK is NOT required
 echo ==========================================
@@ -25,14 +25,14 @@ if not defined CSC (
   exit /b 1
 )
 
-if exist "PptxViewer.exe" del /q "PptxViewer.exe"
+if exist "PowerPointLite.exe" del /q "PowerPointLite.exe"
 
 "%CSC%" ^
   /nologo ^
   /target:winexe ^
   /platform:anycpu ^
   /optimize+ ^
-  /out:"PptxViewer.exe" ^
+  /out:"PowerPointLite.exe" ^
   /reference:System.dll ^
   /reference:System.Core.dll ^
   /reference:System.Drawing.dll ^
@@ -41,7 +41,7 @@ if exist "PptxViewer.exe" del /q "PptxViewer.exe"
   /reference:System.IO.Compression.dll ^
   /reference:System.IO.Compression.FileSystem.dll ^
   /reference:Microsoft.CSharp.dll ^
-  "PptxViewer.cs"
+  "src\*.cs"
 
 if errorlevel 1 (
   echo.
@@ -55,11 +55,11 @@ echo ==========================================
 echo BUILD SUCCESS
 echo ==========================================
 echo.
-echo Created:
-echo %CD%\PptxViewer.exe
+echo Created portable executable:
+echo %CD%\PowerPointLite.exe
 echo.
-echo You can now open TEST_INTERNAL_READER.pptx
-echo even when PowerPoint and LibreOffice are not installed.
+echo This EXE can be launched directly without BUILD_EXE.cmd.
+echo It may also be committed to this private repository if desired.
 echo.
-start "" explorer.exe /select,"%CD%\PptxViewer.exe"
+start "" explorer.exe /select,"%CD%\PowerPointLite.exe"
 pause

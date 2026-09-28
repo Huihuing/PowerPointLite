@@ -2,15 +2,15 @@
 setlocal
 cd /d "%~dp0"
 
-if not exist "PptxViewer.exe" (
-  echo PptxViewer.exe was not found.
+if not exist "PowerPointLite.exe" (
+  echo PowerPointLite.exe was not found.
   echo Run BUILD_EXE.cmd first.
   pause
   exit /b 1
 )
 
-echo Starting PptxViewer.exe...
-start "" "PptxViewer.exe"
+echo Starting PowerPointLite.exe...
+start "" "PowerPointLite.exe"
 
 timeout /t 3 /nobreak >nul
 

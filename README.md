@@ -4,7 +4,7 @@ PowerPointLite는 Windows에서 `.pptx` / `.pptm` 프레젠테이션을 **읽기
 
 Microsoft PowerPoint가 설치되어 있으면 네이티브 PowerPoint 렌더러를 우선 사용하고, 설치되어 있지 않은 환경에서는 자체 Open XML 렌더러로 PPTX를 직접 읽습니다.
 
-> 현재 개발 기준 버전: **1.2.1**
+> 현재 버전: **1.3**
 
 ## 목표
 
@@ -31,13 +31,13 @@ Microsoft PowerPoint가 설치되어 있으면 네이티브 PowerPoint 렌더러
 - 확대/축소
 - 전체화면
 
-### 발표 및 단축키
+### 입력
 
-- `F5`: 처음부터 슬라이드쇼
-- `Shift + F5`: 현재 슬라이드부터 슬라이드쇼
 - 마우스 휠: 이전/다음 슬라이드
 - `Ctrl + 휠`: 확대/축소
 - `← / →`, `PageUp / PageDown`, `Home / End`
+- `F5`: 처음부터 슬라이드쇼
+- `Shift + F5`: 현재 슬라이드부터 슬라이드쇼
 - `N / P`: 발표 중 다음/이전
 - 숫자 + `Enter`: 발표 중 특정 슬라이드 이동
 - `B`: 검은 화면
@@ -122,10 +122,10 @@ PowerPoint 네이티브 엔진을 사용할 수 있는 환경에서는 호환성
 BUILD_EXE.cmd
 ```
 
-정상적으로 완료되면 같은 폴더에 다음 파일이 생성됩니다.
+정상적으로 완료되면 저장소 루트에 바로 실행 가능한 포터블 EXE가 생성됩니다.
 
 ```text
-PptxViewer.exe
+PowerPointLite.exe
 ```
 
 빌드 스크립트는 다음 컴파일러를 자동 탐색합니다.
@@ -138,13 +138,13 @@ C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe
 ## 실행
 
 ```text
-PptxViewer.exe
+PowerPointLite.exe
 ```
 
 또는 파일을 인자로 전달할 수 있습니다.
 
 ```bat
-PptxViewer.exe "C:\Presentations\sample.pptx"
+PowerPointLite.exe "C:\Presentations\sample.pptx"
 ```
 
 PPTX 파일을 프로그램 창에 Drag & Drop할 수도 있습니다.
@@ -181,34 +181,34 @@ RUN_DIAGNOSTIC.cmd
 OPEN_LOGS.cmd
 ```
 
-## 테스트 파일
+## 테스트 자산
 
-내부 렌더러 검증용 파일:
-
-- `TEST_INTERNAL_READER.pptx`
-- `TEST_BASIC_FEATURES.pptx`
-
-PowerPoint가 없는 환경에서 내부 OpenXML 렌더러 경로를 확인할 때 사용합니다.
+개발용 배포 ZIP에는 `TEST_INTERNAL_READER.pptx`, `TEST_BASIC_FEATURES.pptx` 같은 렌더러 확인용 샘플이 포함될 수 있습니다. GitHub의 바이너리 테스트 자산은 Windows 실빌드 검증과 함께 안정판 기준으로 동기화합니다.
 
 ## 저장소 구조
 
 ```text
 PowerPointLite/
-├─ PptxViewer.cs
-├─ PptxViewer.exe.config
+├─ src/
+│  ├─ Program.cs
+│  ├─ MainForm.Part*.cs
+│  ├─ PresenterView.cs
+│  ├─ Printing.cs
+│  ├─ RecentFileStore.cs
+│  ├─ ViewerDialogs.cs
+│  └─ InternalPptxRenderer.Part*.cs
+├─ PowerPointLite.exe.config
 ├─ BUILD_EXE.cmd
 ├─ REGISTER_PPTX.cmd
 ├─ UNREGISTER_PPTX.cmd
 ├─ RUN_DIAGNOSTIC.cmd
 ├─ OPEN_LOGS.cmd
 ├─ FEATURES.txt
-├─ TEST_INTERNAL_READER.pptx
-├─ TEST_BASIC_FEATURES.pptx
 ├─ README.md
 └─ AGENTS.md
 ```
 
-현재는 빠른 호환성 개발을 위해 핵심 코드가 `PptxViewer.cs`에 집중되어 있습니다. 기능이 안정화되면 Renderer / Viewer / Presentation / Printing 계층으로 분리할 예정입니다.
+1.3부터 GitHub에서 소스를 직접 관리할 수 있도록 단일 파일을 `src/` 아래 partial class 단위로 분리했습니다. 동작 구조는 유지하면서 이후 Renderer / Viewer / Presentation / Printing 계층으로 점진적으로 정리할 수 있습니다.
 
 ## 현재 한계
 
@@ -225,10 +225,30 @@ PowerPoint가 없는 상태에서 아래 기능을 Microsoft PowerPoint와 100% 
 
 이 기능들은 지원 범위를 계속 확대하고 있습니다.
 
-## 개발 인수인계
+## 개발 현황
 
-새 ChatGPT 채팅, Codex 또는 다른 AI에서 작업을 이어갈 경우 [`AGENTS.md`](AGENTS.md)를 먼저 읽으세요. 빌드 제약, 현재 구조, 과거 오류와 다음 우선순위를 정리해 두었습니다.
+상세 구현 상태는 [`FEATURES.txt`](FEATURES.txt)를 참고하세요.
+
+AI 또는 새 ChatGPT 세션에서 작업을 이어갈 경우 [`AGENTS.md`](AGENTS.md)를 먼저 읽는 것을 권장합니다.
 
 ## 라이선스
 
 현재 별도의 라이선스를 지정하지 않았습니다.
+
+## 포터블 실행 파일 운영
+
+`PowerPointLite.exe`는 설치 프로그램이 아니라 포터블 GUI 실행 파일입니다.
+
+Windows에서 한 번 빌드한 뒤 저장소에 `PowerPointLite.exe`를 함께 커밋하면 다른 PC에서는:
+
+```bat
+git clone https://github.com/Huihuing/PowerPointLite.git
+cd PowerPointLite
+PowerPointLite.exe
+```
+
+처럼 별도의 재빌드 없이 바로 실행할 수 있습니다.
+
+현재 `.gitignore`는 `PowerPointLite.exe`를 의도적으로 제외하지 않습니다. 따라서 private 저장소에서 최신 안정판 EXE 하나를 추적할 수 있습니다.
+
+개발 과정에서는 모든 작은 수정마다 바이너리를 갱신하지 않고, **Windows 실제 빌드와 실행 확인이 끝난 안정 버전에서만 EXE를 교체**하는 것을 권장합니다.

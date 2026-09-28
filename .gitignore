@@ -1,5 +1,10 @@
-# Build output
+# Temporary/legacy executables
 PptxViewer.exe
+
+# Portable PowerPointLite.exe is intentionally trackable in this private repo.
+# Do NOT add PowerPointLite.exe here if you want clone/pull -> direct run.
+
+# Debug/build artifacts
 *.pdb
 *.ilk
 bin/
