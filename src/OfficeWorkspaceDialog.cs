@@ -15,7 +15,8 @@ namespace PptxViewer
         NewOds,
         NewOdp,
         OpenExisting,
-        ExportPdf
+        ExportPdf,
+        ConvertFormat
     }
 
     internal sealed class OfficeWorkspaceDialog : Form
@@ -33,7 +34,7 @@ namespace PptxViewer
             MaximizeBox = false;
             ShowInTaskbar = false;
             Width = 820;
-            Height = 650;
+            Height = 690;
             BackColor = ApplicationTheme.Window;
             ForeColor = ApplicationTheme.PrimaryText;
             Font = new Font("Segoe UI", 9f);
@@ -43,7 +44,7 @@ namespace PptxViewer
             title.Top = 22;
             title.Width = 740;
             title.Height = 38;
-            title.Text = "Create, open, or export a document";
+            title.Text = "Create, open, export, or convert a document";
             title.Font = new Font(Font.FontFamily, 17f, FontStyle.Bold);
             title.ForeColor = ApplicationTheme.PrimaryText;
             Controls.Add(title);
@@ -139,7 +140,7 @@ namespace PptxViewer
             noteBody.Width = 318;
             noteBody.Height = 44;
             noteBody.Text =
-                "Existing files are edited only when the current parser can round-trip them without known content loss.";
+                "Existing files are edited or converted only when the current parser can represent them without known silent data loss.";
             noteBody.ForeColor = ApplicationTheme.SecondaryText;
             note.Controls.Add(noteBody);
 
@@ -159,10 +160,10 @@ namespace PptxViewer
             Controls.Add(open);
 
             Button exportPdf = new Button();
-            exportPdf.Text = "Export document to PDF...";
+            exportPdf.Text = "Export to PDF...";
             exportPdf.Left = 410;
             exportPdf.Top = 528;
-            exportPdf.Width = 220;
+            exportPdf.Width = 165;
             exportPdf.Height = 38;
             ApplicationTheme.ApplyButton(exportPdf);
             exportPdf.Click += delegate
@@ -173,10 +174,25 @@ namespace PptxViewer
             };
             Controls.Add(exportPdf);
 
+            Button convert = new Button();
+            convert.Text = "Convert format...";
+            convert.Left = 585;
+            convert.Top = 528;
+            convert.Width = 175;
+            convert.Height = 38;
+            ApplicationTheme.ApplyButton(convert);
+            convert.Click += delegate
+            {
+                SelectedAction = WorkspaceAction.ConvertFormat;
+                DialogResult = DialogResult.OK;
+                Close();
+            };
+            Controls.Add(convert);
+
             Button cancel = new Button();
             cancel.Text = "Cancel";
             cancel.Left = 660;
-            cancel.Top = 528;
+            cancel.Top = 576;
             cancel.Width = 100;
             cancel.Height = 38;
             ApplicationTheme.ApplyButton(cancel);
