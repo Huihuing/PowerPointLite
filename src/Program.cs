@@ -39,6 +39,9 @@ internal static class Program
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
 
+                if (TryRunWriterSelfTest(args))
+                    return;
+
                 string startupFile = null;
                 if (args != null && args.Length > 0 && File.Exists(args[0]))
                     startupFile = args[0];
@@ -50,6 +53,32 @@ internal static class Program
             {
                 CrashReporter.Report("Startup", ex);
             }
+        }
+
+        private static bool TryRunWriterSelfTest(string[] args)
+        {
+            if (args == null || args.Length == 0 ||
+                !string.Equals(args[0], "--writer-selftest", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            string outputPath =
+                args.Length > 1 && !string.IsNullOrEmpty(args[1])
+                    ? Path.GetFullPath(args[1])
+                    : Path.Combine(
+                        AppDomain.CurrentDomain.BaseDirectory,
+                        "TEST_WRITER_OUTPUT.pptx");
+
+            PptxWriterDiagnostics.CreateAndValidate(outputPath);
+
+            MessageBox.Show(
+                "PPTX Writer self-test passed.\r\n\r\n" + outputPath,
+                "PowerPointLite Writer Test",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+
+            return true;
         }
     }
 
