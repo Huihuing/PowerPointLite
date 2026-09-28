@@ -39,6 +39,58 @@ namespace PptxViewer
 
             PptxWriter.Save(document, outputPath);
             ValidatePackage(outputPath, document.Slides.Count);
+            ValidateEditableRoundTrip(outputPath);
+        }
+
+        private static void ValidateEditableRoundTrip(string path)
+        {
+            PptxEditableLoadResult loaded = PptxEditableReader.Read(path);
+
+            if (loaded == null || loaded.Document == null)
+                throw new InvalidOperationException("Editable reader returned no document.");
+
+            if (!loaded.CanRoundTripSafely)
+                throw new InvalidOperationException("Writer output was not considered safe for editable round-trip: " + loaded.Warning);
+
+            if (loaded.Document.Slides.Count != 3)
+                throw new InvalidOperationException("Editable reader did not preserve the expected slide count.");
+
+            if (loaded.Document.Slides[1].TextBoxes.Count < 2)
+                throw new InvalidOperationException("Editable reader did not preserve the expected text boxes.");
+
+            loaded.Document.Slides[1].TextBoxes[1].Text =
+                "Round-trip edit completed successfully.";
+
+            string roundTripPath = path + ".roundtrip.pptx";
+
+            try
+            {
+                if (File.Exists(roundTripPath))
+                    File.Delete(roundTripPath);
+
+                PptxWriter.Save(loaded.Document, roundTripPath);
+                ValidatePackage(roundTripPath, loaded.Document.Slides.Count);
+
+                PptxEditableLoadResult secondRead =
+                    PptxEditableReader.Read(roundTripPath);
+
+                if (secondRead.Document.Slides.Count != 3 ||
+                    secondRead.Document.Slides[1].TextBoxes.Count < 2 ||
+                    secondRead.Document.Slides[1].TextBoxes[1].Text !=
+                        "Round-trip edit completed successfully.")
+                {
+                    throw new InvalidOperationException("Read-edit-write text round-trip verification failed.");
+                }
+            }
+            finally
+            {
+                try
+                {
+                    if (File.Exists(roundTripPath))
+                        File.Delete(roundTripPath);
+                }
+                catch { }
+            }
         }
 
         private static void ValidatePackage(string path, int expectedSlides)
