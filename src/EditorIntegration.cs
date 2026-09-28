@@ -48,6 +48,30 @@ namespace PptxViewer
                 return;
             }
 
+            if (e.Control && e.Alt && e.KeyCode == Keys.T)
+            {
+                OpenNewOdtEditor();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
+
+            if (e.Control && e.Alt && e.KeyCode == Keys.S)
+            {
+                OpenNewOdsEditor();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
+
+            if (e.Control && e.Alt && e.KeyCode == Keys.P)
+            {
+                OpenNewOdpEditor();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
+
             if (e.Control && e.Shift && e.KeyCode == Keys.I)
             {
                 ShowCurrentPresentationCompatibilityReport();
@@ -90,6 +114,12 @@ namespace PptxViewer
                     OpenNewXlsxEditor();
                 else if (dialog.SelectedAction == WorkspaceAction.NewHwpx)
                     OpenNewHwpxEditor();
+                else if (dialog.SelectedAction == WorkspaceAction.NewOdt)
+                    OpenNewOdtEditor();
+                else if (dialog.SelectedAction == WorkspaceAction.NewOds)
+                    OpenNewOdsEditor();
+                else if (dialog.SelectedAction == WorkspaceAction.NewOdp)
+                    OpenNewOdpEditor();
                 else if (dialog.SelectedAction == WorkspaceAction.OpenExisting)
                     OpenExistingEditableOfficeFile();
             }
@@ -130,6 +160,17 @@ namespace PptxViewer
             }
         }
 
+        private void OpenNewOdtEditor()
+        {
+            using (UnifiedTextDocumentEditorForm editor =
+                new UnifiedTextDocumentEditorForm(
+                    TextDocumentEditSession.CreateNewOdt("New ODT Document")))
+            {
+                editor.ShowDialog(this);
+                ShowSavedNonPresentation(editor.SavedFilePath, "ODT");
+            }
+        }
+
         private void OpenNewXlsxEditor()
         {
             using (SpreadsheetEditorForm editor =
@@ -140,16 +181,35 @@ namespace PptxViewer
             }
         }
 
+        private void OpenNewOdsEditor()
+        {
+            using (OdsSpreadsheetEditorForm editor =
+                OdsSpreadsheetEditorForm.CreateNew("New ODS Workbook"))
+            {
+                editor.ShowDialog(this);
+                ShowSavedNonPresentation(editor.SavedFilePath, "ODS");
+            }
+        }
+
+        private void OpenNewOdpEditor()
+        {
+            using (OdpPresentationEditorForm editor =
+                OdpPresentationEditorForm.CreateNew("New ODP Presentation"))
+            {
+                editor.ShowDialog(this);
+                ShowSavedNonPresentation(editor.SavedFilePath, "ODP");
+            }
+        }
+
         private void OpenExistingEditableOfficeFile()
         {
             using (OpenFileDialog dialog = new OpenFileDialog())
             {
                 dialog.Filter =
-                    "Supported documents (*.pptx;*.docx;*.xlsx;*.hwpx;*.hwp)|*.pptx;*.docx;*.xlsx;*.hwpx;*.hwp|" +
-                    "PowerPoint Open XML (*.pptx)|*.pptx|" +
-                    "Word Open XML (*.docx)|*.docx|" +
-                    "Excel Open XML (*.xlsx)|*.xlsx|" +
-                    "HWPX (*.hwpx)|*.hwpx|" +
+                    "Supported documents (*.pptx;*.docx;*.xlsx;*.hwpx;*.hwp;*.odt;*.ods;*.odp)|*.pptx;*.docx;*.xlsx;*.hwpx;*.hwp;*.odt;*.ods;*.odp|" +
+                    "Presentation files (*.pptx;*.odp)|*.pptx;*.odp|" +
+                    "Text documents (*.docx;*.hwpx;*.odt)|*.docx;*.hwpx;*.odt|" +
+                    "Spreadsheets (*.xlsx;*.ods)|*.xlsx;*.ods|" +
                     "HWP 5.x read-only (*.hwp)|*.hwp|All files (*.*)|*.*";
                 dialog.CheckFileExists = true;
                 dialog.Multiselect = false;
@@ -166,7 +226,9 @@ namespace PptxViewer
                     {
                         OpenPresentationEditorForPath(path);
                     }
-                    else if (extension == ".docx" || extension == ".hwpx")
+                    else if (extension == ".docx" ||
+                        extension == ".hwpx" ||
+                        extension == ".odt")
                     {
                         using (UnifiedTextDocumentEditorForm editor =
                             UnifiedTextDocumentEditorForm.Open(path))
@@ -174,7 +236,11 @@ namespace PptxViewer
                             editor.ShowDialog(this);
                             ShowSavedNonPresentation(
                                 editor.SavedFilePath,
-                                extension == ".hwpx" ? "HWPX" : "DOCX");
+                                extension == ".hwpx"
+                                    ? "HWPX"
+                                    : extension == ".odt"
+                                        ? "ODT"
+                                        : "DOCX");
                         }
                     }
                     else if (extension == ".xlsx")
@@ -183,6 +249,22 @@ namespace PptxViewer
                         {
                             editor.ShowDialog(this);
                             ShowSavedNonPresentation(editor.SavedFilePath, "XLSX");
+                        }
+                    }
+                    else if (extension == ".ods")
+                    {
+                        using (OdsSpreadsheetEditorForm editor = OdsSpreadsheetEditorForm.Open(path))
+                        {
+                            editor.ShowDialog(this);
+                            ShowSavedNonPresentation(editor.SavedFilePath, "ODS");
+                        }
+                    }
+                    else if (extension == ".odp")
+                    {
+                        using (OdpPresentationEditorForm editor = OdpPresentationEditorForm.Open(path))
+                        {
+                            editor.ShowDialog(this);
+                            ShowSavedNonPresentation(editor.SavedFilePath, "ODP");
                         }
                     }
                     else if (extension == ".hwp")
@@ -322,7 +404,7 @@ namespace PptxViewer
 
             status.Text =
                 format + " saved: " + Path.GetFileName(savedPath) +
-                "  •  Use Ctrl+Alt+O to reopen supported documents.";
+                "  •  Use Workspace to reopen supported documents.";
         }
     }
 }
