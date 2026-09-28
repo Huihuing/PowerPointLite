@@ -8,6 +8,14 @@ namespace PptxViewer
     {
         protected override void OnKeyDown(KeyEventArgs e)
         {
+            if (e.Control && e.Shift && e.KeyCode == Keys.E)
+            {
+                OpenCurrentPresentationEditor();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
+
             if (e.Control && e.KeyCode == Keys.N)
             {
                 OpenNewPresentationEditor();
@@ -25,14 +33,63 @@ namespace PptxViewer
                 PresentationEditorForm.CreateNew("New Presentation"))
             {
                 editor.ShowDialog(this);
+                LoadSavedEditorOutput(editor);
+            }
+        }
 
-                string savedPath = editor.SavedFilePath;
+        private void OpenCurrentPresentationEditor()
+        {
+            if (string.IsNullOrEmpty(currentFile) ||
+                !File.Exists(currentFile) ||
+                !string.Equals(
+                    Path.GetExtension(currentFile),
+                    ".pptx",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show(
+                    this,
+                    "Open a PPTX file first. Existing-file editing is currently limited to PPTX files that the experimental writer can round-trip safely.",
+                    "Edit presentation",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
 
-                if (!string.IsNullOrEmpty(savedPath) &&
-                    File.Exists(savedPath))
+            try
+            {
+                PresentationEditSession session =
+                    PresentationEditSession.OpenEditable(currentFile);
+
+                using (PresentationEditorForm editor =
+                    new PresentationEditorForm(session))
                 {
-                    LoadPresentation(savedPath);
+                    editor.ShowDialog(this);
+                    LoadSavedEditorOutput(editor);
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    this,
+                    ex.Message +
+                    "\r\n\r\nThe file remains unchanged and can still be opened in Viewer mode.",
+                    "Editing is not safe yet",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
+        private void LoadSavedEditorOutput(PresentationEditorForm editor)
+        {
+            if (editor == null)
+                return;
+
+            string savedPath = editor.SavedFilePath;
+
+            if (!string.IsNullOrEmpty(savedPath) &&
+                File.Exists(savedPath))
+            {
+                LoadPresentation(savedPath);
             }
         }
     }
