@@ -57,6 +57,7 @@ namespace PptxViewer
             if (string.IsNullOrEmpty(FilePath))
                 throw new InvalidOperationException("Save As is required for a new ODP presentation.");
 
+            ValidateWritableModel();
             OdpWriter.Save(Document, FilePath);
             IsDirty = false;
         }
@@ -74,9 +75,38 @@ namespace PptxViewer
                 path = Path.ChangeExtension(path, "odp");
             }
 
+            ValidateWritableModel();
             OdpWriter.Save(Document, path);
             FilePath = Path.GetFullPath(path);
             IsDirty = false;
+        }
+
+        private void ValidateWritableModel()
+        {
+            for (int slideIndex = 0; slideIndex < Document.Slides.Count; slideIndex++)
+            {
+                PresentationSlide slide = Document.Slides[slideIndex];
+                if (slide == null)
+                    continue;
+
+                for (int shapeIndex = 0; shapeIndex < slide.Shapes.Count; shapeIndex++)
+                {
+                    PresentationShape shape = slide.Shapes[shapeIndex];
+                    if (shape == null)
+                        continue;
+
+                    if (shape.Kind != PresentationShapeKind.Rectangle &&
+                        shape.Kind != PresentationShapeKind.Ellipse)
+                    {
+                        throw new InvalidOperationException(
+                            "ODP save was stopped because slide " +
+                            (slideIndex + 1).ToString() +
+                            " contains a shape that the current ODP writer cannot preserve exactly: " +
+                            shape.Kind.ToString() +
+                            ". Only Rectangle and Ellipse are enabled until ODF custom-shape mapping is implemented.");
+                    }
+                }
+            }
         }
     }
 
@@ -171,7 +201,7 @@ namespace PptxViewer
             addImage.Click += delegate { AddImage(); };
             addShape.Click += delegate
             {
-                AddShape((PresentationShapeKind)Math.Max(0, quickShape.SelectedIndex));
+                AddShape(ShapeKindFromPickerIndex(quickShape.SelectedIndex));
             };
             deleteObject.Click += delegate { DeleteSelectedObject(); };
 
@@ -295,7 +325,7 @@ namespace PptxViewer
             properties.Controls.Add(lineColorEditor);
 
             Label hint = MakeLabel(
-                "Drag objects to move. Use the lower-right handle to resize. This ODP editor is experimental and only opens packages that pass the project safety guard.",
+                "Drag objects to move and resize. The current ODP writer enables Rectangle and Ellipse only; unsupported shape kinds are blocked from saving instead of being silently downgraded.",
                 0,
                 500,
                 270,
@@ -440,10 +470,19 @@ namespace PptxViewer
         {
             combo.Items.Clear();
             combo.Items.Add("Rectangle");
-            combo.Items.Add("Rounded Rectangle");
             combo.Items.Add("Ellipse");
-            combo.Items.Add("Triangle");
-            combo.Items.Add("Diamond");
+        }
+
+        private static PresentationShapeKind ShapeKindFromPickerIndex(int index)
+        {
+            return index == 1
+                ? PresentationShapeKind.Ellipse
+                : PresentationShapeKind.Rectangle;
+        }
+
+        private static int PickerIndexFromShapeKind(PresentationShapeKind kind)
+        {
+            return kind == PresentationShapeKind.Ellipse ? 1 : 0;
         }
 
         private void AddSlide()
@@ -500,6 +539,13 @@ namespace PptxViewer
             PresentationSlide slide = CurrentSlide();
             if (slide == null)
                 return;
+
+            if (kind != PresentationShapeKind.Rectangle &&
+                kind != PresentationShapeKind.Ellipse)
+            {
+                throw new NotSupportedException(
+                    "The current ODP writer only enables Rectangle and Ellipse until ODF custom-shape mapping is implemented.");
+            }
 
             PresentationShape shape = slide.AddShape(kind);
             shape.Name = kind.ToString() + " " + slide.Shapes.Count.ToString();
@@ -670,7 +716,7 @@ namespace PptxViewer
 
                 if (shapeEnabled)
                 {
-                    shapeKindPicker.SelectedIndex = (int)shape.Kind;
+                    shapeKindPicker.SelectedIndex = PickerIndexFromShapeKind(shape.Kind);
                     fillColorEditor.Text = "#" + NormalizeHex(shape.FillColorHex);
                     lineColorEditor.Text = "#" + NormalizeHex(shape.LineColorHex);
                 }
@@ -711,8 +757,8 @@ namespace PptxViewer
 
             if (shape != null)
             {
-                if (shapeKindPicker.SelectedIndex >= 0 && shapeKindPicker.SelectedIndex <= 4)
-                    shape.Kind = (PresentationShapeKind)shapeKindPicker.SelectedIndex;
+                if (shapeKindPicker.SelectedIndex >= 0 && shapeKindPicker.SelectedIndex <= 1)
+                    shape.Kind = ShapeKindFromPickerIndex(shapeKindPicker.SelectedIndex);
                 string fill = NormalizeHex(fillColorEditor.Text);
                 string line = NormalizeHex(lineColorEditor.Text);
                 if (fill.Length == 6) shape.FillColorHex = fill;
