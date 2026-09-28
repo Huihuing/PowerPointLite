@@ -1,0 +1,68 @@
+PPTX Viewer 1.2.1 - Feature Matrix
+=================================
+
+Viewer UX
+[OK] GUI EXE / no console window
+[OK] PPTX/PPTM direct open without PowerPoint
+[OK] drag and drop
+[OK] thumbnails / TOC
+[OK] Fit based on actual right-hand viewer pane
+[OK] TOC hide/show and fullscreen width reclaim
+[OK] mouse wheel navigation
+[OK] Ctrl+wheel zoom
+[OK] keyboard navigation
+[OK] F5 / Shift+F5 slideshow
+[OK] recent files / search / go-to-slide / slide sorter
+[OK] speaker notes / hidden slide metadata
+[OK] Presenter View with next slide, notes and elapsed timer
+[OK] full-slide / Notes Page / 2, 4, 6 slide handout printing
+[OK] startup diagnostics/logging
+[OK] per-file render cache
+[OK] Windows Open With registration script
+
+Static PowerPoint content
+[OK] backgrounds / theme colors
+[OK] theme fonts (major/minor mapping)
+[OK] masters / layouts / inherited placeholder positions
+[OK] text, basic paragraph formatting
+[OK] bullets / numbering
+[OK] images / crop / rotation
+[OK] basic SVG subset + EMF/WMF through GDI+ when supported
+[OK] common PowerPoint shapes
+[OK] gradients / transparency / basic shadow
+[OK] lines / dash / arrowheads
+[OK] grouped shapes
+[OK] tables
+[OK] basic column/bar/line/pie charts
+[OK] SmartArt static approximation from diagram data
+[OK] embedded object preview images when available
+
+Interactive / presentation
+[OK] external hyperlinks
+[OK] internal slide hyperlinks
+[OK] PowerPoint first/last/next/previous/end-show actions
+[OK] embedded audio/video click-to-open
+[OK] fade / wipe / push / cut transition
+[OK] unsupported/Morph transition graceful fade fallback
+[OK] simple entrance reveal animation approximation
+[OK] N/P and number+Enter slide navigation
+[OK] B/W blank screen
+[OK] hidden-slide handling
+[OK] right-click slideshow menu
+
+Native PowerPoint backend
+[OK] uses native PowerPoint rendering when available
+[OK] uses native PowerPoint slideshow/F5 when available
+
+Not claimed as pixel-perfect in internal renderer
+--------------------------------------------------
+- complex SmartArt automatic layout
+- every chart subtype / custom chart extensions
+- full per-object PowerPoint animation timeline
+- true object-matched Morph geometry interpolation
+- all 3D/glow/reflection/artistic effects
+- VBA/macros/ActiveX execution
+- inline codec-independent video player
+
+These items require a PowerPoint-class rendering/runtime engine. The viewer
+uses the native PowerPoint backend automatically when it exists.
