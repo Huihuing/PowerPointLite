@@ -36,6 +36,7 @@ namespace PptxViewer
                 new AdvancedPresentationEditorForm(session))
             {
                 AdvancedEditorTableExtension.Attach(editor, session);
+                AdvancedEditorThumbnailExtension.Attach(editor, session);
                 editor.ShowDialog(this);
                 LoadSavedEditorOutput(editor.SavedFilePath);
             }
@@ -68,6 +69,7 @@ namespace PptxViewer
                     new AdvancedPresentationEditorForm(session))
                 {
                     AdvancedEditorTableExtension.Attach(editor, session);
+                    AdvancedEditorThumbnailExtension.Attach(editor, session);
                     editor.ShowDialog(this);
                     LoadSavedEditorOutput(editor.SavedFilePath);
                 }
