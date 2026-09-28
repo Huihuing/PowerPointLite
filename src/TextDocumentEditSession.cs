@@ -28,6 +28,17 @@ namespace PptxViewer
 
         public static TextDocumentEditSession Open(string path)
         {
+            DocxEditSafetyResult safety =
+                DocxEditSafety.Analyze(path);
+
+            if (safety == null || !safety.CanEditSafely)
+            {
+                throw new InvalidOperationException(
+                    safety == null || string.IsNullOrEmpty(safety.Warning)
+                        ? "This DOCX cannot yet be edited without risking unsupported-content loss."
+                        : safety.Warning);
+            }
+
             TextDocument document = DocxReader.Read(path);
             TextDocumentEditSession session =
                 new TextDocumentEditSession(document);
