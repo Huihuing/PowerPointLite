@@ -82,7 +82,7 @@ Renderer      Editor
 - [x] system font catalog 초기 구현
 - [x] OpenType `OS/2.fsType` reader
 - [x] FontLicenseInfo / FontLicenseService 초기 구현
-- [ ] bundle font allow-list 구조
+- [x] bundle font allow-list / deny-by-default 정책 코드
 - [ ] 독립적인 프로젝트 브랜딩 결정
 - [ ] 실제 번들 폰트 도입 시 라이선스 원문 검토
 
@@ -102,20 +102,21 @@ Renderer      Editor
 - [x] model 단계 text box / font / alignment 편집
 - [x] model 단계 basic shape
 - [x] model 단계 image
+- [x] model 단계 basic table
 - [x] PNG/JPEG/GIF/BMP media part 작성
 - [x] 이미지 relationship 작성
 - [x] 기본 Rectangle/RoundedRectangle/Ellipse/Triangle/Diamond 작성
+- [x] DrawingML 기본 table XML 작성
 - [x] `.writing` + backup 기반 Save 교체 방식
 - [x] Save / Save As 세션 기반
 - [x] 자체 Writer package 진단 모드
-- [x] Writer 생성 문서의 text/shape/image editable-reader round-trip 코드
-- [ ] basic table
+- [x] Writer 생성 문서의 text/shape/image/table editable-reader round-trip 코드
 - [ ] 기존 임의 PPTX를 editable model로 안전하게 import
 - [ ] unknown/unsupported part preservation
 - [ ] Writer 생성물을 Windows PowerPoint/PowerPointLite에서 실제 검증
 - [ ] Windows에서 생성 → 재열기 → 수정 → 재저장 self-test 통과
 
-Writer는 `src/PptxWriter.cs`가 `PresentationDocument`를 받아 PPTX를 생성한다. 사용자 PC의 폰트 family 이름을 문서에 기록할 수 있지만 font 파일 자체를 자동 embedding하지 않는다.
+Writer는 `src/PptxWriter.cs`의 기본 package 생성 뒤 `PresentationPackageWriter`가 table injection을 포함한 완성 package 저장을 담당한다. 사용자 PC의 폰트 family 이름을 문서에 기록할 수 있지만 font 파일 자체를 자동 embedding하지 않는다.
 
 이미지 삽입은 사용자가 명시적으로 선택한 로컬 PNG/JPEG/GIF/BMP만 사용한다. 프로그램이 외부 클립아트나 상용 이미지 자산을 자동 다운로드/번들하지 않는다.
 
@@ -158,8 +159,11 @@ Windows `csc.exe` 실빌드와 Microsoft PowerPoint 실제 호환성 검증 전�
 - [x] snapshot undo/redo
 - [x] text/shape/image copy/paste
 - [x] guarded edit mode for Writer-generated compatible PPTX
+- [x] basic table manager/editor
+- [x] table cell text edit / header styling
+- [x] table preview overlay + double-click reopen
 - [ ] slide thumbnail preview
-- [ ] basic table editor
+- [ ] table drag/resize integrated object selection
 - [ ] object z-order controls
 - [ ] multi-selection
 - [ ] system clipboard interoperability for structured objects
@@ -236,7 +240,7 @@ Writer Windows 진단은 빌드 후 다음으로 실행한다.
 RUN_WRITER_SELFTEST.cmd
 ```
 
-현재 self-test는 코드가 직접 만든 text, rounded rectangle, PNG 이미지를 포함한다. 외부 이미지/템플릿을 fixture로 가져오지 않는다.
+현재 self-test는 코드가 직접 만든 text, rounded rectangle, PNG 이미지, basic table을 포함한다. 외부 이미지/템플릿을 fixture로 가져오지 않는다.
 
 ## Merge 기준
 
@@ -247,7 +251,7 @@ RUN_WRITER_SELFTEST.cmd
 - 기존 PPTX 샘플 열기
 - Fit / TOC / slideshow / notes / print 확인
 - `RUN_WRITER_SELFTEST.cmd` 통과
-- Writer output의 text/shape/image round-trip 확인
+- Writer output의 text/shape/image/table round-trip 확인
 - 새 Writer 파일을 PowerPointLite에서 다시 열기
 - 가능하면 Microsoft PowerPoint/LibreOffice에서도 구조 확인
 - 외부 자산/폰트 라이선스 확인
