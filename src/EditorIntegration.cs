@@ -29,11 +29,11 @@ namespace PptxViewer
 
         private void OpenNewPresentationEditor()
         {
-            using (PresentationEditorForm editor =
-                PresentationEditorForm.CreateNew("New Presentation"))
+            using (AdvancedPresentationEditorForm editor =
+                AdvancedPresentationEditorForm.CreateNew("New Presentation"))
             {
                 editor.ShowDialog(this);
-                LoadSavedEditorOutput(editor);
+                LoadSavedEditorOutput(editor.SavedFilePath);
             }
         }
 
@@ -60,11 +60,11 @@ namespace PptxViewer
                 PresentationEditSession session =
                     PresentationEditSession.OpenEditable(currentFile);
 
-                using (PresentationEditorForm editor =
-                    new PresentationEditorForm(session))
+                using (AdvancedPresentationEditorForm editor =
+                    new AdvancedPresentationEditorForm(session))
                 {
                     editor.ShowDialog(this);
-                    LoadSavedEditorOutput(editor);
+                    LoadSavedEditorOutput(editor.SavedFilePath);
                 }
             }
             catch (Exception ex)
@@ -79,13 +79,8 @@ namespace PptxViewer
             }
         }
 
-        private void LoadSavedEditorOutput(PresentationEditorForm editor)
+        private void LoadSavedEditorOutput(string savedPath)
         {
-            if (editor == null)
-                return;
-
-            string savedPath = editor.SavedFilePath;
-
             if (!string.IsNullOrEmpty(savedPath) &&
                 File.Exists(savedPath))
             {
