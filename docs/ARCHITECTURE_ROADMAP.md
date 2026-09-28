@@ -1,259 +1,363 @@
 # Multi-format Architecture Roadmap
 
-현재 안정 기능은 PPTX Viewer이며, 이 문서는 기존 Viewer를 깨뜨리지 않고 향후 문서·스프레드시트·프레젠테이션 편집기로 확장하기 위한 구조 기준이다.
+현재 안정 기준은 PPTX Viewer이며, `feature/office-foundation`에서 기존 Viewer를 깨뜨리지 않고 문서·스프레드시트·프레젠테이션 Editor로 확장한다.
 
-## 원칙
+## 개발 원칙
 
-1. Reader / Writer를 분리한다.
-2. UI가 파일 포맷 XML을 직접 다루지 않는다.
-3. 공통 내부 모델을 통해 Renderer / Editor / Writer를 연결한다.
-4. OOXML 공통 계층을 PPTX Writer보다 먼저 또는 동시에 분리한다.
-5. 기존 PPTX Viewer 회귀 테스트를 통과하지 못한 대규모 refactor는 main에 병합하지 않는다.
-6. 매크로 문서는 열 수 있어도 VBA를 실행하지 않는다.
-7. 상표/폰트/템플릿/외부 자산은 라이선스가 명확하지 않으면 포함하지 않는다.
-8. 임의의 외부 문서를 지원 모델보다 좁게 읽은 뒤 덮어써서 내용을 유실시키지 않는다.
+1. Reader / Writer / Editor를 분리한다.
+2. UI에서 ZIP/XML을 직접 수정하지 않는다.
+3. 공통 내부 모델을 사용한다.
+4. 파일을 현재 모델보다 좁게 읽은 뒤 덮어써서 내용을 유실시키지 않는다.
+5. 임의 외부 문서는 unknown-part preservation이 준비되기 전까지 deny-by-default다.
+6. VBA/ActiveX/매크로를 실행하지 않는다.
+7. Microsoft/Hancom 실행파일·DLL·로고·아이콘·템플릿을 번들하지 않는다.
+8. 폰트 embedding은 실제 라이선스 확인이 없으면 허용하지 않는다.
+9. 테스트 문서는 코드가 직접 생성한다.
+10. Windows 실제 빌드/실행 검증 전에는 `main`으로 병합하지 않는다.
 
-## 목표 구조
+---
 
-```text
-src/
-├─ Core/
-│  ├─ Packaging/
-│  ├─ Xml/
-│  ├─ Relationships/
-│  ├─ Drawing/
-│  ├─ Images/
-│  ├─ Fonts/
-│  └─ FontLicensing/
-│
-├─ Models/
-│  ├─ Presentation/
-│  ├─ Document/
-│  └─ Spreadsheet/
-│
-├─ Formats/
-│  ├─ Presentation/PPTX/
-│  ├─ Document/DOCX/
-│  ├─ Document/HWPX/
-│  ├─ Document/HWP/
-│  ├─ Spreadsheet/XLSX/
-│  └─ ODF/
-│
-├─ Renderer/
-├─ Editor/
-├─ Printing/
-├─ Export/
-└─ UI/
-```
+# Phase 0 — 기존 PPTX Viewer 유지
 
-현재 `BUILD_EXE.cmd`가 `src\*.cs`만 컴파일하므로 실제 디렉터리 분리는 빌드 스크립트를 재귀 소스 목록 방식으로 바꾸는 단계와 함께 진행한다. 그 전에는 namespace와 파일 단위로 논리 분리를 먼저 한다.
+- [x] PPTX/PPTM Reader
+- [x] Internal OpenXML Renderer
+- [x] PowerPoint Native 우선 경로
+- [x] LibreOffice fallback
+- [x] thumbnails / TOC / Fit / zoom
+- [x] slideshow / notes / hidden slide
+- [x] Presenter View
+- [x] printing layouts
+- [x] source split / portable build
+- [ ] Windows `BUILD_EXE.cmd` 최신 feature 전체 컴파일 검증
+- [ ] 기존 PPTX 회귀 테스트
+- [ ] `feature/presentation-tools` 안정화/병합 판단
 
-## Reader / Writer 흐름
+중요 회귀 방지:
 
 ```text
-PPTX
- ↓
-PptxReader
- ↓
-PresentationDocument
- ↓              ↓
-Renderer      Editor
-                 ↓
-             PptxWriter
-                 ↓
-                PPTX
+Fit = SplitContainer.Panel2 실제 viewport 기준
+GUI Timer = System.Windows.Forms.Timer 명시
+.NET Framework csc.exe 호환 문법/API 유지
 ```
 
-동일 패턴을 DOCX/XLSX/HWPX에 재사용한다.
+---
 
-## Phase 0 — PPTX Viewer 안정화
+# Phase 1 — 저작권·폰트·자산 안전 기반
 
-- [x] PPTX Reader / Renderer
-- [x] Presentation mode
-- [x] Presenter View / Notes / Printing
-- [ ] Windows 실제 빌드 오류 0 유지
-- [ ] 다양한 자체 테스트 PPTX 회귀 테스트
-- [ ] 진행 중 presentation-tools 기능 안정화
+- [x] `docs/LEGAL_ASSET_POLICY.md`
+- [x] `THIRD_PARTY_NOTICES.md`
+- [x] `licenses/` 구조
+- [x] 시스템 설치 font family catalog
+- [x] OpenType/TrueType `OS/2.fsType` parser
+- [x] Installable / Editable / Preview&Print / Restricted 구분
+- [x] NoSubsetting / BitmapEmbeddingOnly 처리
+- [x] `FontLicenseService`
+- [x] app font bundle deny-by-default 정책
+- [x] 실제 라이선스 원문이 fsType보다 우선
+- [ ] 최종 독립 프로젝트 브랜드 결정
+- [ ] 실제 번들 폰트가 필요해질 경우 개별 라이선스 원문 검토
 
-## Phase 1 — 법적/자산/폰트 안전 기반
+현재 기본 정책은 **폰트 파일을 번들하지 않고 family 이름만 문서에 기록**하는 것이다.
 
-- [x] 자산·상표·폰트 정책 문서
-- [x] THIRD_PARTY_NOTICES 유지 체계
-- [x] system font catalog 초기 구현
-- [x] OpenType `OS/2.fsType` reader
-- [x] FontLicenseInfo / FontLicenseService 초기 구현
-- [x] bundle font allow-list / deny-by-default 정책 코드
-- [ ] 독립적인 프로젝트 브랜딩 결정
-- [ ] 실제 번들 폰트 도입 시 라이선스 원문 검토
+---
 
-## Phase 2 — PPTX Writer MVP
+# Phase 2 — 공통 OOXML / OPC 기반
 
-현재 Writer와 편집 모델은 아직 feature 단계이며 main 안정 기능으로 간주하지 않는다.
+- [x] ZIP/XML package helper
+- [x] `[Content_Types].xml` helper
+- [x] `.rels` helper
+- [x] relationship target resolver
+- [x] PPTX Writer에서 공통 OPC 사용
+- [x] DOCX Writer/Reader 기반
+- [x] XLSX Writer/Reader 기반
+- [x] `OpcPreservation` 초기 기반
+- [x] compatibility analyzer 기반
+- [ ] 기존 PPTX Renderer의 중복 OPC 코드를 점진적으로 공통 계층으로 이동
+- [ ] DrawingML 공통 모델 확대
+- [ ] shared theme/color/font model
+- [ ] unknown-part preservation 완성
 
-- [x] 새 presentation package 생성 초기 구현
-- [x] `[Content_Types].xml`
-- [x] package / presentation relationships
-- [x] 자체 neutral theme/master/layout 최소 세트
-- [x] 첫 슬라이드와 text box 생성
-- [x] 기본 font/style XML 생성
-- [x] `PresentationDocument` internal model 초기 구현
-- [x] multi-slide Writer 연결
-- [x] model 단계 slide add/delete/reorder
-- [x] model 단계 text box / font / alignment 편집
-- [x] model 단계 basic shape
-- [x] model 단계 image
-- [x] model 단계 basic table
-- [x] PNG/JPEG/GIF/BMP media part 작성
-- [x] 이미지 relationship 작성
-- [x] 기본 Rectangle/RoundedRectangle/Ellipse/Triangle/Diamond 작성
-- [x] DrawingML 기본 table XML 작성
-- [x] `.writing` + backup 기반 Save 교체 방식
-- [x] Save / Save As 세션 기반
-- [x] 자체 Writer package 진단 모드
-- [x] Writer 생성 문서의 text/shape/image/table editable-reader round-trip 코드
-- [ ] 기존 임의 PPTX를 editable model로 안전하게 import
-- [ ] unknown/unsupported part preservation
-- [ ] Writer 생성물을 Windows PowerPoint/PowerPointLite에서 실제 검증
-- [ ] Windows에서 생성 → 재열기 → 수정 → 재저장 self-test 통과
+---
 
-Writer는 `src/PptxWriter.cs`의 기본 package 생성 뒤 `PresentationPackageWriter`가 table injection을 포함한 완성 package 저장을 담당한다. 사용자 PC의 폰트 family 이름을 문서에 기록할 수 있지만 font 파일 자체를 자동 embedding하지 않는다.
+# Phase 3 — PPTX Writer / Editor
 
-이미지 삽입은 사용자가 명시적으로 선택한 로컬 PNG/JPEG/GIF/BMP만 사용한다. 프로그램이 외부 클립아트나 상용 이미지 자산을 자동 다운로드/번들하지 않는다.
+## Writer
 
-Windows `csc.exe` 실빌드와 Microsoft PowerPoint 실제 호환성 검증 전에는 안정 기능으로 간주하지 않는다.
-
-## Phase 3 — 공통 OOXML 계층
-
-`src/OpcPackage.cs`에 첫 공통 계층을 추가했다.
-
-- [x] OPC package XML part helper 초기 구현
-- [x] content types reader/writer helper
-- [x] relationships reader/writer helper
-- [x] URI/part target resolver 초기 구현
-- [ ] existing PPTX Reader가 공통 OPC 계층 사용하도록 점진적 전환
-- [ ] DrawingML common model
-- [ ] theme/color/font common model
-- [x] Writer/EditableReader media-image store 초기 경로
-- [ ] unknown part preservation abstraction
-
-## Phase 4 — PPTX Editor UI
-
-`src/AdvancedPresentationEditorForm.cs`가 현재 feature 브랜치의 주 Editor UI다. 기존 `PresentationEditorForm.cs`는 회귀 비교용 초기 구현으로 남겨둔다.
-
-- [x] Ctrl+N 새 프레젠테이션 진입점
-- [x] slide list
-- [x] object selection canvas
-- [x] text edit
-- [x] system font picker
-- [x] font size / bold / italic
-- [x] alignment / color
+- [x] `PresentationDocument`
+- [x] multi-slide writer
 - [x] slide add/delete/reorder
-- [x] Save / Save As
-- [x] dirty state / close confirmation
-- [x] add/remove text box UI
-- [x] drag/resize object selection
+- [x] text boxes
+- [x] font/style/alignment/color
+- [x] basic shapes
+- [x] PNG/JPEG/GIF/BMP image parts
+- [x] image relationships
+- [x] basic DrawingML tables
+- [x] safe staged save + backup
+- [x] Reader → model → Writer round-trip 기반
+- [x] project-generated PPTX safety guard
+- [x] compatibility report
+- [x] Writer self-test
+- [ ] arbitrary external PPTX full preservation
+- [ ] unsupported extension parts preservation 확대
+- [ ] PowerPoint/LibreOffice 실제 호환 검증
+
+## Editor
+
+현재 주 Editor는 `AdvancedPresentationEditorForm`이다.
+
+- [x] independent dark/flat UI
+- [x] slide list
+- [x] 실제 slide thumbnail preview
+- [x] text object add/delete/edit
+- [x] object selection
+- [x] drag/resize
+- [x] keyboard nudge
+- [x] system font picker
+- [x] text style/color/alignment
 - [x] image insert
 - [x] basic shapes
-- [x] shape fill/line color edit
-- [x] keyboard object nudge
+- [x] shape fill/line color
+- [x] basic table editor
+- [x] table preview overlay
 - [x] snapshot undo/redo
 - [x] text/shape/image copy/paste
-- [x] guarded edit mode for Writer-generated compatible PPTX
-- [x] basic table manager/editor
-- [x] table cell text edit / header styling
-- [x] table preview overlay + double-click reopen
-- [ ] slide thumbnail preview
-- [ ] table drag/resize integrated object selection
-- [ ] object z-order controls
+- [x] guarded existing-PPTX edit mode
+- [ ] table drag/resize를 일반 object selection과 통합
+- [ ] object z-order
 - [ ] multi-selection
-- [ ] system clipboard interoperability for structured objects
-- [ ] arbitrary existing PPTX safe edit mode
+- [ ] system clipboard structured-object interoperability
+- [ ] arbitrary external PPTX safe editing
 
-Editor UI는 `docs/UI_DESIGN_GUIDE.md`에 따라 독립 디자인을 사용하고 Office/Hancom UI 자산을 복제하지 않는다.
+---
 
-## Phase 5 — DOCX
+# Phase 4 — DOCX
 
-- [ ] DocxReader
-- [ ] paragraph/run/styles
-- [ ] tables/images
-- [ ] headers/footers
-- [ ] DocxWriter
-- [ ] new/edit/save/print
-- [ ] `.docm` macro parts preserve-only
-
-## Phase 6 — XLSX
-
-- [ ] XlsxReader
-- [ ] workbook/sheets
-- [ ] shared strings
-- [ ] cells/styles/number formats
-- [ ] formulas
-- [ ] merged cells
-- [ ] XlsxWriter
-- [ ] new/edit/save/print
-- [ ] `.xlsm` macro parts preserve-only
-
-## Phase 7 — HWPX / HWP
-
-HWPX를 먼저 구현한다.
-
-- [ ] 최신 공식 규격 재확인
-- [ ] HwpxReader
-- [ ] HwpxWriter
-- [ ] text/table/image/page layout
-- [ ] HWP 공식 명세 버전 기록
-- [ ] HwpReader
-- [ ] HwpWriter는 Reader 안정화 뒤 진행
-
-## Phase 8 — ODF / PDF
-
-- [ ] ODT / ODS / ODP
-- [ ] shared ODF package layer
-- [ ] PDF export
-- [ ] PDF font embedding 시 FontLicenseService 강제 사용
-
-## 테스트 자산
-
-테스트 파일은 자체 generator 또는 프로젝트 자체 작성 파일만 사용한다.
+공통 모델:
 
 ```text
-tests/
-├─ TEST_BASIC_PPTX.pptx
-├─ TEST_BASIC_DOCX.docx
-├─ TEST_BASIC_XLSX.xlsx
-└─ TEST_BASIC_HWPX.hwpx
+TextDocument
+ └─ DocumentParagraph[]
+     └─ DocumentTextRun[]
 ```
 
-새 포맷은 최소한 다음 테스트를 갖는다.
+현재:
 
-1. Create
-2. Save
-3. Re-open
-4. Modify
-5. Save As
-6. Round-trip preservation
-7. Unsupported part preservation where practical
+- [x] `TextDocumentModel`
+- [x] paragraph/run model
+- [x] font family / size
+- [x] bold / italic / underline
+- [x] text color
+- [x] paragraph alignment
+- [x] DOCX Writer
+- [x] DOCX Reader
+- [x] project-generated DOCX safety guard
+- [x] DOCX structural round-trip diagnostics
+- [x] legacy DOCX editor MVP
+- [x] DOCX/HWPX 공통 edit session
+- [x] `UnifiedTextDocumentEditorForm`
+- [ ] tables
+- [ ] images
+- [ ] headers/footers
+- [ ] page layout
+- [ ] numbered/bulleted lists
+- [ ] styles hierarchy
+- [ ] comments/footnotes/endnotes
+- [ ] `.docm` unknown/VBA parts preserve-only
+- [ ] arbitrary DOCX preservation 확대
+- [ ] Word/LibreOffice 실제 호환 검증
 
-Writer Windows 진단은 빌드 후 다음으로 실행한다.
+---
+
+# Phase 5 — XLSX
+
+현재 `SpreadsheetCore.cs` 기반:
+
+- [x] `SpreadsheetDocument`
+- [x] multiple worksheets
+- [x] add/delete/move/rename sheet
+- [x] sparse cell model
+- [x] text cells
+- [x] number cells
+- [x] boolean cells
+- [x] formula storage
+- [x] XLSX Writer
+- [x] XLSX Reader
+- [x] project-generated XLSX safety guard
+- [x] create/read/edit/write diagnostics
+- [x] `SpreadsheetEditorForm`
+- [x] worksheet tabs
+- [x] DataGridView cell editing
+- [x] formula/input bar
+- [x] multi-cell delete
+- [x] Save / Save As
+- [ ] formula calculation engine
+- [ ] cell styles / fonts / colors
+- [ ] number/date formats
+- [ ] row height / column width
+- [ ] merged cells
+- [ ] copy/paste range
+- [ ] CSV import/export
+- [ ] charts
+- [ ] comments/data validation
+- [ ] `.xlsm` VBA parts preserve-only
+- [ ] arbitrary XLSX preservation 확대
+- [ ] Excel/LibreOffice 실제 호환 검증
+
+Formula는 현재 **저장/읽기** 대상으로 취급하며 자체 계산 결과를 신뢰성 있게 산출한다고 주장하지 않는다.
+
+---
+
+# Phase 6 — HWPX
+
+HWPX는 HWP보다 먼저 진행한다.
+
+공개 HWPX/OWPML 구조에 기반한 독립 구현이며 한컴 바이너리나 DLL을 사용하지 않는다.
+
+현재:
+
+- [x] `application/hwp+zip` package detection
+- [x] `version.xml`
+- [x] `META-INF/container.xml`
+- [x] `META-INF/manifest.xml`
+- [x] `Contents/content.hpf`
+- [x] `Contents/header.xml`
+- [x] `Contents/section0.xml`
+- [x] preview text
+- [x] `HwpxReader` → `TextDocument`
+- [x] `HwpxWriter` ← `TextDocument`
+- [x] paragraph/run text
+- [x] basic font/style reference
+- [x] basic paragraph alignment
+- [x] line break / tab
+- [x] deny-by-default `HwpxEditSafety`
+- [x] create/read/edit/save/read structural self-test
+- [x] DOCX/HWPX shared document edit session
+- [x] HWPX entry through unified document editor
+- [ ] official schema/validator validation
+- [ ] actual Hancom open/save verification
+- [ ] multiple sections
+- [ ] tables
+- [ ] images/BinData
+- [ ] lists/styles compatibility 확대
+- [ ] page/section settings compatibility 확대
+- [ ] unknown-part preservation
+- [ ] arbitrary external HWPX safe edit mode
+
+상세: `docs/HWPX_FOUNDATION.md`
+
+**현재 HWPX는 experimental이다. 구조 self-test 성공만으로 한컴 호환 완료라고 표시하지 않는다.**
+
+---
+
+# Phase 7 — HWP Binary
+
+HWP는 공개 HWP 5.x 파일 형식 명세 기반으로 Reader 우선 구현한다.
+
+- [ ] OLE/Compound File container
+- [ ] FileHeader
+- [ ] DocInfo
+- [ ] BodyText/Section stream
+- [ ] record parser
+- [ ] compressed stream support
+- [ ] text extraction
+- [ ] basic paragraph/style mapping
+- [ ] table/image read
+- [ ] read-only viewer/model bridge
+- [ ] Writer feasibility 재검토
+
+HWP Writer는 Reader 안정화 및 명세 범위 확인 전까지 후순위다.
+
+---
+
+# Phase 8 — ODF / PDF
+
+- [ ] ODT Reader/Writer
+- [ ] ODS Reader/Writer
+- [ ] ODP Reader/Writer
+- [ ] common ODF package layer
+- [ ] PDF page-render model
+- [ ] PDF text/image/vector export
+- [ ] font subset/embed
+- [ ] PDF font embedding에 `FontLicenseService` 강제 적용
+
+---
+
+# 공통 Workspace UI
+
+- [x] original dark/flat `ApplicationTheme`
+- [x] `OfficeWorkspaceDialog`
+- [x] PPTX new/edit entry
+- [x] DOCX new/edit entry
+- [x] XLSX new/edit entry
+- [x] HWPX new/edit entry
+- [x] editable-file open chooser
+- [ ] toolbar에서 Workspace 버튼 직접 노출
+- [ ] 최근 multi-format documents
+- [ ] 파일 타입별 독립 아이콘 제작
+- [ ] accessibility/tab order 확대
+- [ ] DPI 100/125/150% 실제 점검
+
+현재 단축키:
+
+```text
+Ctrl+N        New Presentation
+Ctrl+Alt+N    New/Open Workspace
+Ctrl+Alt+O    Open editable document
+Ctrl+Alt+D    New DOCX
+Ctrl+Alt+X    New XLSX
+Ctrl+Alt+H    New HWPX
+Ctrl+Shift+E  Edit current PPTX safely
+Ctrl+Shift+I  PPTX compatibility report
+```
+
+---
+
+# 테스트 / Merge Gate
+
+Windows에서 최소:
+
+```bat
+BUILD_EXE.cmd
+RUN_ALL_FORMAT_SELFTESTS.cmd
+```
+
+개별:
 
 ```bat
 RUN_WRITER_SELFTEST.cmd
+RUN_DOCX_SELFTEST.cmd
+RUN_XLSX_SELFTEST.cmd
+RUN_HWPX_SELFTEST.cmd
 ```
 
-현재 self-test는 코드가 직접 만든 text, rounded rectangle, PNG 이미지, basic table을 포함한다. 외부 이미지/템플릿을 fixture로 가져오지 않는다.
+그 다음 수동 확인:
 
-## Merge 기준
+1. Viewer 실행
+2. 기존 자체 PPTX 샘플
+3. TOC on/off Fit
+4. wheel / Ctrl+wheel
+5. F5 / Shift+F5
+6. Presenter / Notes / Print
+7. PPTX Editor create/save/reopen
+8. DOCX Editor create/save/reopen
+9. XLSX Editor create/save/reopen
+10. HWPX 구조 test
+11. 가능한 경우 Microsoft Office / LibreOffice / Hancom 실제 열기 확인
 
-새 포맷/Editor 작업보다 기존 PPTX 기능 회귀 방지가 우선이다.
+외부 애플리케이션 호환 확인 전에는 해당 포맷을 안정 지원으로 표시하지 않는다.
 
-- Windows `BUILD SUCCESS`
-- Viewer 실행 확인
-- 기존 PPTX 샘플 열기
-- Fit / TOC / slideshow / notes / print 확인
-- `RUN_WRITER_SELFTEST.cmd` 통과
-- Writer output의 text/shape/image/table round-trip 확인
-- 새 Writer 파일을 PowerPointLite에서 다시 열기
-- 가능하면 Microsoft PowerPoint/LibreOffice에서도 구조 확인
-- 외부 자산/폰트 라이선스 확인
+---
 
-이 조건을 통과한 뒤 main에 병합한다.
+# 최종 목표
+
+```text
+PPTX  read / create / edit / save / present / print
+DOCX  read / create / edit / save / print
+XLSX  read / create / edit / save / print
+HWPX  read / create / edit / save
+HWP   read first, writer later if safe
+ODT / ODS / ODP
+PDF export
+```
+
+항상 **기존 문서를 잃지 않는 것, 저작권/상표/폰트 라이선스를 침해하지 않는 것, 실제 빌드 검증을 거치는 것**을 기능 수보다 우선한다.
