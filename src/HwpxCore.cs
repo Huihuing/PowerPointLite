@@ -939,7 +939,8 @@ namespace PptxViewer
                     continue;
 
                 xml.Append("<hp:p id=\"");
-                xml.Append(paragraphId++.ToString(CultureInfo.InvariantCulture));
+                xml.Append(paragraphId.ToString(CultureInfo.InvariantCulture));
+                paragraphId++;
                 xml.Append("\" paraPrIDRef=\"");
                 xml.Append(((int)paragraph.Alignment).ToString(CultureInfo.InvariantCulture));
                 xml.Append("\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\">");
