@@ -29,9 +29,13 @@ namespace PptxViewer
 
         private void OpenNewPresentationEditor()
         {
+            PresentationEditSession session =
+                PresentationEditSession.CreateNew("New Presentation");
+
             using (AdvancedPresentationEditorForm editor =
-                AdvancedPresentationEditorForm.CreateNew("New Presentation"))
+                new AdvancedPresentationEditorForm(session))
             {
+                AdvancedEditorTableExtension.Attach(editor, session);
                 editor.ShowDialog(this);
                 LoadSavedEditorOutput(editor.SavedFilePath);
             }
@@ -63,6 +67,7 @@ namespace PptxViewer
                 using (AdvancedPresentationEditorForm editor =
                     new AdvancedPresentationEditorForm(session))
                 {
+                    AdvancedEditorTableExtension.Attach(editor, session);
                     editor.ShowDialog(this);
                     LoadSavedEditorOutput(editor.SavedFilePath);
                 }
