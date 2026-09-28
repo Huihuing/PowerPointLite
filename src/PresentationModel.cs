@@ -148,6 +148,93 @@ namespace PptxViewer
         }
     }
 
+    internal sealed class PresentationTableCell
+    {
+        public string Text { get; set; }
+        public string FontFamily { get; set; }
+        public float FontSizePoints { get; set; }
+        public bool Bold { get; set; }
+        public string TextColorHex { get; set; }
+        public string FillColorHex { get; set; }
+        public PresentationTextAlignment Alignment { get; set; }
+
+        public PresentationTableCell()
+        {
+            Text = string.Empty;
+            FontFamily = "Arial";
+            FontSizePoints = 16f;
+            Bold = false;
+            TextColorHex = "20242A";
+            FillColorHex = "FFFFFF";
+            Alignment = PresentationTextAlignment.Left;
+        }
+
+        public PresentationTableCell Clone()
+        {
+            PresentationTableCell copy = new PresentationTableCell();
+            copy.Text = Text;
+            copy.FontFamily = FontFamily;
+            copy.FontSizePoints = FontSizePoints;
+            copy.Bold = Bold;
+            copy.TextColorHex = TextColorHex;
+            copy.FillColorHex = FillColorHex;
+            copy.Alignment = Alignment;
+            return copy;
+        }
+    }
+
+    internal sealed class PresentationTable
+    {
+        private readonly List<PresentationTableCell> cells =
+            new List<PresentationTableCell>();
+
+        public string Name { get; set; }
+        public int Rows { get; private set; }
+        public int Columns { get; private set; }
+        public long X { get; set; }
+        public long Y { get; set; }
+        public long Width { get; set; }
+        public long Height { get; set; }
+
+        public PresentationTable(int rows, int columns)
+        {
+            Rows = Math.Max(1, Math.Min(50, rows));
+            Columns = Math.Max(1, Math.Min(50, columns));
+            Name = "Table";
+            X = 1371600;
+            Y = 1828800;
+            Width = 9448800;
+            Height = 2743200;
+
+            int count = Rows * Columns;
+            for (int i = 0; i < count; i++)
+                cells.Add(new PresentationTableCell());
+        }
+
+        public PresentationTableCell GetCell(int row, int column)
+        {
+            if (row < 0 || row >= Rows || column < 0 || column >= Columns)
+                return null;
+
+            return cells[row * Columns + column];
+        }
+
+        public PresentationTable Clone()
+        {
+            PresentationTable copy = new PresentationTable(Rows, Columns);
+            copy.Name = Name;
+            copy.X = X;
+            copy.Y = Y;
+            copy.Width = Width;
+            copy.Height = Height;
+
+            for (int i = 0; i < cells.Count; i++)
+                copy.cells[i] = cells[i].Clone();
+
+            return copy;
+        }
+    }
+
     internal sealed class PresentationSlide
     {
         private readonly List<PresentationTextBox> textBoxes =
@@ -156,6 +243,8 @@ namespace PptxViewer
             new List<PresentationShape>();
         private readonly List<PresentationImage> images =
             new List<PresentationImage>();
+        private readonly List<PresentationTable> tables =
+            new List<PresentationTable>();
 
         public string Name { get; set; }
 
@@ -172,6 +261,11 @@ namespace PptxViewer
         public IList<PresentationImage> Images
         {
             get { return images; }
+        }
+
+        public IList<PresentationTable> Tables
+        {
+            get { return tables; }
         }
 
         public PresentationSlide()
@@ -227,11 +321,18 @@ namespace PptxViewer
             return image;
         }
 
+        public PresentationTable AddTable(int rows, int columns)
+        {
+            PresentationTable table = new PresentationTable(rows, columns);
+            table.Name = "Table " + (tables.Count + 1).ToString();
+            tables.Add(table);
+            return table;
+        }
+
         public bool RemoveTextBox(int index)
         {
             if (index < 0 || index >= textBoxes.Count)
                 return false;
-
             textBoxes.RemoveAt(index);
             return true;
         }
@@ -240,7 +341,6 @@ namespace PptxViewer
         {
             if (index < 0 || index >= shapes.Count)
                 return false;
-
             shapes.RemoveAt(index);
             return true;
         }
@@ -249,8 +349,15 @@ namespace PptxViewer
         {
             if (index < 0 || index >= images.Count)
                 return false;
-
             images.RemoveAt(index);
+            return true;
+        }
+
+        public bool RemoveTable(int index)
+        {
+            if (index < 0 || index >= tables.Count)
+                return false;
+            tables.RemoveAt(index);
             return true;
         }
 
@@ -267,6 +374,9 @@ namespace PptxViewer
 
             for (int i = 0; i < images.Count; i++)
                 copy.images.Add(images[i].Clone());
+
+            for (int i = 0; i < tables.Count; i++)
+                copy.tables.Add(tables[i].Clone());
 
             return copy;
         }
