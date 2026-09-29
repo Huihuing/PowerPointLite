@@ -61,6 +61,8 @@ namespace PptxViewer
                     return;
                 if (TryRunFontLicenseSelfTest(args))
                     return;
+                if (TryRunDocumentSafetySelfTest(args))
+                    return;
 
                 string startupFile = null;
                 if (args != null && args.Length > 0 && File.Exists(args[0]))
@@ -98,7 +100,8 @@ namespace PptxViewer
                 string.Equals(args[0], "--odp-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--pdf-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--conversion-selftest", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(args[0], "--font-license-selftest", StringComparison.OrdinalIgnoreCase);
+                string.Equals(args[0], "--font-license-selftest", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "--document-safety-selftest", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool TryRunWriterSelfTest(string[] args)
@@ -240,6 +243,24 @@ namespace PptxViewer
             FontLicenseDiagnostics.ValidatePolicyAndParser();
             Environment.ExitCode = 0;
             CrashReporter.WriteLine("Font licensing parser/policy self-test passed.");
+            return true;
+        }
+
+        private static bool TryRunDocumentSafetySelfTest(string[] args)
+        {
+            if (!MatchesCommand(args, "--document-safety-selftest"))
+                return false;
+
+            string outputDirectory =
+                args != null && args.Length > 1 && !string.IsNullOrEmpty(args[1])
+                    ? Path.GetFullPath(args[1])
+                    : Path.Combine(
+                        AppDomain.CurrentDomain.BaseDirectory,
+                        "DOCUMENT_SAFETY_SELFTEST_OUTPUT");
+
+            DocumentSafetyDiagnostics.ValidateDenyByDefault(outputDirectory);
+            Environment.ExitCode = 0;
+            CrashReporter.WriteLine("Document deny-by-default safety self-test passed: " + outputDirectory);
             return true;
         }
 
