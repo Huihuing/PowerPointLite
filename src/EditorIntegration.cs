@@ -72,6 +72,14 @@ namespace PptxViewer
                 return;
             }
 
+            if (e.Control && e.Alt && e.KeyCode == Keys.F)
+            {
+                ShowFontLicenseInspector();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                return;
+            }
+
             if (e.Control && e.Shift && e.KeyCode == Keys.I)
             {
                 ShowCurrentPresentationCompatibilityReport();
@@ -126,6 +134,17 @@ namespace PptxViewer
                     ExportSupportedDocumentToPdf();
                 else if (dialog.SelectedAction == WorkspaceAction.ConvertFormat)
                     ConvertSupportedDocument();
+                else if (dialog.SelectedAction == WorkspaceAction.InspectFontLicense)
+                    ShowFontLicenseInspector();
+            }
+        }
+
+        private void ShowFontLicenseInspector()
+        {
+            using (FontLicenseInspectorForm inspector =
+                new FontLicenseInspectorForm())
+            {
+                inspector.ShowDialog(this);
             }
         }
 

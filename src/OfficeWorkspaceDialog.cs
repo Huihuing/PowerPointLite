@@ -16,7 +16,8 @@ namespace PptxViewer
         NewOdp,
         OpenExisting,
         ExportPdf,
-        ConvertFormat
+        ConvertFormat,
+        InspectFontLicense
     }
 
     internal sealed class OfficeWorkspaceDialog : Form
@@ -188,6 +189,30 @@ namespace PptxViewer
                 Close();
             };
             Controls.Add(convert);
+
+            Button fontLicense = new Button();
+            fontLicense.Text = "Font license inspector...";
+            fontLicense.Left = 30;
+            fontLicense.Top = 576;
+            fontLicense.Width = 220;
+            fontLicense.Height = 38;
+            ApplicationTheme.ApplyButton(fontLicense);
+            fontLicense.Click += delegate
+            {
+                SelectedAction = WorkspaceAction.InspectFontLicense;
+                DialogResult = DialogResult.OK;
+                Close();
+            };
+            Controls.Add(fontLicense);
+
+            Label fontPolicy = new Label();
+            fontPolicy.Left = 264;
+            fontPolicy.Top = 582;
+            fontPolicy.Width = 370;
+            fontPolicy.Height = 30;
+            fontPolicy.Text = "Metadata is advisory; actual font license text takes priority.";
+            fontPolicy.ForeColor = ApplicationTheme.SecondaryText;
+            Controls.Add(fontPolicy);
 
             Button cancel = new Button();
             cancel.Text = "Cancel";
