@@ -10,9 +10,10 @@ if not exist "PowerPointLite.exe" (
 )
 
 echo ==========================================
-echo PowerPointLite format self-tests
+echo PowerPointLite structural self-tests
 echo PPTX / DOCX / XLSX / HWPX / HWP
 echo ODT / ODS / ODP / PDF / Conversion
+echo Font licensing policy/parser
 echo ==========================================
 echo.
 
@@ -68,6 +69,15 @@ if errorlevel 1 (
 echo [OK] Cross-format conversion process completed
 echo.
 
+echo [RUN] Font licensing parser/policy
+"PowerPointLite.exe" --font-license-selftest
+if errorlevel 1 (
+  echo [FAIL] Font licensing parser/policy
+  goto :failed
+)
+echo [OK] Font licensing parser/policy process completed
+echo.
+
 echo ==========================================
 echo ALL STRUCTURAL SELF-TESTS FINISHED
 echo ==========================================
@@ -81,8 +91,10 @@ echo - Hancom for HWPX
 echo - Rights-cleared real HWP 5.x samples for HWP read-only verification
 echo - LibreOffice for ODT / ODS / ODP
 echo - PDF reader visual inspection and print verification
+echo - Actual font license text review before any font-file bundling or embedding
 echo.
 echo PDF export currently rasterizes pages and does not embed source font files.
+echo The font self-test uses synthetic metadata only; it does not bundle a third-party font.
 echo.
 if not defined PPLT_NO_PAUSE pause
 exit /b 0
@@ -101,6 +113,6 @@ exit /b 0
 
 :failed
 echo.
-echo ONE OR MORE FORMAT SELF-TESTS FAILED.
+echo ONE OR MORE STRUCTURAL SELF-TESTS FAILED.
 if not defined PPLT_NO_PAUSE pause
 exit /b 1
