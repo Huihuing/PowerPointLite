@@ -182,6 +182,14 @@ Build:
 BUILD_EXE.cmd
 ```
 
+Conservative source compatibility audit:
+
+```bat
+RUN_SOURCE_AUDIT.cmd
+```
+
+This audit checks known high-risk source patterns such as ambiguous WinForms `Timer` usage and selected modern C#/.NET APIs before the real Windows compiler runs. The real compiler remains authoritative.
+
 Pre-merge automated gate:
 
 ```bat
@@ -417,6 +425,7 @@ Use Git history for historical work reconstruction.
 - cross-format conversion foundation with safety guards
 - OpenType/TrueType fsType reader and conservative font-license service
 - font-license inspector and synthetic licensing-policy self-test
+- conservative source compatibility audit before Windows build
 - project-owned dark/flat Workspace UI
 - legal/asset/font policy documents
 
@@ -430,15 +439,16 @@ Use Git history for historical work reconstruction.
 
 ### Next
 
-1. run `BUILD_EXE.cmd` on Windows and fix the first compiler error until clean
-2. run `RUN_PREMERGE_CHECKS.cmd`
-3. run Viewer regression checks
-4. validate PPTX/DOCX/XLSX against PowerPoint/Word/Excel or LibreOffice where available
-5. validate HWPX against Hancom
-6. validate ODT/ODS/ODP against LibreOffice
-7. visually verify/print PDF output
-8. expand unknown-part preservation before allowing arbitrary external-file editing
-9. continue richer DOCX/XLSX/HWP support only after the build gate is healthy
+1. run `RUN_SOURCE_AUDIT.cmd` on Windows source checkout
+2. run `BUILD_EXE.cmd` and fix the first compiler error until clean
+3. run `RUN_PREMERGE_CHECKS.cmd`
+4. run Viewer regression checks
+5. validate PPTX/DOCX/XLSX against PowerPoint/Word/Excel or LibreOffice where available
+6. validate HWPX against Hancom
+7. validate ODT/ODS/ODP against LibreOffice
+8. visually verify/print PDF output
+9. expand unknown-part preservation before allowing arbitrary external-file editing
+10. continue richer DOCX/XLSX/HWP support only after the build gate is healthy
 
 ### Blocked
 
