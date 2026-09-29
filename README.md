@@ -125,8 +125,11 @@ UI는 프로젝트 자체 dark/flat 디자인을 사용합니다.
 `.NET 8 SDK`는 필요하지 않습니다.
 
 ```bat
+RUN_SOURCE_AUDIT.cmd
 BUILD_EXE.cmd
 ```
+
+`RUN_SOURCE_AUDIT.cmd`는 실제 컴파일 전에 알려진 `Timer` 모호성 및 선택된 최신 C#/.NET 전용 패턴을 보수적으로 검사합니다. 최종 판정은 Windows `csc.exe` 실제 빌드입니다.
 
 빌드 스크립트는 다음 Framework compiler를 찾습니다.
 
@@ -151,7 +154,7 @@ Windows에서 pre-merge 자동 검증:
 RUN_PREMERGE_CHECKS.cmd
 ```
 
-전체 structural format self-test:
+전체 structural format/policy self-test:
 
 ```bat
 RUN_ALL_FORMAT_SELFTESTS.cmd
