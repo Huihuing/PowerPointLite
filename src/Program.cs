@@ -59,6 +59,8 @@ namespace PptxViewer
                     return;
                 if (TryRunConversionSelfTest(args))
                     return;
+                if (TryRunFontLicenseSelfTest(args))
+                    return;
 
                 string startupFile = null;
                 if (args != null && args.Length > 0 && File.Exists(args[0]))
@@ -95,7 +97,8 @@ namespace PptxViewer
                 string.Equals(args[0], "--ods-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--odp-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--pdf-selftest", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(args[0], "--conversion-selftest", StringComparison.OrdinalIgnoreCase);
+                string.Equals(args[0], "--conversion-selftest", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "--font-license-selftest", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool TryRunWriterSelfTest(string[] args)
@@ -226,6 +229,17 @@ namespace PptxViewer
             DocumentConversionDiagnostics.CreateAndValidate(outputDirectory);
             Environment.ExitCode = 0;
             CrashReporter.WriteLine("Cross-format conversion self-test passed: " + outputDirectory);
+            return true;
+        }
+
+        private static bool TryRunFontLicenseSelfTest(string[] args)
+        {
+            if (!MatchesCommand(args, "--font-license-selftest"))
+                return false;
+
+            FontLicenseDiagnostics.ValidatePolicyAndParser();
+            Environment.ExitCode = 0;
+            CrashReporter.WriteLine("Font licensing parser/policy self-test passed.");
             return true;
         }
 
