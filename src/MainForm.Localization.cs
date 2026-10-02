@@ -15,6 +15,8 @@ namespace PptxViewer
 
             UiLocalization.Initialize();
             CreateLanguageSelector();
+            InitializePresentationPointerTools();
+            InitializeSlideShowTiming();
 
             UiLocalization.LanguageChanged += OnUiLanguageChanged;
             FormClosed += delegate

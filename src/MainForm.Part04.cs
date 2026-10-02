@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -36,7 +36,22 @@ public sealed partial class MainForm : Form
             }
             else if (internalSlideShowMode && fullscreen)
             {
-                EndInternalSlideshow();
+                if (InternalSlideShowLoops())
+                {
+                    int first =
+                        FindVisibleSlide(0, 1);
+
+                    if (first >= 0)
+                    {
+                        ShowSlideWithTransition(
+                            first,
+                            true);
+                    }
+                }
+                else
+                {
+                    EndInternalSlideshow();
+                }
             }
         }
 

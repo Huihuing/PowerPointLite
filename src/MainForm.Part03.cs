@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -250,11 +250,21 @@ public sealed partial class MainForm : Form
             if (e.Button != MouseButtons.Left)
                 return;
 
+            if (internalSlideShowMode &&
+                pointerTool != PointerTool.Arrow)
+            {
+                return;
+            }
+
             InternalPptxRenderer.InteractiveRegion region = HitTestInteractiveRegion(e.Location);
             if (region == null)
             {
-                if (internalSlideShowMode)
+                if (internalSlideShowMode &&
+                    CurrentSlideAllowsMouseAdvance())
+                {
                     Next();
+                }
+
                 return;
             }
 
@@ -273,6 +283,17 @@ public sealed partial class MainForm : Form
                 {
                     if (fullscreen) ToggleFullscreen();
                     return;
+                }
+
+                if (region.Kind == "media" &&
+                    !string.IsNullOrEmpty(region.Target))
+                {
+                    if (PortableMediaPlayerForm.TryShow(
+                            this,
+                            region.Target))
+                    {
+                        return;
+                    }
                 }
 
                 if (!string.IsNullOrEmpty(region.Target))
