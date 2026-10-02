@@ -25,9 +25,6 @@ namespace PptxViewer
             Dictionary<string, Color> theme,
             int slideNumber)
         {
-            // Merge master/layout placeholder text defaults into a temporary
-            // shape clone before rich-text layout. The original PPTX XML is
-            // never mutated.
             XmlNode resolvedShape = BuildRichInheritedShape(shape);
             DrawRichShapeText(g, resolvedShape, rect, theme, slideNumber);
         }
@@ -94,7 +91,7 @@ namespace PptxViewer
 
             if (tbl != null)
             {
-                DrawTable(g, tbl, rect, theme);
+                DrawRichTable(g, tbl, rect, theme);
                 return;
             }
 
