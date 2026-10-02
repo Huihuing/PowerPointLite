@@ -178,6 +178,13 @@ namespace PptxViewer
 
         private bool CurrentSlideAllowsMouseAdvance()
         {
+            // Transition advClick controls whether a click may LEAVE the slide.
+            // It must not suppress click-triggered builds on the current slide.
+            // Return true while a click animation remains so OnViewerMouseClick
+            // can call Next(), which consumes the animation before slide motion.
+            if (HasPendingClickAnimationBuild())
+                return true;
+
             RefreshSlideTimingMetadataIfNeeded();
 
             if (currentIndex < 0 || currentIndex >= slideAdvanceSpecs.Count)
@@ -185,6 +192,33 @@ namespace PptxViewer
 
             InternalPptxRenderer.SlideAdvanceSpec spec = slideAdvanceSpecs[currentIndex];
             return spec == null || spec.AdvanceOnClick;
+        }
+
+        private bool HasPendingClickAnimationBuild()
+        {
+            RefreshEnhancedAnimationTimelineMetadata();
+            InternalPptxRenderer.SlideAnimationTimeline timeline =
+                CurrentEnhancedAnimationTimeline();
+
+            if (timeline != null &&
+                animationRevealCount >= 0 &&
+                animationRevealCount < timeline.Steps.Count)
+            {
+                InternalPptxRenderer.AnimationStepSpec next =
+                    timeline.Steps[animationRevealCount];
+                if (next != null && next.RequiresClick)
+                    return true;
+            }
+
+            if (currentIndex >= 0 &&
+                currentIndex < animationSteps.Count &&
+                animationSteps[currentIndex] != null &&
+                animationRevealCount < animationSteps[currentIndex].Count)
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 }
