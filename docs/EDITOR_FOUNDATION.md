@@ -27,7 +27,7 @@ Viewer의 `InternalPptxRenderer`가 PPTX 시각 표현의 기준 renderer다.
 
 Editor canvas는 개체 선택/이동/크기 조절을 빠르게 처리하기 위한 interactive model view이므로 Viewer보다 단순한 표현을 사용할 수 있다. 따라서 **Editor canvas가 최종 PPTX 모습의 기준이 되어서는 안 된다.**
 
-`AdvancedEditorFidelityExtension`은 Editor 상단에 `렌더러 미리보기 / Renderer Preview`를 추가한다.
+`AdvancedEditorFidelityExtension`은 Editor 상단에 `미리보기 / Preview`를 추가한다.
 
 ```text
 현재 PresentationDocument
@@ -42,6 +42,8 @@ Viewer와 같은 렌더링 경로의 read-only preview
 미리보기에서는 현재 슬라이드 선택을 따라가며, 편집 후 `미리보기 새로고침`으로 다시 렌더링한다. 임시 package와 이미지 cache는 Editor 종료 시 삭제한다.
 
 향후 Editor 표현력을 높일 때도 Viewer renderer와 별개의 두 번째 고급 renderer를 새로 만드는 방향은 피한다. 가능한 한 Viewer renderer의 layout/text/table/image 처리 계층을 재사용해 두 경로의 시각 차이를 줄인다.
+
+PPTX 시각 표현과 animation 범위는 `docs/PPTX_FIDELITY.md`를 함께 본다.
 
 ## 언어
 
@@ -89,11 +91,23 @@ Microsoft Office/Hancom Ribbon, 공식 아이콘, 이미지 자산을 복제하�
 PresentationDocument
  └─ PresentationSlide[]
      ├─ PresentationTextBox[]
+     │   └─ PresentationTextParagraph[] (optional rich text)
+     │       └─ PresentationTextRun[]
      ├─ PresentationShape[]
      ├─ PresentationImage[]
      └─ PresentationTable[]
          └─ PresentationTableCell[]
 ```
+
+`PresentationTextRun`은 font family/size, bold, italic, underline, color, baseline을 보존한다.
+
+`PresentationTextParagraph`는 alignment, level, bullet, before/after spacing과 run 목록을 가진다.
+
+기존 단순 text box와의 호환을 위해 `PresentationTextBox.Text`와 box-level font 속성은 계속 존재한다. 안전 편집 대상으로 읽은 문서의 rich run은 `PptxRichTextPackage`가 추가로 읽고 Writer 저장 뒤 다시 OOXML paragraph/run으로 주입한다.
+
+사용자가 기존 plain-text 편집 UI에서 문자열 자체를 바꾸면 이전 run 경계를 새 문자열에 억지로 적용하지 않는다. 이 경우 해당 textbox의 rich run을 비우고 box-level format으로 평문화해 **stale formatting이 다른 글자에 잘못 붙는 문제를 피한다.**
+
+현재 property panel에서 전체 font family/size/bold/italic을 바꾸면 rich text가 있을 때 모든 run에 해당 속성을 적용하되 underline/baseline/color/bullet/paragraph spacing은 유지한다.
 
 모델은 UI와 PPTX XML을 직접 결합하지 않는다. Editor는 모델을 수정하고 Writer가 모델을 OOXML로 직렬화한다.
 
@@ -112,6 +126,7 @@ PresentationDocument
  ↓
 PresentationPackageWriter
  ├─ PptxWriter
+ ├─ PptxRichTextPackage
  └─ PptxTableWriter
  ↓
 staged package
@@ -123,33 +138,25 @@ backup/replace
 
 Writer 중간 실패 시 stage 파일을 제거하고 기존 destination을 가능한 한 복원하도록 구성한다.
 
-## Writer 자체 테스트
+## Writer / animation 자체 테스트
 
 Windows 실제 빌드 후:
 
 ```bat
 RUN_WRITER_SELFTEST.cmd
+RUN_ANIMATION_SELFTEST.cmd
 ```
 
-현재 자체 테스트는 프로젝트 코드만으로 다음을 만든다.
+Writer 자체 테스트는 프로젝트 코드만으로 text box, shape, 자체 생성 image, table이 포함된 PPTX를 만들고 read-edit-write round-trip을 검사한다.
 
-1. 3-slide PPTX
-2. text box
-3. rounded rectangle
-4. 자체 생성 PNG test image
-5. basic table
-6. 필수 OPC part 검사
-7. `PptxEditableReader` 재열기
-8. text / shape / table 수정
-9. 재저장
-10. 두 번째 Reader로 round-trip 결과 확인
+Animation 자체 테스트는 합성 `p:timing`을 프로젝트가 만든 PPTX에 주입해 click entrance, with-previous emphasis, after-previous exit, delayed motion step과 단계별 render state를 검사한다.
 
 인터넷 문서나 Microsoft/Hancom 템플릿을 fixture로 사용하지 않는다.
 
 ## 현재 남은 Editor 작업
 
+- rich text를 선택 영역 단위로 직접 편집하는 UI
 - Viewer renderer와 interactive canvas의 공통 layout/render primitive 확대
-- rich text run-level 편집 모델
 - chart/SmartArt/media 등 고급 요소는 Viewer fidelity를 보존하면서 단계적 편집 지원
 - table을 일반 object selection과 통합해 drag/resize
 - object z-order controls
@@ -157,10 +164,12 @@ RUN_WRITER_SELFTEST.cmd
 - system clipboard interoperability
 - accessible focus order 강화
 - arbitrary existing PPTX unknown/unsupported part preservation
-- Windows 실제 `BUILD_EXE.cmd` / `RUN_WRITER_SELFTEST.cmd` 검증
+- Windows 실제 `BUILD_EXE.cmd` / `RUN_PREMERGE_CHECKS.cmd` 검증
 
 ## 외부 PPTX 편집 안전 정책
 
 임의의 외부 PPTX를 현재 모델로 축소해 읽은 뒤 그대로 덮어쓰면 SmartArt, animation, chart extension, unknown relationship 등이 손실될 수 있다.
 
 따라서 unknown-part preservation이 준비되기 전까지는 `PptxEditableReader`가 안전하다고 판정한 파일만 Writer 경로로 저장한다.
+
+Viewer가 고급 chart/SmartArt/animation을 표시할 수 있다는 사실은 해당 요소를 Editor가 lossless하게 수정할 수 있다는 의미가 아니다.
