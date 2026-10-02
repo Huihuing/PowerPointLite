@@ -114,8 +114,19 @@ namespace PptxViewer
 
             string outputPath = ResolveOutputFile(args, "TEST_WRITER_OUTPUT.pptx");
             PptxWriterDiagnostics.CreateAndValidate(outputPath);
+
+            string outputDirectory = Path.GetDirectoryName(outputPath);
+            if (string.IsNullOrEmpty(outputDirectory))
+                outputDirectory = AppDomain.CurrentDomain.BaseDirectory;
+
+            string richTextOutput = Path.Combine(
+                outputDirectory,
+                "TEST_RICHTEXT_OUTPUT.pptx");
+            PptxRichTextDiagnostics.CreateAndValidate(richTextOutput);
+
             Environment.ExitCode = 0;
-            CrashReporter.WriteLine("PPTX Writer self-test passed: " + outputPath);
+            CrashReporter.WriteLine(
+                "PPTX Writer/rich-text self-test passed: " + outputPath);
             return true;
         }
 
