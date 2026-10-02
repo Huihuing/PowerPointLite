@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Security.Cryptography;
 using System.Text;
 using System.Xml;
 
@@ -69,22 +68,16 @@ namespace PptxViewer
             if (!NeedsAlternateContentFallback(sourcePath))
                 return sourcePath;
 
-            string cacheRoot = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            string tempRoot = Path.Combine(
+                Path.GetTempPath(),
                 "PowerPointLite",
                 "RenderPrep");
-            Directory.CreateDirectory(cacheRoot);
+            Directory.CreateDirectory(tempRoot);
 
-            string cacheKey = BuildCacheKey(sourcePath);
             string destination = Path.Combine(
-                cacheRoot,
-                cacheKey + extension);
-
-            if (File.Exists(destination))
-                return destination;
-
+                tempRoot,
+                Guid.NewGuid().ToString("N") + extension);
             string stage = destination + ".writing";
-            DeleteIfExists(stage);
 
             try
             {
@@ -114,17 +107,26 @@ namespace PptxViewer
                     }
                 }
 
-                if (File.Exists(destination))
-                    File.Delete(destination);
-
                 File.Move(stage, destination);
                 return destination;
             }
             catch
             {
                 DeleteIfExists(stage);
+                DeleteIfExists(destination);
                 throw;
             }
+        }
+
+        public static void DeletePreparedFile(string path, string originalPath)
+        {
+            if (string.IsNullOrEmpty(path) ||
+                string.Equals(path, originalPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            DeleteIfExists(path);
         }
 
         private static void CopyPresentationXml(
@@ -164,6 +166,8 @@ namespace PptxViewer
                 if (parent == null)
                     continue;
 
+                // Prefer the compatibility fallback. PowerPoint commonly stores
+                // a raster or broadly supported DrawingML representation here.
                 XmlNode selected = DirectChild(alternate, "Fallback");
 
                 if (selected == null)
@@ -252,29 +256,6 @@ namespace PptxViewer
                    name.IndexOf(
                        "/_rels/",
                        StringComparison.OrdinalIgnoreCase) < 0;
-        }
-
-        private static string BuildCacheKey(string path)
-        {
-            FileInfo info = new FileInfo(path);
-            string value =
-                info.FullName.ToLowerInvariant() + "|" +
-                info.Length.ToString() + "|" +
-                info.LastWriteTimeUtc.Ticks.ToString() +
-                "|alternate-content-v1";
-
-            byte[] data = Encoding.UTF8.GetBytes(value);
-
-            using (SHA1 sha = SHA1.Create())
-            {
-                byte[] hash = sha.ComputeHash(data);
-                StringBuilder builder = new StringBuilder(hash.Length * 2);
-
-                for (int i = 0; i < hash.Length; i++)
-                    builder.Append(hash[i].ToString("x2"));
-
-                return builder.ToString();
-            }
         }
 
         private static void DeleteIfExists(string path)
