@@ -45,6 +45,12 @@ namespace PptxViewer
                         : loaded.Warning);
             }
 
+            // The conservative base reader establishes whether the package is
+            // safe for editing. Rich text is layered on only after that safety
+            // decision so unsupported external files are never promoted into
+            // editable mode merely because their text can be parsed.
+            PptxRichTextPackage.ReadIntoDocument(path, loaded.Document);
+
             PresentationEditSession session =
                 new PresentationEditSession(loaded.Document);
 
@@ -179,6 +185,8 @@ namespace PptxViewer
             if (string.Equals(box.Text, newValue, StringComparison.Ordinal))
                 return true;
 
+            // Plain text editing intentionally collapses run-level formatting
+            // rather than silently applying stale rich runs to changed text.
             box.Text = newValue;
             MarkDirty();
             return true;
@@ -202,6 +210,32 @@ namespace PptxViewer
             box.FontSizePoints = Math.Max(1f, Math.Min(400f, fontSizePoints));
             box.Bold = bold;
             box.Italic = italic;
+
+            // The existing property panel edits the whole text box. When it is
+            // used on rich text, apply those four properties to every run but
+            // keep underline, baseline, colors, bullets and paragraph spacing.
+            if (box.HasRichText)
+            {
+                for (int p = 0; p < box.RichParagraphs.Count; p++)
+                {
+                    PresentationTextParagraph paragraph = box.RichParagraphs[p];
+                    if (paragraph == null)
+                        continue;
+
+                    for (int r = 0; r < paragraph.Runs.Count; r++)
+                    {
+                        PresentationTextRun run = paragraph.Runs[r];
+                        if (run == null)
+                            continue;
+
+                        run.FontFamily = box.FontFamily;
+                        run.FontSizePoints = box.FontSizePoints;
+                        run.Bold = bold;
+                        run.Italic = italic;
+                    }
+                }
+            }
+
             MarkDirty();
             return true;
         }
