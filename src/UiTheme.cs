@@ -159,6 +159,7 @@ namespace PptxViewer
             AddDocumentWorkspaceStrip();
             ApplicationTheme.ApplyContextMenu(slideshowMenu);
             AdvancedEditorFidelityExtension.Initialize();
+            InitializePptxFidelityFallback();
 
             thumbnails.ControlAdded += delegate(object sender, ControlEventArgs e)
             {
