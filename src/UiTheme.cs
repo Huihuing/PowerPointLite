@@ -153,7 +153,6 @@ namespace PptxViewer
             for (int i = 0; i < toolbar.Controls.Count; i++)
                 ApplicationTheme.ApplyRecursively(toolbar.Controls[i]);
 
-            // Keep the toolbar itself visually distinct from ordinary surfaces.
             toolbar.BackColor = ApplicationTheme.Toolbar;
 
             AddDocumentWorkspaceStrip();
@@ -166,8 +165,7 @@ namespace PptxViewer
                 ApplicationTheme.ApplyRecursively(e.Control);
             };
 
-            // The theme is intentionally original and asset-free. It does not
-            // copy Office icons, ribbons, artwork, or proprietary UI resources.
+            // Original asset-free UI only. No Office/Hancom artwork or ribbon assets.
         }
 
         private void AddDocumentWorkspaceStrip()
@@ -188,7 +186,6 @@ namespace PptxViewer
             section.Top = 7;
             section.Width = 82;
             section.Height = 20;
-            section.Text = "Documents";
             section.Font = new Font(Font, FontStyle.Bold);
             section.ForeColor = ApplicationTheme.PrimaryText;
             strip.Controls.Add(section);
@@ -198,7 +195,6 @@ namespace PptxViewer
             workspace.Top = 3;
             workspace.Width = 106;
             workspace.Height = 28;
-            workspace.Text = "New / Open";
             workspace.TabStop = true;
             ApplicationTheme.ApplyButton(workspace);
             workspace.Click += delegate { ShowOfficeWorkspace(); };
@@ -209,7 +205,6 @@ namespace PptxViewer
             formats.Top = 7;
             formats.Width = 520;
             formats.Height = 20;
-            formats.Text = "PPTX  ·  DOCX  ·  XLSX  ·  HWPX experimental  ·  HWP read-only";
             formats.ForeColor = ApplicationTheme.SecondaryText;
             strip.Controls.Add(formats);
 
@@ -220,9 +215,29 @@ namespace PptxViewer
             shortcut.Height = 20;
             shortcut.Left = Math.Max(746, toolbar.ClientSize.Width - shortcut.Width - 12);
             shortcut.TextAlign = ContentAlignment.MiddleRight;
-            shortcut.Text = "Workspace  Ctrl+Alt+N";
             shortcut.ForeColor = ApplicationTheme.SecondaryText;
             strip.Controls.Add(shortcut);
+
+            EventHandler applyLanguage = delegate
+            {
+                bool korean = UiLocalization.CurrentLanguage == AppLanguage.Korean;
+                section.Text = korean ? "문서" : "Documents";
+                workspace.Text = korean ? "새로 만들기 / 열기" : "New / Open";
+                formats.Text = korean
+                    ? "PPTX  ·  DOCX  ·  XLSX  ·  HWPX 실험적  ·  HWP 읽기 전용"
+                    : "PPTX  ·  DOCX  ·  XLSX  ·  HWPX experimental  ·  HWP read-only";
+                shortcut.Text = korean
+                    ? "작업 공간  Ctrl+Alt+N"
+                    : "Workspace  Ctrl+Alt+N";
+            };
+
+            applyLanguage(null, EventArgs.Empty);
+            UiLocalization.LanguageChanged += applyLanguage;
+
+            FormClosed += delegate
+            {
+                UiLocalization.LanguageChanged -= applyLanguage;
+            };
 
             strip.Resize += delegate
             {
