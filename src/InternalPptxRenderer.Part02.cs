@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -16,7 +16,7 @@ using System.Xml;
 
 namespace PptxViewer
 {
-internal static partial class InternalPptxRenderer
+    internal static partial class InternalPptxRenderer
     {
         private static InteractiveRegion BuildInteractiveRegion(
             ZipArchive zip,
@@ -225,6 +225,7 @@ internal static partial class InternalPptxRenderer
                 };
 
                 List<string> layers = GetSlideVisualLayers(zip, slidePart);
+                PrepareRichTextInheritance(zip, layers);
                 g.Clear(Color.White);
 
                 for (int i = 0; i < layers.Count; i++)

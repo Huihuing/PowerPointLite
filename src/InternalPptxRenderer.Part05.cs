@@ -25,10 +25,11 @@ namespace PptxViewer
             Dictionary<string, Color> theme,
             int slideNumber)
         {
-            // Rich text rendering lives in InternalPptxRichText.cs. Keep this
-            // stable entry point because shape drawing already calls it after
-            // fill/line/rotation processing.
-            DrawRichShapeText(g, shape, rect, theme, slideNumber);
+            // Merge master/layout placeholder text defaults into a temporary
+            // shape clone before rich-text layout. The original PPTX XML is
+            // never mutated.
+            XmlNode resolvedShape = BuildRichInheritedShape(shape);
+            DrawRichShapeText(g, resolvedShape, rect, theme, slideNumber);
         }
 
         private static bool ContainsCjk(string text)
