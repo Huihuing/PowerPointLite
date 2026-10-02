@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace PptxViewer
 {
@@ -19,10 +20,114 @@ namespace PptxViewer
         Diamond
     }
 
+    internal sealed class PresentationTextRun
+    {
+        public string Text { get; set; }
+        public string FontFamily { get; set; }
+        public float FontSizePoints { get; set; }
+        public bool Bold { get; set; }
+        public bool Italic { get; set; }
+        public bool Underline { get; set; }
+        public string ColorHex { get; set; }
+        public int BaselinePercent { get; set; }
+
+        public PresentationTextRun()
+        {
+            Text = string.Empty;
+            FontFamily = "Arial";
+            FontSizePoints = 20f;
+            Bold = false;
+            Italic = false;
+            Underline = false;
+            ColorHex = "20242A";
+            BaselinePercent = 0;
+        }
+
+        public PresentationTextRun Clone()
+        {
+            PresentationTextRun copy = new PresentationTextRun();
+            copy.Text = Text;
+            copy.FontFamily = FontFamily;
+            copy.FontSizePoints = FontSizePoints;
+            copy.Bold = Bold;
+            copy.Italic = Italic;
+            copy.Underline = Underline;
+            copy.ColorHex = ColorHex;
+            copy.BaselinePercent = BaselinePercent;
+            return copy;
+        }
+    }
+
+    internal sealed class PresentationTextParagraph
+    {
+        private readonly List<PresentationTextRun> runs =
+            new List<PresentationTextRun>();
+
+        public PresentationTextAlignment Alignment { get; set; }
+        public int Level { get; set; }
+        public string BulletText { get; set; }
+        public float SpaceBeforePoints { get; set; }
+        public float SpaceAfterPoints { get; set; }
+
+        public IList<PresentationTextRun> Runs
+        {
+            get { return runs; }
+        }
+
+        public PresentationTextParagraph()
+        {
+            Alignment = PresentationTextAlignment.Left;
+            Level = 0;
+            BulletText = string.Empty;
+            SpaceBeforePoints = 0f;
+            SpaceAfterPoints = 0f;
+        }
+
+        public PresentationTextParagraph Clone()
+        {
+            PresentationTextParagraph copy = new PresentationTextParagraph();
+            copy.Alignment = Alignment;
+            copy.Level = Level;
+            copy.BulletText = BulletText;
+            copy.SpaceBeforePoints = SpaceBeforePoints;
+            copy.SpaceAfterPoints = SpaceAfterPoints;
+
+            for (int i = 0; i < runs.Count; i++)
+                copy.runs.Add(runs[i].Clone());
+
+            return copy;
+        }
+
+        public string GetPlainText()
+        {
+            StringBuilder builder = new StringBuilder();
+            for (int i = 0; i < runs.Count; i++)
+            {
+                if (runs[i] != null && !string.IsNullOrEmpty(runs[i].Text))
+                    builder.Append(runs[i].Text);
+            }
+            return builder.ToString();
+        }
+    }
+
     internal sealed class PresentationTextBox
     {
+        private string text;
+        private readonly List<PresentationTextParagraph> richParagraphs =
+            new List<PresentationTextParagraph>();
+
         public string Name { get; set; }
-        public string Text { get; set; }
+
+        public string Text
+        {
+            get { return text ?? string.Empty; }
+            set
+            {
+                text = value ?? string.Empty;
+                richParagraphs.Clear();
+            }
+        }
+
         public string FontFamily { get; set; }
         public float FontSizePoints { get; set; }
         public bool Bold { get; set; }
@@ -34,10 +139,20 @@ namespace PptxViewer
         public long Width { get; set; }
         public long Height { get; set; }
 
+        public IList<PresentationTextParagraph> RichParagraphs
+        {
+            get { return richParagraphs; }
+        }
+
+        public bool HasRichText
+        {
+            get { return richParagraphs.Count > 0; }
+        }
+
         public PresentationTextBox()
         {
             Name = "Text Box";
-            Text = string.Empty;
+            text = string.Empty;
             FontFamily = "Arial";
             FontSizePoints = 20f;
             Bold = false;
@@ -50,11 +165,52 @@ namespace PptxViewer
             Height = 914400;
         }
 
+        public void SetRichParagraphs(
+            IEnumerable<PresentationTextParagraph> paragraphs)
+        {
+            richParagraphs.Clear();
+
+            if (paragraphs != null)
+            {
+                foreach (PresentationTextParagraph paragraph in paragraphs)
+                {
+                    if (paragraph != null)
+                        richParagraphs.Add(paragraph.Clone());
+                }
+            }
+
+            text = BuildPlainText(richParagraphs);
+        }
+
+        public void ClearRichText()
+        {
+            richParagraphs.Clear();
+        }
+
+        private static string BuildPlainText(
+            IList<PresentationTextParagraph> paragraphs)
+        {
+            if (paragraphs == null || paragraphs.Count == 0)
+                return string.Empty;
+
+            StringBuilder builder = new StringBuilder();
+            for (int i = 0; i < paragraphs.Count; i++)
+            {
+                if (i > 0)
+                    builder.AppendLine();
+
+                PresentationTextParagraph paragraph = paragraphs[i];
+                if (paragraph != null)
+                    builder.Append(paragraph.GetPlainText());
+            }
+            return builder.ToString();
+        }
+
         public PresentationTextBox Clone()
         {
             PresentationTextBox copy = new PresentationTextBox();
             copy.Name = Name;
-            copy.Text = Text;
+            copy.text = text;
             copy.FontFamily = FontFamily;
             copy.FontSizePoints = FontSizePoints;
             copy.Bold = Bold;
@@ -65,6 +221,10 @@ namespace PptxViewer
             copy.Y = Y;
             copy.Width = Width;
             copy.Height = Height;
+
+            for (int i = 0; i < richParagraphs.Count; i++)
+                copy.richParagraphs.Add(richParagraphs[i].Clone());
+
             return copy;
         }
     }
