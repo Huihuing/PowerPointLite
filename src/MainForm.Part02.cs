@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -16,7 +16,7 @@ using System.Xml;
 
 namespace PptxViewer
 {
-public sealed partial class MainForm : Form
+    public sealed partial class MainForm : Form
     {
         private void LoadPresentation(string file)
         {
@@ -42,11 +42,12 @@ public sealed partial class MainForm : Form
                 List<string> slides = null;
                 List<string> failures = new List<string>();
 
+                // Highest fidelity path when Microsoft PowerPoint is installed.
                 if (Type.GetTypeFromProgID("PowerPoint.Application") != null)
                 {
                     try
                     {
-                        status.Text = "Rendering with Microsoft PowerPoint...";
+                        status.Text = UiLocalization.Text("Rendering with Microsoft PowerPoint...");
                         Application.DoEvents();
 
                         slides = RenderWithPowerPoint(currentFile, cacheDir);
@@ -60,11 +61,33 @@ public sealed partial class MainForm : Form
 
                 string sourceExtension = Path.GetExtension(currentFile).ToLowerInvariant();
 
+                // LibreOffice is an optional, separately installed application.
+                // When present, use its Impress renderer before the approximation
+                // renderer because it usually understands a wider PPTX surface.
+                if ((slides == null || slides.Count == 0) &&
+                    !string.IsNullOrEmpty(libreOfficePath))
+                {
+                    try
+                    {
+                        status.Text = UiLocalization.Text("Rendering with LibreOffice Impress...");
+                        Application.DoEvents();
+
+                        slides = RenderWithLibreOffice(currentFile, cacheDir, libreOfficePath);
+                        activeEngine = "LibreOffice";
+                    }
+                    catch (Exception ex)
+                    {
+                        failures.Add("LibreOffice: " + ex.Message);
+                    }
+                }
+
+                // Self-contained fallback. This remains the required path when
+                // neither PowerPoint nor LibreOffice is available.
                 if (slides == null || slides.Count == 0)
                 {
                     if (sourceExtension == ".pptx" || sourceExtension == ".pptm")
                     {
-                        status.Text = "Reading PPTX directly with Internal OpenXML...";
+                        status.Text = UiLocalization.Text("Reading PPTX directly with Internal OpenXML...");
                         Application.DoEvents();
 
                         try
@@ -79,23 +102,6 @@ public sealed partial class MainForm : Form
                     }
                 }
 
-                if ((slides == null || slides.Count == 0) &&
-                    !string.IsNullOrEmpty(libreOfficePath))
-                {
-                    try
-                    {
-                        status.Text = "Rendering with LibreOffice Impress...";
-                        Application.DoEvents();
-
-                        slides = RenderWithLibreOffice(currentFile, cacheDir, libreOfficePath);
-                        activeEngine = "LibreOffice";
-                    }
-                    catch (Exception ex)
-                    {
-                        failures.Add("LibreOffice: " + ex.Message);
-                    }
-                }
-
                 if (slides == null || slides.Count == 0)
                 {
                     string detail = failures.Count > 0
@@ -103,7 +109,7 @@ public sealed partial class MainForm : Form
                         : "";
 
                     throw new InvalidOperationException(
-                        "The presentation could not be rendered." + detail);
+                        UiLocalization.Text("The presentation could not be rendered.") + detail);
                 }
 
                 renderedSlides.AddRange(slides);
@@ -119,19 +125,21 @@ public sealed partial class MainForm : Form
                     activeEngine == "Microsoft PowerPoint" ? "Engine: PowerPoint Native" :
                     activeEngine == "LibreOffice" ? "Engine: LibreOffice Impress" :
                     "Engine: Internal OpenXML";
+                engineLabel.Text = UiLocalization.Text(engineLabel.Text);
 
-                status.Text = activeEngine + " | " + renderedSlides.Count + " slides";
+                status.Text = activeEngine + " | " + renderedSlides.Count +
+                    (UiLocalization.IsKorean ? "개 슬라이드" : " slides");
             }
             catch (Exception ex)
             {
                 MessageBox.Show(
                     this,
                     ex.Message,
-                    "Open failed",
+                    UiLocalization.Text("Open failed"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
 
-                status.Text = "Open failed";
+                status.Text = UiLocalization.Text("Open failed");
             }
             finally
             {
@@ -213,29 +221,149 @@ public sealed partial class MainForm : Form
 
         private static List<string> RenderWithLibreOffice(string originalFile, string cacheDir, string soffice)
         {
-            List<string> result = new List<string>();
-
-            string ext = Path.GetExtension(originalFile).ToLowerInvariant();
-            if (ext == ".ppt")
-                throw new InvalidOperationException("Legacy PPT LibreOffice conversion is not enabled in this compact build.");
-
-            InternalPptxRenderer.PresentationInfo info =
-                InternalPptxRenderer.ReadPresentationInfo(originalFile);
-
-            if (info.SlideParts.Count == 0)
-                throw new InvalidOperationException("No slides were found.");
+            if (string.IsNullOrEmpty(soffice) || !File.Exists(soffice))
+                throw new InvalidOperationException("LibreOffice executable was not found.");
 
             string loDir = Path.Combine(cacheDir, "lo");
             Directory.CreateDirectory(loDir);
 
-            string args =
-                "--headless --nologo --nodefault --nofirststartwizard " +
-                "--convert-to pdf --outdir " + Quote(loDir) + " " + Quote(originalFile);
+            string inputFile = originalFile;
+            string extension = Path.GetExtension(originalFile).ToLowerInvariant();
 
-            RunProcess(soffice, args, 120000);
+            // Legacy binary PPT is converted only inside the cache directory.
+            // The user's original file is never modified.
+            if (extension == ".ppt")
+            {
+                string converted = Path.Combine(
+                    loDir,
+                    Path.GetFileNameWithoutExtension(originalFile) + ".pptx");
 
-            throw new InvalidOperationException(
-                "LibreOffice was detected, but this compact build does not bundle a PDF rasterizer. Falling back to Internal OpenXML.");
+                if (!File.Exists(converted))
+                {
+                    string convertArgs =
+                        "--headless --nologo --nodefault --nofirststartwizard " +
+                        "--convert-to pptx --outdir " + Quote(loDir) + " " + Quote(originalFile);
+                    RunProcess(soffice, convertArgs, 120000);
+                }
+
+                if (!File.Exists(converted))
+                    throw new InvalidOperationException("LibreOffice did not create a temporary PPTX for the legacy PPT file.");
+
+                inputFile = converted;
+            }
+
+            InternalPptxRenderer.PresentationInfo info =
+                InternalPptxRenderer.ReadPresentationInfo(inputFile);
+
+            if (info.SlideParts.Count == 0)
+                throw new InvalidOperationException("No slides were found.");
+
+            int targetWidth = 1920;
+            int targetHeight = info.WidthEmu > 0
+                ? Math.Max(1, (int)Math.Round(targetWidth * (info.HeightEmu / (double)info.WidthEmu)))
+                : 1080;
+
+            List<string> result = new List<string>();
+            string expectedOutput = Path.Combine(
+                loDir,
+                Path.GetFileNameWithoutExtension(inputFile) + ".png");
+
+            for (int slideIndex = 0; slideIndex < info.SlideParts.Count; slideIndex++)
+            {
+                string target = Path.Combine(
+                    loDir,
+                    "lo_" + (slideIndex + 1).ToString("D4") + ".png");
+
+                if (!File.Exists(target))
+                {
+                    TryDeleteFile(expectedOutput);
+
+                    // LibreOffice's graphic export filter exposes PageNumber,
+                    // PixelWidth, PixelHeight and AntiAliasing. PageNumber is
+                    // normally one-based for Impress export; if a particular
+                    // installation does not produce output, retry zero-based.
+                    bool exported = TryExportLibreOfficeSlide(
+                        soffice,
+                        inputFile,
+                        loDir,
+                        expectedOutput,
+                        slideIndex + 1,
+                        targetWidth,
+                        targetHeight);
+
+                    if (!exported)
+                    {
+                        TryDeleteFile(expectedOutput);
+                        exported = TryExportLibreOfficeSlide(
+                            soffice,
+                            inputFile,
+                            loDir,
+                            expectedOutput,
+                            slideIndex,
+                            targetWidth,
+                            targetHeight);
+                    }
+
+                    if (!exported || !File.Exists(expectedOutput))
+                    {
+                        throw new InvalidOperationException(
+                            "LibreOffice did not export slide " +
+                            (slideIndex + 1).ToString() + " as PNG.");
+                    }
+
+                    File.Copy(expectedOutput, target, true);
+                    TryDeleteFile(expectedOutput);
+                }
+
+                if (File.Exists(target))
+                    result.Add(target);
+            }
+
+            return result;
+        }
+
+        private static bool TryExportLibreOfficeSlide(
+            string soffice,
+            string inputFile,
+            string outputDirectory,
+            string expectedOutput,
+            int pageNumber,
+            int pixelWidth,
+            int pixelHeight)
+        {
+            try
+            {
+                string filter =
+                    "png:impress_png_Export:" +
+                    "{\"PixelWidth\":{\"type\":\"long\",\"value\":\"" + pixelWidth.ToString() + "\"}," +
+                    "\"PixelHeight\":{\"type\":\"long\",\"value\":\"" + pixelHeight.ToString() + "\"}," +
+                    "\"PageNumber\":{\"type\":\"long\",\"value\":\"" + pageNumber.ToString() + "\"}," +
+                    "\"AntiAliasing\":{\"type\":\"boolean\",\"value\":\"true\"}}";
+
+                string args =
+                    "--headless --nologo --nodefault --nofirststartwizard " +
+                    "--convert-to " + Quote(filter) + " --outdir " +
+                    Quote(outputDirectory) + " " + Quote(inputFile);
+
+                RunProcess(soffice, args, 120000);
+                return File.Exists(expectedOutput);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void TryDeleteFile(string path)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                    File.Delete(path);
+            }
+            catch
+            {
+            }
         }
 
         private static void RunProcess(string exe, string arguments, int timeoutMs)
