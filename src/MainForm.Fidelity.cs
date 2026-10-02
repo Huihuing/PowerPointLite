@@ -74,11 +74,12 @@ namespace PptxViewer
 
             pptxFidelityRefreshRunning = true;
             Cursor previousCursor = Cursor;
+            string prepared = null;
             Cursor = Cursors.WaitCursor;
 
             try
             {
-                string prepared = PptxRenderPreprocessor.PrepareForRendering(currentFile);
+                prepared = PptxRenderPreprocessor.PrepareForRendering(currentFile);
                 if (string.Equals(
                         prepared,
                         currentFile,
@@ -146,6 +147,7 @@ namespace PptxViewer
             }
             finally
             {
+                PptxRenderPreprocessor.DeletePreparedFile(prepared, currentFile);
                 Cursor = previousCursor;
                 pptxFidelityRefreshRunning = false;
             }
