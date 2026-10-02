@@ -342,15 +342,27 @@ namespace PptxViewer
                 if (name == "sp")
                 {
                     if (inheritedLayer && ShouldSkipInheritedPlaceholder(child)) continue;
-                    DrawShape(zip, g, child, rels, ctx, theme, placeholderRects, slideNumber);
+                    DrawEnhancedShape(zip, g, child, rels, ctx, theme, placeholderRects, slideNumber);
                 }
-                else if (name == "pic") DrawPicture(zip, g, child, rels, ctx);
-                else if (name == "cxnSp") DrawConnector(g, child, ctx, theme);
-                else if (name == "graphicFrame") DrawGraphicFrame(zip, g, child, rels, ctx, theme);
+                else if (name == "pic")
+                    DrawEnhancedPicture(zip, g, child, rels, ctx);
+                else if (name == "cxnSp")
+                    DrawConnector(g, child, ctx, theme);
+                else if (name == "graphicFrame")
+                    DrawEnhancedGraphicFrame(zip, g, child, rels, ctx, theme);
                 else if (name == "grpSp")
                 {
-                    TransformContext childCtx = BuildGroupContext(child, ctx);
-                    DrawContainer(zip, g, child, rels, childCtx, theme, inheritedLayer, placeholderRects, hiddenShapeIds, slideNumber);
+                    DrawEnhancedGroup(
+                        zip,
+                        g,
+                        child,
+                        rels,
+                        ctx,
+                        theme,
+                        inheritedLayer,
+                        placeholderRects,
+                        hiddenShapeIds,
+                        slideNumber);
                 }
             }
         }
