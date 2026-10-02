@@ -86,13 +86,52 @@ namespace PptxViewer
 
             try
             {
-                timingSlideStartedAt = DateTime.Now;
-                Next();
+                // A slide-level advTm means "leave this slide". Calling Next()
+                // here would consume one on-click animation step first, causing
+                // recorded slide timings to stall on slides that contain builds.
+                // Bypass animation-step navigation only for this timer-driven
+                // slide transition; normal mouse/keyboard Next still consumes
+                // animation steps before advancing the slide.
+                AdvanceSlideFromRecordedTiming();
             }
             finally
             {
+                timingSlideStartedAt = DateTime.Now;
                 timingAdvanceInProgress = false;
             }
+        }
+
+        private void AdvanceSlideFromRecordedTiming()
+        {
+            if (!internalSlideShowMode || renderedSlides.Count == 0)
+                return;
+
+            CancelEnhancedPendingAnimation();
+
+            int target = FindVisibleSlide(currentIndex + 1, 1);
+            if (target >= 0 && target < renderedSlides.Count)
+            {
+                if (fullscreen)
+                    ShowSlideWithTransition(target, true);
+                else
+                    ShowSlide(target);
+                return;
+            }
+
+            if (InternalSlideShowLoops())
+            {
+                int first = FindVisibleSlide(0, 1);
+                if (first >= 0)
+                {
+                    if (fullscreen)
+                        ShowSlideWithTransition(first, true);
+                    else
+                        ShowSlide(first);
+                }
+                return;
+            }
+
+            EndInternalSlideshow();
         }
 
         private void RefreshSlideTimingMetadataIfNeeded()
