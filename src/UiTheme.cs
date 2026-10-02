@@ -153,7 +153,6 @@ namespace PptxViewer
             for (int i = 0; i < toolbar.Controls.Count; i++)
                 ApplicationTheme.ApplyRecursively(toolbar.Controls[i]);
 
-            // Keep the toolbar itself visually distinct from ordinary surfaces.
             toolbar.BackColor = ApplicationTheme.Toolbar;
 
             AddDocumentWorkspaceStrip();
@@ -162,7 +161,10 @@ namespace PptxViewer
             thumbnails.ControlAdded += delegate(object sender, ControlEventArgs e)
             {
                 ApplicationTheme.ApplyRecursively(e.Control);
+                UiLanguage.ApplyTree(e.Control);
             };
+
+            UiLanguage.ApplyTree(this);
 
             // The theme is intentionally original and asset-free. It does not
             // copy Office icons, ribbons, artwork, or proprietary UI resources.
@@ -202,10 +204,21 @@ namespace PptxViewer
             workspace.Click += delegate { ShowOfficeWorkspace(); };
             strip.Controls.Add(workspace);
 
+            Button language = new Button();
+            language.Left = 208;
+            language.Top = 3;
+            language.Width = 78;
+            language.Height = 28;
+            language.Text = "Language";
+            language.TabStop = true;
+            ApplicationTheme.ApplyButton(language);
+            language.Click += delegate { UiLanguage.ShowSettings(this); };
+            strip.Controls.Add(language);
+
             Label formats = new Label();
-            formats.Left = 216;
+            formats.Left = 300;
             formats.Top = 7;
-            formats.Width = 520;
+            formats.Width = 470;
             formats.Height = 20;
             formats.Text = "PPTX  ·  DOCX  ·  XLSX  ·  HWPX experimental  ·  HWP read-only";
             formats.ForeColor = ApplicationTheme.SecondaryText;
@@ -216,7 +229,7 @@ namespace PptxViewer
             shortcut.Top = 7;
             shortcut.Width = 210;
             shortcut.Height = 20;
-            shortcut.Left = Math.Max(746, toolbar.ClientSize.Width - shortcut.Width - 12);
+            shortcut.Left = Math.Max(780, toolbar.ClientSize.Width - shortcut.Width - 12);
             shortcut.TextAlign = ContentAlignment.MiddleRight;
             shortcut.Text = "Workspace  Ctrl+Alt+N";
             shortcut.ForeColor = ApplicationTheme.SecondaryText;
@@ -225,12 +238,13 @@ namespace PptxViewer
             strip.Resize += delegate
             {
                 shortcut.Left = Math.Max(
-                    746,
+                    780,
                     strip.ClientSize.Width - shortcut.Width - 12);
             };
 
             toolbar.Controls.Add(strip);
             strip.BringToFront();
+            UiLanguage.ApplyTree(strip);
         }
     }
 }
