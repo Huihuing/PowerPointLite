@@ -27,6 +27,17 @@ namespace PptxViewer
 
         private static readonly Dictionary<AdvancedPresentationEditorForm, PreviewState> States =
             new Dictionary<AdvancedPresentationEditorForm, PreviewState>();
+        private static bool initialized;
+
+        public static void Initialize()
+        {
+            if (initialized)
+                return;
+
+            initialized = true;
+            Application.Idle += OnApplicationIdle;
+            UiLocalization.LanguageChanged += OnLanguageChanged;
+        }
 
         public static void TryAttach(AdvancedPresentationEditorForm editor)
         {
@@ -52,13 +63,13 @@ namespace PptxViewer
             toggle.Top = 8;
             toggle.Width = 150;
             toggle.Height = 32;
-            toggle.Text = "Renderer Preview";
             toggle.TabStop = true;
             ApplicationTheme.ApplyButton(toggle);
             toolbar.Controls.Add(toggle);
             state.ToggleButton = toggle;
 
             CreateOverlay(state);
+            UpdateLanguage(state);
 
             toggle.Click += delegate
             {
@@ -86,7 +97,40 @@ namespace PptxViewer
             };
 
             States[editor] = state;
-            UiLanguage.ApplyTree(toggle);
+        }
+
+        private static void OnApplicationIdle(object sender, EventArgs e)
+        {
+            List<AdvancedPresentationEditorForm> editors =
+                new List<AdvancedPresentationEditorForm>();
+
+            for (int i = 0; i < Application.OpenForms.Count; i++)
+            {
+                AdvancedPresentationEditorForm editor =
+                    Application.OpenForms[i] as AdvancedPresentationEditorForm;
+                if (editor != null)
+                    editors.Add(editor);
+            }
+
+            for (int i = 0; i < editors.Count; i++)
+                TryAttach(editors[i]);
+        }
+
+        private static void OnLanguageChanged(object sender, EventArgs e)
+        {
+            List<PreviewState> states = new List<PreviewState>();
+            foreach (KeyValuePair<AdvancedPresentationEditorForm, PreviewState> item in States)
+            {
+                if (item.Value != null &&
+                    item.Value.Editor != null &&
+                    !item.Value.Editor.IsDisposed)
+                {
+                    states.Add(item.Value);
+                }
+            }
+
+            for (int i = 0; i < states.Count; i++)
+                UpdateLanguage(states[i]);
         }
 
         private static PresentationEditSession GetSession(
@@ -133,7 +177,6 @@ namespace PptxViewer
             banner.Width = 620;
             banner.Height = 20;
             banner.ForeColor = ApplicationTheme.SecondaryText;
-            banner.Text = "Viewer renderer preview · Internal OpenXML · read-only preview";
             header.Controls.Add(banner);
 
             Button refresh = new Button();
@@ -142,7 +185,6 @@ namespace PptxViewer
             refresh.Height = 28;
             refresh.Top = 5;
             refresh.Left = Math.Max(640, header.ClientSize.Width - refresh.Width - 10);
-            refresh.Text = "Refresh Preview";
             ApplicationTheme.ApplyButton(refresh);
             header.Controls.Add(refresh);
 
@@ -158,8 +200,6 @@ namespace PptxViewer
             state.Picture = picture;
             state.Banner = banner;
             state.RefreshButton = refresh;
-
-            UiLanguage.ApplyTree(overlay);
         }
 
         private static void BuildAndShowPreview(PreviewState state)
@@ -210,10 +250,10 @@ namespace PptxViewer
                 SetPreviewMode(state, false);
                 MessageBox.Show(
                     state.Editor,
-                    UiLanguage.T(
+                    Localized(
                         "Viewer 렌더러 미리보기를 만들지 못했습니다.\r\n\r\n",
                         "Could not build the viewer renderer preview.\r\n\r\n") + ex.Message,
-                    UiLanguage.T("미리보기 실패", "Preview failed"),
+                    Localized("미리보기 실패", "Preview failed"),
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
             }
@@ -234,20 +274,9 @@ namespace PptxViewer
             state.Overlay.Visible = enabled;
 
             if (enabled)
-            {
                 state.Overlay.BringToFront();
-                state.ToggleButton.Text = "Edit View";
-                state.Banner.Text = UiLanguage.T(
-                    "Viewer 렌더러 미리보기 · Internal OpenXML · 읽기 전용 미리보기",
-                    "Viewer renderer preview · Internal OpenXML · read-only preview");
-            }
-            else
-            {
-                state.ToggleButton.Text = "Renderer Preview";
-            }
 
-            UiLanguage.ApplyTree(state.ToggleButton);
-            UiLanguage.ApplyTree(state.Overlay);
+            UpdateLanguage(state);
         }
 
         private static void ShowSelectedSlide(PreviewState state)
@@ -275,12 +304,11 @@ namespace PptxViewer
                     state.Picture.Image = replacement;
                 }
 
-                state.Banner.Text = UiLanguage.T(
+                state.Banner.Text = Localized(
                     "Viewer 렌더러 미리보기 · 슬라이드 " + (index + 1).ToString() +
-                    " · 편집 내용 변경 후에는 새로고침하세요",
+                    " · 편집 내용을 바꾼 뒤에는 새로고침하세요",
                     "Viewer renderer preview · slide " + (index + 1).ToString() +
                     " · refresh after editing changes");
-                UiLanguage.ApplyTree(state.Banner);
                 state.Overlay.BringToFront();
             }
             catch (Exception ex)
@@ -288,6 +316,40 @@ namespace PptxViewer
                 CrashReporter.WriteLine(
                     "Editor fidelity preview image failed: " + ex.Message);
             }
+        }
+
+        private static void UpdateLanguage(PreviewState state)
+        {
+            if (state == null)
+                return;
+
+            if (state.ToggleButton != null)
+            {
+                state.ToggleButton.Text = state.PreviewMode
+                    ? Localized("편집 보기", "Edit View")
+                    : Localized("렌더러 미리보기", "Renderer Preview");
+            }
+
+            if (state.RefreshButton != null)
+                state.RefreshButton.Text = Localized("미리보기 새로고침", "Refresh Preview");
+
+            if (state.Banner != null && !state.PreviewMode)
+            {
+                state.Banner.Text = Localized(
+                    "Viewer 렌더러와 동일한 Internal OpenXML 결과를 확인합니다",
+                    "Preview the same Internal OpenXML result used by the Viewer");
+            }
+            else if (state.Banner != null && state.PreviewMode)
+            {
+                ShowSelectedSlide(state);
+            }
+        }
+
+        private static string Localized(string korean, string english)
+        {
+            return UiLocalization.CurrentLanguage == AppLanguage.Korean
+                ? korean
+                : english;
         }
 
         private static void DisposePreviewImage(PreviewState state)
