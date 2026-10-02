@@ -21,13 +21,44 @@ Ctrl+Shift+E 현재 열려 있는 PPTX를 안전 편집 모드로 시도
 
 이 제한은 기능 부족을 숨기기 위한 것이 아니라 **사용자 문서를 손실시키지 않기 위한 의도적인 안전장치**다.
 
+## Viewer와 Editor의 표현력 기준
+
+Viewer의 `InternalPptxRenderer`가 PPTX 시각 표현의 기준 renderer다.
+
+Editor canvas는 개체 선택/이동/크기 조절을 빠르게 처리하기 위한 interactive model view이므로 Viewer보다 단순한 표현을 사용할 수 있다. 따라서 **Editor canvas가 최종 PPTX 모습의 기준이 되어서는 안 된다.**
+
+`AdvancedEditorFidelityExtension`은 Editor 상단에 `렌더러 미리보기 / Renderer Preview`를 추가한다.
+
+```text
+현재 PresentationDocument
+ ↓
+temporary PPTX package
+ ↓
+InternalPptxRenderer
+ ↓
+Viewer와 같은 렌더링 경로의 read-only preview
+```
+
+미리보기에서는 현재 슬라이드 선택을 따라가며, 편집 후 `미리보기 새로고침`으로 다시 렌더링한다. 임시 package와 이미지 cache는 Editor 종료 시 삭제한다.
+
+향후 Editor 표현력을 높일 때도 Viewer renderer와 별개의 두 번째 고급 renderer를 새로 만드는 방향은 피한다. 가능한 한 Viewer renderer의 layout/text/table/image 처리 계층을 재사용해 두 경로의 시각 차이를 줄인다.
+
+## 언어
+
+기본 UI 언어는 한국어다.
+
+`src/UiLocalization.cs`와 `src/MainForm.Localization.cs`가 한국어/English 전환을 담당하며 설정은 사용자 PC의 `%LOCALAPPDATA%\PowerPointLite\settings.ini`에 저장한다.
+
+새 UI를 만들 때 영어 문자열을 하드코딩한 채 방치하지 말고 기존 localization dictionary 또는 해당 기능의 언어 갱신 경로에 연결한다.
+
 ## 현재 Editor UI
 
 주 Editor는 `AdvancedPresentationEditorForm`이다.
 
 - 독립 dark application chrome
-- 왼쪽 model-rendered slide thumbnail list
-- 가운데 16:9 canvas
+- 왼쪽 slide thumbnail list
+- 가운데 16:9 interactive canvas
+- Viewer renderer 기반 read-only fidelity preview
 - 오른쪽 object properties
 - slide 추가/삭제/순서 이동
 - text box 추가/삭제
@@ -117,6 +148,9 @@ RUN_WRITER_SELFTEST.cmd
 
 ## 현재 남은 Editor 작업
 
+- Viewer renderer와 interactive canvas의 공통 layout/render primitive 확대
+- rich text run-level 편집 모델
+- chart/SmartArt/media 등 고급 요소는 Viewer fidelity를 보존하면서 단계적 편집 지원
 - table을 일반 object selection과 통합해 drag/resize
 - object z-order controls
 - multi-selection
