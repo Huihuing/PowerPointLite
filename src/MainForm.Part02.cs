@@ -480,6 +480,15 @@ namespace PptxViewer
 
             animationRevealCount = 0;
 
+            if (PrepareEnhancedAnimationTimelineState())
+            {
+                if (fitMode)
+                    ApplyFit();
+                else
+                    ApplyZoom();
+                return;
+            }
+
             if (currentIndex < animationSteps.Count &&
                 animationSteps[currentIndex] != null &&
                 animationSteps[currentIndex].Count > 0 &&
@@ -510,6 +519,13 @@ namespace PptxViewer
 
         private bool TryAdvanceInternalAnimation(bool forward)
         {
+            RefreshEnhancedAnimationTimelineMetadata();
+            InternalPptxRenderer.SlideAnimationTimeline enhancedTimeline =
+                CurrentEnhancedAnimationTimeline();
+
+            if (enhancedTimeline != null && enhancedTimeline.Steps.Count > 0)
+                return TryAdvanceEnhancedAnimationTimeline(forward);
+
             if (!internalSlideShowMode || currentIndex < 0 || currentIndex >= animationSteps.Count)
                 return false;
 
