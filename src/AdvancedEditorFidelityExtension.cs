@@ -59,9 +59,9 @@ namespace PptxViewer
             state.SlideList = slideList;
 
             Button toggle = new Button();
-            toggle.Left = 976;
+            toggle.Left = 974;
             toggle.Top = 8;
-            toggle.Width = 150;
+            toggle.Width = 82;
             toggle.Height = 32;
             toggle.TabStop = true;
             ApplicationTheme.ApplyButton(toggle);
@@ -326,8 +326,8 @@ namespace PptxViewer
             if (state.ToggleButton != null)
             {
                 state.ToggleButton.Text = state.PreviewMode
-                    ? Localized("편집 보기", "Edit View")
-                    : Localized("렌더러 미리보기", "Renderer Preview");
+                    ? Localized("편집", "Edit")
+                    : Localized("미리보기", "Preview");
             }
 
             if (state.RefreshButton != null)
