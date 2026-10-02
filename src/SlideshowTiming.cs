@@ -200,16 +200,22 @@ namespace PptxViewer
             InternalPptxRenderer.SlideAnimationTimeline timeline =
                 CurrentEnhancedAnimationTimeline();
 
-            if (timeline != null &&
-                animationRevealCount >= 0 &&
-                animationRevealCount < timeline.Steps.Count)
+            if (timeline != null && timeline.Steps.Count > 0)
             {
+                if (animationRevealCount < 0 ||
+                    animationRevealCount >= timeline.Steps.Count)
+                {
+                    return false;
+                }
+
                 InternalPptxRenderer.AnimationStepSpec next =
                     timeline.Steps[animationRevealCount];
-                if (next != null && next.RequiresClick)
-                    return true;
+                return next != null && next.RequiresClick;
             }
 
+            // Only use the legacy entrance list when no enhanced timeline was
+            // parsed for this slide. Mixing both engines can accidentally make
+            // an automatic timeline step respond to a mouse click.
             if (currentIndex >= 0 &&
                 currentIndex < animationSteps.Count &&
                 animationSteps[currentIndex] != null &&
