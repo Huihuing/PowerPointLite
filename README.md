@@ -9,7 +9,9 @@ PowerPointLite는 Windows에서 프레젠테이션·문서·스프레드시트�
 
 ## Current Status
 
+- 기본 UI 언어: **한국어**, 상단에서 한국어/English 전환 가능
 - PPTX/PPTM Viewer 기반 동작
+- Internal OpenXML renderer 표현력 확장 중
 - PPTX Writer / Editor 기반 개발 중
 - DOCX / XLSX / HWPX / ODT / ODS / ODP Reader·Writer·Editor 기반 개발 중
 - HWP 5.x는 read-only 기반
@@ -39,8 +41,8 @@ PowerPointLite는 Windows에서 프레젠테이션·문서·스프레드시트�
 
 - `.pptx`, `.pptm` 열기
 - 설치된 PowerPoint가 있으면 Native renderer 우선
-- PowerPoint가 없으면 Internal OpenXML renderer
-- `.ppt` 등 일부 legacy 경로는 설치된 LibreOffice fallback 가능
+- 설치된 LibreOffice가 있으면 Impress renderer 사용 가능
+- 외부 renderer가 없으면 자체 Internal OpenXML renderer
 - thumbnails / TOC / Auto TOC
 - Fit / Zoom / Fullscreen
 - slide search / go-to / sorter
@@ -48,8 +50,46 @@ PowerPointLite는 Windows에서 프레젠테이션·문서·스프레드시트�
 - Presenter View
 - F5 / Shift+F5 slideshow
 - full slide / notes / handout printing
+- rich text / table / theme / master-layout inheritance
+- image crop/rotate/flip/alpha 및 일부 color effect
+- SVG basic primitive + path 렌더링
+- 추가 shape/custom geometry/group transform 처리
+- column/bar/line/pie/doughnut/area/scatter/bubble/radar chart 근사 렌더링
+- SmartArt data-model hierarchy 근사 렌더링
+- `mc:AlternateContent` 호환 fallback
+- slide transition 및 internal animation timeline
+  - entrance / exit / emphasis / motion 분류
+  - on-click / with-previous / after-previous
+  - delay / duration / repeat / auto-reverse
+  - slide `advTm` / `advClick` / loop / useTimings
+
+Internal renderer는 Microsoft PowerPoint를 복제한 엔진이 아닙니다. SmartArt 고유 layout, 모든 chart style/3D 조합, 고급 SVG filter/arc, 3D effect, 정확한 motion path/easing, 모든 animation timing edge case, Morph object matching 등은 근사 또는 fallback입니다.
+
+상세: [`docs/PPTX_FIDELITY.md`](docs/PPTX_FIDELITY.md)
 
 PowerPoint/LibreOffice 실행 파일이나 DLL을 프로젝트 패키지에 포함하지 않습니다.
+
+## PPTX Editor
+
+Editor의 interactive canvas는 개체 선택/이동/크기 조절을 빠르게 하기 위한 편집 화면이고, 최종 시각 표현의 기준은 Viewer renderer입니다.
+
+Editor의 `미리보기 / Preview`는 현재 편집 모델을 임시 PPTX로 만든 뒤 Viewer와 동일한 Internal renderer 경로로 다시 렌더링합니다.
+
+`PresentationTextBox`는 기존 단순 텍스트 속성과 함께 선택적으로 paragraph/run rich-text 정보를 보존할 수 있습니다.
+
+현재 run-level 보존 범위:
+
+- font family / size
+- bold / italic / underline
+- color
+- baseline
+- paragraph alignment / level / bullet / before-after spacing
+
+현재 일반 TextBox 편집 UI에서 문자열 자체를 바꾸면 이전 run 경계를 억지로 새 글자에 적용하지 않고 해당 TextBox를 box-level format으로 평문화합니다. 선택 영역 단위 rich-text 편집 UI는 후속 작업입니다.
+
+외부 PPTX는 `PptxEditableReader`가 안전한 round-trip이 가능하다고 판정한 경우에만 Editor 저장 경로를 허용합니다.
+
+상세: [`docs/EDITOR_FOUNDATION.md`](docs/EDITOR_FOUNDATION.md)
 
 ## Document Workspace
 
@@ -107,6 +147,8 @@ ODF          → OdfPackage
 
 UI는 프로젝트 자체 dark/flat 디자인을 사용합니다.
 
+- 기본 언어 한국어
+- 한국어 / English 전환
 - Microsoft Office / Hancom Ribbon 시각 복제 없음
 - 공식 제품 로고/아이콘 사용 없음
 - presentation / document / spreadsheet 성격에 맞는 별도 editor UI
@@ -164,6 +206,7 @@ RUN_ALL_FORMAT_SELFTESTS.cmd
 
 ```bat
 RUN_WRITER_SELFTEST.cmd
+RUN_ANIMATION_SELFTEST.cmd
 RUN_DOCX_SELFTEST.cmd
 RUN_XLSX_SELFTEST.cmd
 RUN_HWPX_SELFTEST.cmd
@@ -176,11 +219,15 @@ RUN_CONVERSION_SELFTEST.cmd
 RUN_FONT_LICENSE_SELFTEST.cmd
 ```
 
+Writer self-test는 일반 Writer round-trip과 rich-text paragraph/run round-trip을 함께 검사합니다.
+
+Animation self-test는 프로젝트가 생성한 PPTX에 합성 `p:timing`을 넣어 click entrance, with-previous emphasis, after-previous exit, delayed motion step 및 단계별 render state를 검사합니다.
+
 테스트 문서는 프로젝트 코드가 직접 생성합니다. 인터넷에서 가져온 타인 문서나 상용 템플릿을 repository fixture로 사용하지 않습니다.
 
 Structural self-test와 실제 애플리케이션 호환성은 별개입니다. 가능한 경우 다음 수동 확인이 필요합니다.
 
-- PPTX → PowerPoint / LibreOffice
+- PPTX → PowerPoint / LibreOffice, 특히 rich text / chart / SmartArt / animation timing
 - DOCX → Word / LibreOffice
 - XLSX → Excel / LibreOffice
 - HWPX → Hancom
@@ -225,6 +272,7 @@ Durable project knowledge is kept under `docs/`.
 
 - [`docs/ARCHITECTURE_ROADMAP.md`](docs/ARCHITECTURE_ROADMAP.md) — architecture and format roadmap
 - [`docs/EDITOR_FOUNDATION.md`](docs/EDITOR_FOUNDATION.md) — editor model and safety foundation
+- [`docs/PPTX_FIDELITY.md`](docs/PPTX_FIDELITY.md) — Internal PPTX renderer / animation fidelity scope
 - [`docs/HWPX_FOUNDATION.md`](docs/HWPX_FOUNDATION.md) — HWPX foundation
 - [`docs/HWP_FOUNDATION.md`](docs/HWP_FOUNDATION.md) — HWP 5.x read-only foundation
 - [`docs/ODF_FOUNDATION.md`](docs/ODF_FOUNDATION.md) — ODT/ODS/ODP foundation
