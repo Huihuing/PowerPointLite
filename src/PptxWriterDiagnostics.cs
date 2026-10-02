@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.IO.Compression;
+using System.Text;
 using System.Xml;
 
 namespace PptxViewer
@@ -82,6 +83,7 @@ namespace PptxViewer
             PresentationPackageWriter.Save(document, outputPath);
             ValidatePackage(outputPath, document.Slides.Count, true);
             ValidateEditableRoundTrip(outputPath);
+            ValidateAlternateContentPreparation(outputPath);
         }
 
         private static byte[] CreateGeneratedPng()
@@ -203,6 +205,141 @@ namespace PptxViewer
                 }
                 catch { }
             }
+        }
+
+        private static void ValidateAlternateContentPreparation(string sourcePath)
+        {
+            string testPath = sourcePath + ".alternate-content.pptx";
+            string prepared = null;
+
+            try
+            {
+                if (File.Exists(testPath))
+                    File.Delete(testPath);
+
+                File.Copy(sourcePath, testPath);
+                InjectAlternateContentMarker(testPath);
+
+                if (!PptxRenderPreprocessor.NeedsAlternateContentFallback(testPath))
+                {
+                    throw new InvalidOperationException(
+                        "AlternateContent render-preparation test was not detected.");
+                }
+
+                prepared = PptxRenderPreprocessor.PrepareForRendering(testPath);
+
+                if (string.IsNullOrEmpty(prepared) ||
+                    !File.Exists(prepared) ||
+                    string.Equals(prepared, testPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        "AlternateContent render preparation did not create a temporary package.");
+                }
+
+                using (ZipArchive archive = ZipFile.OpenRead(prepared))
+                {
+                    ZipArchiveEntry slide = archive.GetEntry("ppt/slides/slide3.xml");
+                    if (slide == null)
+                        throw new InvalidOperationException("Prepared slide3.xml is missing.");
+
+                    string xml;
+                    using (Stream stream = slide.Open())
+                    using (StreamReader reader = new StreamReader(stream, Encoding.UTF8, true))
+                        xml = reader.ReadToEnd();
+
+                    if (xml.IndexOf("AlternateContent", StringComparison.Ordinal) >= 0)
+                    {
+                        throw new InvalidOperationException(
+                            "Prepared package still contains AlternateContent.");
+                    }
+
+                    if (xml.IndexOf("FALLBACK_MARKER", StringComparison.Ordinal) < 0 ||
+                        xml.IndexOf("CHOICE_MARKER", StringComparison.Ordinal) >= 0)
+                    {
+                        throw new InvalidOperationException(
+                            "AlternateContent fallback branch was not selected correctly.");
+                    }
+                }
+            }
+            finally
+            {
+                PptxRenderPreprocessor.DeletePreparedFile(prepared, testPath);
+
+                try
+                {
+                    if (File.Exists(testPath))
+                        File.Delete(testPath);
+                }
+                catch { }
+            }
+        }
+
+        private static void InjectAlternateContentMarker(string path)
+        {
+            using (ZipArchive archive = ZipFile.Open(path, ZipArchiveMode.Update))
+            {
+                ZipArchiveEntry entry = archive.GetEntry("ppt/slides/slide3.xml");
+                if (entry == null)
+                    throw new InvalidOperationException("slide3.xml is missing for AlternateContent test.");
+
+                XmlDocument document = new XmlDocument();
+                using (Stream stream = entry.Open())
+                    document.Load(stream);
+
+                XmlNode shapeTree = FindFirstByLocalName(document.DocumentElement, "spTree");
+                if (shapeTree == null)
+                    throw new InvalidOperationException("slide3 shape tree was not found.");
+
+                const string mc = "http://schemas.openxmlformats.org/markup-compatibility/2006";
+                const string p = "http://schemas.openxmlformats.org/presentationml/2006/main";
+
+                XmlElement alternate = document.CreateElement("mc", "AlternateContent", mc);
+                XmlElement choice = document.CreateElement("mc", "Choice", mc);
+                choice.SetAttribute("Requires", "p14");
+                XmlElement choiceMarker = document.CreateElement("p", "compatMarker", p);
+                choiceMarker.SetAttribute("value", "CHOICE_MARKER");
+                choice.AppendChild(choiceMarker);
+
+                XmlElement fallback = document.CreateElement("mc", "Fallback", mc);
+                XmlElement fallbackMarker = document.CreateElement("p", "compatMarker", p);
+                fallbackMarker.SetAttribute("value", "FALLBACK_MARKER");
+                fallback.AppendChild(fallbackMarker);
+
+                alternate.AppendChild(choice);
+                alternate.AppendChild(fallback);
+                shapeTree.AppendChild(alternate);
+
+                entry.Delete();
+                ZipArchiveEntry replacement = archive.CreateEntry(
+                    "ppt/slides/slide3.xml",
+                    CompressionLevel.Optimal);
+
+                XmlWriterSettings settings = new XmlWriterSettings();
+                settings.Encoding = new UTF8Encoding(false);
+                settings.Indent = false;
+
+                using (Stream stream = replacement.Open())
+                using (XmlWriter writer = XmlWriter.Create(stream, settings))
+                    document.Save(writer);
+            }
+        }
+
+        private static XmlNode FindFirstByLocalName(XmlNode node, string localName)
+        {
+            if (node == null)
+                return null;
+
+            if (node.LocalName == localName)
+                return node;
+
+            for (int i = 0; i < node.ChildNodes.Count; i++)
+            {
+                XmlNode found = FindFirstByLocalName(node.ChildNodes[i], localName);
+                if (found != null)
+                    return found;
+            }
+
+            return null;
         }
 
         private static void ValidatePackage(
