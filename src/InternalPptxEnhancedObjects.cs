@@ -1,0 +1,1521 @@
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Globalization;
+using System.IO;
+using System.IO.Compression;
+using System.Xml;
+
+namespace PptxViewer
+{
+    internal static partial class InternalPptxRenderer
+    {
+        private sealed class SmartNode
+        {
+            public string Id;
+            public string Label;
+            public readonly List<string> Children = new List<string>();
+            public int Depth;
+        }
+
+        private static void DrawEnhancedShape(
+            ZipArchive zip,
+            Graphics g,
+            XmlNode shape,
+            Dictionary<string, string> rels,
+            TransformContext ctx,
+            Dictionary<string, Color> theme,
+            Dictionary<string, RectangleF> placeholderRects,
+            int slideNumber)
+        {
+            XmlNode spPr = DirectChild(shape, "spPr");
+            XmlNode prstGeom = spPr != null ? FindFirst(spPr, "prstGeom") : null;
+            string preset = prstGeom != null ? GetAttr(prstGeom, "prst") : string.Empty;
+
+            if (!IsEnhancedPreset(preset))
+            {
+                DrawShape(zip, g, shape, rels, ctx, theme, placeholderRects, slideNumber);
+                return;
+            }
+
+            RectangleF rect;
+            if (!TryGetRect(shape, ctx, out rect) &&
+                !TryGetPlaceholderRect(shape, placeholderRects, out rect))
+            {
+                return;
+            }
+
+            bool noFill = spPr != null && FindFirst(spPr, "noFill") != null;
+            Brush fillBrush = !noFill && spPr != null
+                ? CreateFillBrush(spPr, rect, theme)
+                : null;
+            Color? line = spPr != null ? ReadLineColor(spPr, theme) : null;
+            GraphicsState state = g.Save();
+
+            try
+            {
+                ApplyRotation(g, shape, rect);
+
+                using (GraphicsPath path = BuildEnhancedPresetPath(preset, rect))
+                {
+                    DrawOuterShadow(g, spPr, path, rect, theme);
+                    bool pictureFill = DrawShapePictureFill(zip, g, spPr, rels, path, rect);
+
+                    if (!pictureFill && fillBrush != null)
+                        g.FillPath(fillBrush, path);
+
+                    if (line.HasValue)
+                    {
+                        using (Pen pen = CreateLinePen(spPr, theme, line.Value))
+                            g.DrawPath(pen, path);
+                    }
+                }
+
+                DrawShapeText(g, shape, rect, theme, slideNumber);
+            }
+            finally
+            {
+                if (fillBrush != null)
+                    fillBrush.Dispose();
+                g.Restore(state);
+            }
+        }
+
+        private static bool IsEnhancedPreset(string preset)
+        {
+            return preset == "pentagon" ||
+                   preset == "octagon" ||
+                   preset == "star5" ||
+                   preset == "star6" ||
+                   preset == "plus" ||
+                   preset == "chevron" ||
+                   preset == "homePlate" ||
+                   preset == "trapezoid" ||
+                   preset == "leftArrow" ||
+                   preset == "rightArrow" ||
+                   preset == "upArrow" ||
+                   preset == "downArrow";
+        }
+
+        private static GraphicsPath BuildEnhancedPresetPath(
+            string preset,
+            RectangleF r)
+        {
+            GraphicsPath path = new GraphicsPath();
+            PointF[] points = null;
+
+            if (preset == "pentagon")
+                points = RegularPolygon(r, 5, -90f);
+            else if (preset == "octagon")
+                points = RegularPolygon(r, 8, 22.5f);
+            else if (preset == "star5")
+                points = StarPolygon(r, 5, 0.43f, -90f);
+            else if (preset == "star6")
+                points = StarPolygon(r, 6, 0.48f, -90f);
+            else if (preset == "plus")
+            {
+                float x1 = r.Left + r.Width * 0.34f;
+                float x2 = r.Left + r.Width * 0.66f;
+                float y1 = r.Top + r.Height * 0.34f;
+                float y2 = r.Top + r.Height * 0.66f;
+                points = new PointF[]
+                {
+                    new PointF(x1, r.Top), new PointF(x2, r.Top),
+                    new PointF(x2, y1), new PointF(r.Right, y1),
+                    new PointF(r.Right, y2), new PointF(x2, y2),
+                    new PointF(x2, r.Bottom), new PointF(x1, r.Bottom),
+                    new PointF(x1, y2), new PointF(r.Left, y2),
+                    new PointF(r.Left, y1), new PointF(x1, y1)
+                };
+            }
+            else if (preset == "chevron")
+            {
+                float dx = r.Width * 0.28f;
+                points = new PointF[]
+                {
+                    new PointF(r.Left, r.Top),
+                    new PointF(r.Right - dx, r.Top),
+                    new PointF(r.Right, r.Top + r.Height / 2f),
+                    new PointF(r.Right - dx, r.Bottom),
+                    new PointF(r.Left, r.Bottom),
+                    new PointF(r.Left + dx, r.Top + r.Height / 2f)
+                };
+            }
+            else if (preset == "homePlate")
+            {
+                float dx = r.Width * 0.22f;
+                points = new PointF[]
+                {
+                    new PointF(r.Left, r.Top),
+                    new PointF(r.Right - dx, r.Top),
+                    new PointF(r.Right, r.Top + r.Height / 2f),
+                    new PointF(r.Right - dx, r.Bottom),
+                    new PointF(r.Left, r.Bottom)
+                };
+            }
+            else if (preset == "trapezoid")
+            {
+                float dx = r.Width * 0.18f;
+                points = new PointF[]
+                {
+                    new PointF(r.Left + dx, r.Top),
+                    new PointF(r.Right - dx, r.Top),
+                    new PointF(r.Right, r.Bottom),
+                    new PointF(r.Left, r.Bottom)
+                };
+            }
+            else if (preset == "leftArrow")
+                points = ArrowPolygon(r, false, true);
+            else if (preset == "rightArrow")
+                points = ArrowPolygon(r, false, false);
+            else if (preset == "upArrow")
+                points = ArrowPolygon(r, true, true);
+            else if (preset == "downArrow")
+                points = ArrowPolygon(r, true, false);
+
+            if (points == null || points.Length < 3)
+                path.AddRectangle(r);
+            else
+            {
+                path.AddPolygon(points);
+                path.CloseFigure();
+            }
+
+            return path;
+        }
+
+        private static PointF[] RegularPolygon(
+            RectangleF r,
+            int count,
+            float startDegrees)
+        {
+            PointF[] points = new PointF[count];
+            float cx = r.Left + r.Width / 2f;
+            float cy = r.Top + r.Height / 2f;
+            float rx = r.Width / 2f;
+            float ry = r.Height / 2f;
+
+            for (int i = 0; i < count; i++)
+            {
+                double angle = (startDegrees + i * 360.0 / count) * Math.PI / 180.0;
+                points[i] = new PointF(
+                    cx + (float)Math.Cos(angle) * rx,
+                    cy + (float)Math.Sin(angle) * ry);
+            }
+            return points;
+        }
+
+        private static PointF[] StarPolygon(
+            RectangleF r,
+            int pointsCount,
+            float innerRatio,
+            float startDegrees)
+        {
+            PointF[] points = new PointF[pointsCount * 2];
+            float cx = r.Left + r.Width / 2f;
+            float cy = r.Top + r.Height / 2f;
+            float rx = r.Width / 2f;
+            float ry = r.Height / 2f;
+
+            for (int i = 0; i < points.Length; i++)
+            {
+                bool outer = i % 2 == 0;
+                float ratio = outer ? 1f : innerRatio;
+                double angle = (startDegrees + i * 180.0 / pointsCount) * Math.PI / 180.0;
+                points[i] = new PointF(
+                    cx + (float)Math.Cos(angle) * rx * ratio,
+                    cy + (float)Math.Sin(angle) * ry * ratio);
+            }
+            return points;
+        }
+
+        private static PointF[] ArrowPolygon(
+            RectangleF r,
+            bool vertical,
+            bool reverse)
+        {
+            if (!vertical)
+            {
+                float shaftTop = r.Top + r.Height * 0.30f;
+                float shaftBottom = r.Bottom - r.Height * 0.30f;
+                float head = r.Width * 0.38f;
+                PointF[] right = new PointF[]
+                {
+                    new PointF(r.Left, shaftTop),
+                    new PointF(r.Right - head, shaftTop),
+                    new PointF(r.Right - head, r.Top),
+                    new PointF(r.Right, r.Top + r.Height / 2f),
+                    new PointF(r.Right - head, r.Bottom),
+                    new PointF(r.Right - head, shaftBottom),
+                    new PointF(r.Left, shaftBottom)
+                };
+                if (!reverse) return right;
+                return MirrorHorizontal(right, r);
+            }
+
+            float shaftLeft = r.Left + r.Width * 0.30f;
+            float shaftRight = r.Right - r.Width * 0.30f;
+            float headY = r.Height * 0.38f;
+            PointF[] down = new PointF[]
+            {
+                new PointF(shaftLeft, r.Top),
+                new PointF(shaftRight, r.Top),
+                new PointF(shaftRight, r.Bottom - headY),
+                new PointF(r.Right, r.Bottom - headY),
+                new PointF(r.Left + r.Width / 2f, r.Bottom),
+                new PointF(r.Left, r.Bottom - headY),
+                new PointF(shaftLeft, r.Bottom - headY)
+            };
+            if (!reverse) return down;
+            return MirrorVertical(down, r);
+        }
+
+        private static PointF[] MirrorHorizontal(PointF[] points, RectangleF r)
+        {
+            PointF[] result = new PointF[points.Length];
+            for (int i = 0; i < points.Length; i++)
+                result[i] = new PointF(r.Left + r.Right - points[i].X, points[i].Y);
+            return result;
+        }
+
+        private static PointF[] MirrorVertical(PointF[] points, RectangleF r)
+        {
+            PointF[] result = new PointF[points.Length];
+            for (int i = 0; i < points.Length; i++)
+                result[i] = new PointF(points[i].X, r.Top + r.Bottom - points[i].Y);
+            return result;
+        }
+
+        private static void DrawEnhancedPicture(
+            ZipArchive zip,
+            Graphics g,
+            XmlNode pic,
+            Dictionary<string, string> rels,
+            TransformContext ctx)
+        {
+            RectangleF rect;
+            if (!TryGetRect(pic, ctx, out rect))
+                return;
+
+            XmlNode blip = FindFirst(pic, "blip");
+            string rid = GetRelationshipId(blip);
+            if (string.IsNullOrEmpty(rid) || rels == null || !rels.ContainsKey(rid))
+            {
+                DrawPlaceholder(g, rect, "Image");
+                return;
+            }
+
+            ZipArchiveEntry entry = zip.GetEntry(rels[rid]);
+            if (entry == null)
+            {
+                DrawPlaceholder(g, rect, "Image");
+                return;
+            }
+
+            try
+            {
+                using (Stream stream = entry.Open())
+                using (Image sourceImage = Image.FromStream(stream))
+                using (Bitmap image = new Bitmap(sourceImage))
+                {
+                    RectangleF source = ReadPictureCrop(pic, image.Width, image.Height);
+                    GraphicsState state = g.Save();
+                    try
+                    {
+                        ApplyRotation(g, pic, rect);
+                        DrawImageWithDrawingEffects(g, image, source, rect, blip);
+                    }
+                    finally
+                    {
+                        g.Restore(state);
+                    }
+                }
+            }
+            catch
+            {
+                if (!TryDrawEnhancedSvg(entry, g, rect))
+                    DrawPicture(zip, g, pic, rels, ctx);
+            }
+        }
+
+        private static RectangleF ReadPictureCrop(
+            XmlNode pic,
+            int width,
+            int height)
+        {
+            RectangleF source = new RectangleF(0, 0, width, height);
+            XmlNode srcRect = FindFirst(pic, "srcRect");
+            if (srcRect == null)
+                return source;
+
+            float left = Clamp01(GetLong(srcRect, "l", 0) / 100000f);
+            float top = Clamp01(GetLong(srcRect, "t", 0) / 100000f);
+            float right = Clamp01(GetLong(srcRect, "r", 0) / 100000f);
+            float bottom = Clamp01(GetLong(srcRect, "b", 0) / 100000f);
+
+            source.X = width * left;
+            source.Y = height * top;
+            source.Width = Math.Max(1f, width * (1f - left - right));
+            source.Height = Math.Max(1f, height * (1f - top - bottom));
+            return source;
+        }
+
+        private static float Clamp01(float value)
+        {
+            return Math.Max(0f, Math.Min(0.99f, value));
+        }
+
+        private static void DrawImageWithDrawingEffects(
+            Graphics g,
+            Bitmap image,
+            RectangleF source,
+            RectangleF target,
+            XmlNode blip)
+        {
+            float alpha = 1f;
+            XmlNode alphaNode = blip == null ? null : FindFirst(blip, "alphaModFix");
+            if (alphaNode != null)
+                alpha = Math.Max(0f, Math.Min(1f, GetLong(alphaNode, "amt", 100000) / 100000f));
+
+            bool grayscale = blip != null && FindFirst(blip, "grayscl") != null;
+            XmlNode biLevel = blip == null ? null : FindFirst(blip, "biLevel");
+            XmlNode lum = blip == null ? null : FindFirst(blip, "lum");
+            float brightness = lum == null ? 0f : Math.Max(-1f, Math.Min(1f, GetLong(lum, "bright", 0) / 100000f));
+            float contrast = lum == null ? 0f : Math.Max(-1f, Math.Min(1f, GetLong(lum, "contrast", 0) / 100000f));
+
+            bool needsAttributes = grayscale || biLevel != null || alpha < 0.999f ||
+                Math.Abs(brightness) > 0.001f || Math.Abs(contrast) > 0.001f;
+
+            if (!needsAttributes)
+            {
+                g.DrawImage(
+                    image,
+                    Rectangle.Round(target),
+                    source.X,
+                    source.Y,
+                    source.Width,
+                    source.Height,
+                    GraphicsUnit.Pixel);
+                return;
+            }
+
+            using (ImageAttributes attributes = new ImageAttributes())
+            {
+                ColorMatrix matrix = grayscale
+                    ? new ColorMatrix(new float[][]
+                    {
+                        new float[] { 0.299f, 0.299f, 0.299f, 0f, 0f },
+                        new float[] { 0.587f, 0.587f, 0.587f, 0f, 0f },
+                        new float[] { 0.114f, 0.114f, 0.114f, 0f, 0f },
+                        new float[] { 0f, 0f, 0f, alpha, 0f },
+                        new float[] { brightness, brightness, brightness, 0f, 1f }
+                    })
+                    : new ColorMatrix();
+
+                if (!grayscale)
+                {
+                    float scale = Math.Max(0f, 1f + contrast);
+                    float offset = brightness + (1f - scale) * 0.5f;
+                    matrix.Matrix00 = scale;
+                    matrix.Matrix11 = scale;
+                    matrix.Matrix22 = scale;
+                    matrix.Matrix33 = alpha;
+                    matrix.Matrix40 = offset;
+                    matrix.Matrix41 = offset;
+                    matrix.Matrix42 = offset;
+                }
+
+                attributes.SetColorMatrix(
+                    matrix,
+                    ColorMatrixFlag.Default,
+                    ColorAdjustType.Bitmap);
+
+                if (biLevel != null)
+                {
+                    float threshold = Math.Max(0f, Math.Min(1f,
+                        GetLong(biLevel, "thresh", 50000) / 100000f));
+                    attributes.SetThreshold(threshold, ColorAdjustType.Bitmap);
+                }
+
+                g.DrawImage(
+                    image,
+                    Rectangle.Round(target),
+                    source.X,
+                    source.Y,
+                    source.Width,
+                    source.Height,
+                    GraphicsUnit.Pixel,
+                    attributes);
+            }
+        }
+
+        private static bool TryDrawEnhancedSvg(
+            ZipArchiveEntry entry,
+            Graphics g,
+            RectangleF target)
+        {
+            if (entry == null ||
+                !entry.FullName.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            try
+            {
+                XmlDocument document = new XmlDocument();
+                using (Stream input = entry.Open())
+                    document.Load(input);
+
+                XmlNode svg = document.DocumentElement;
+                if (svg == null || svg.LocalName != "svg")
+                    return false;
+
+                float minX = 0f;
+                float minY = 0f;
+                float width = ParseSvgFloat(GetAttr(svg, "width"), 100f);
+                float height = ParseSvgFloat(GetAttr(svg, "height"), 100f);
+                string viewBox = GetAttr(svg, "viewBox");
+
+                if (!string.IsNullOrEmpty(viewBox))
+                {
+                    string[] pieces = viewBox.Replace(',', ' ').Split(
+                        new char[] { ' ', '\t', '\r', '\n' },
+                        StringSplitOptions.RemoveEmptyEntries);
+                    if (pieces.Length >= 4)
+                    {
+                        minX = ParseSvgFloat(pieces[0], 0f);
+                        minY = ParseSvgFloat(pieces[1], 0f);
+                        width = Math.Max(0.001f, ParseSvgFloat(pieces[2], width));
+                        height = Math.Max(0.001f, ParseSvgFloat(pieces[3], height));
+                    }
+                }
+
+                float sx = target.Width / Math.Max(0.001f, width);
+                float sy = target.Height / Math.Max(0.001f, height);
+                return DrawEnhancedSvgChildren(g, svg, target, minX, minY, sx, sy);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool DrawEnhancedSvgChildren(
+            Graphics g,
+            XmlNode parent,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy)
+        {
+            bool drew = false;
+
+            for (int i = 0; i < parent.ChildNodes.Count; i++)
+            {
+                XmlNode node = parent.ChildNodes[i];
+                if (node.LocalName == "g" || node.LocalName == "svg")
+                {
+                    drew = DrawEnhancedSvgChildren(g, node, target, minX, minY, sx, sy) || drew;
+                    continue;
+                }
+
+                if (node.LocalName != "path")
+                    continue;
+
+                string data = GetAttr(node, "d");
+                GraphicsPath path = BuildSvgPath(data, target, minX, minY, sx, sy);
+                if (path == null || path.PointCount == 0)
+                {
+                    if (path != null) path.Dispose();
+                    continue;
+                }
+
+                using (path)
+                {
+                    Color fill = ReadSvgColor(node, "fill", Color.Black);
+                    Color stroke = ReadSvgColor(node, "stroke", Color.Transparent);
+                    float strokeWidth = Math.Max(
+                        1f,
+                        ParseSvgFloat(GetSvgStyle(node, "stroke-width"), 1f) * Math.Min(sx, sy));
+
+                    if (fill.A > 0)
+                    {
+                        using (Brush brush = new SolidBrush(fill))
+                            g.FillPath(brush, path);
+                    }
+
+                    if (stroke.A > 0)
+                    {
+                        using (Pen pen = new Pen(stroke, strokeWidth))
+                            g.DrawPath(pen, path);
+                    }
+                    drew = true;
+                }
+            }
+
+            if (!drew)
+                return TryDrawSimpleSvgFromDocument(g, parent.OwnerDocument, target);
+
+            return true;
+        }
+
+        private static bool TryDrawSimpleSvgFromDocument(
+            Graphics g,
+            XmlDocument document,
+            RectangleF target)
+        {
+            if (document == null || document.DocumentElement == null)
+                return false;
+
+            XmlNode svg = document.DocumentElement;
+            float minX = 0f;
+            float minY = 0f;
+            float width = ParseSvgFloat(GetAttr(svg, "width"), 100f);
+            float height = ParseSvgFloat(GetAttr(svg, "height"), 100f);
+            string viewBox = GetAttr(svg, "viewBox");
+
+            if (!string.IsNullOrEmpty(viewBox))
+            {
+                string[] pieces = viewBox.Replace(',', ' ').Split(
+                    new char[] { ' ', '\t', '\r', '\n' },
+                    StringSplitOptions.RemoveEmptyEntries);
+                if (pieces.Length >= 4)
+                {
+                    minX = ParseSvgFloat(pieces[0], 0f);
+                    minY = ParseSvgFloat(pieces[1], 0f);
+                    width = Math.Max(0.001f, ParseSvgFloat(pieces[2], width));
+                    height = Math.Max(0.001f, ParseSvgFloat(pieces[3], height));
+                }
+            }
+
+            DrawSvgChildren(
+                g,
+                svg,
+                target,
+                minX,
+                minY,
+                target.Width / Math.Max(0.001f, width),
+                target.Height / Math.Max(0.001f, height));
+            return true;
+        }
+
+        private static GraphicsPath BuildSvgPath(
+            string data,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy)
+        {
+            List<string> tokens = TokenizeSvgPath(data);
+            if (tokens.Count == 0)
+                return null;
+
+            GraphicsPath path = new GraphicsPath();
+            int index = 0;
+            char command = ' ';
+            PointF current = new PointF(0f, 0f);
+            PointF start = current;
+
+            while (index < tokens.Count)
+            {
+                if (IsSvgCommand(tokens[index]))
+                {
+                    command = tokens[index][0];
+                    index++;
+                    if (command == 'Z' || command == 'z')
+                    {
+                        path.CloseFigure();
+                        current = start;
+                        continue;
+                    }
+                }
+
+                bool relative = char.IsLower(command);
+                char upper = char.ToUpperInvariant(command);
+                float a, b, c, d, e, f;
+
+                if (upper == 'M' || upper == 'L')
+                {
+                    if (!ReadSvgNumber(tokens, ref index, out a) ||
+                        !ReadSvgNumber(tokens, ref index, out b)) break;
+                    PointF next = SvgPoint(a, b, relative, current);
+                    if (upper == 'M')
+                    {
+                        path.StartFigure();
+                        start = next;
+                        command = relative ? 'l' : 'L';
+                    }
+                    else
+                        path.AddLine(ToSvgTarget(current, target, minX, minY, sx, sy),
+                                     ToSvgTarget(next, target, minX, minY, sx, sy));
+                    current = next;
+                }
+                else if (upper == 'H')
+                {
+                    if (!ReadSvgNumber(tokens, ref index, out a)) break;
+                    PointF next = new PointF(relative ? current.X + a : a, current.Y);
+                    path.AddLine(ToSvgTarget(current, target, minX, minY, sx, sy),
+                                 ToSvgTarget(next, target, minX, minY, sx, sy));
+                    current = next;
+                }
+                else if (upper == 'V')
+                {
+                    if (!ReadSvgNumber(tokens, ref index, out a)) break;
+                    PointF next = new PointF(current.X, relative ? current.Y + a : a);
+                    path.AddLine(ToSvgTarget(current, target, minX, minY, sx, sy),
+                                 ToSvgTarget(next, target, minX, minY, sx, sy));
+                    current = next;
+                }
+                else if (upper == 'C')
+                {
+                    if (!ReadSvgNumber(tokens, ref index, out a) ||
+                        !ReadSvgNumber(tokens, ref index, out b) ||
+                        !ReadSvgNumber(tokens, ref index, out c) ||
+                        !ReadSvgNumber(tokens, ref index, out d) ||
+                        !ReadSvgNumber(tokens, ref index, out e) ||
+                        !ReadSvgNumber(tokens, ref index, out f)) break;
+                    PointF c1 = SvgPoint(a, b, relative, current);
+                    PointF c2 = SvgPoint(c, d, relative, current);
+                    PointF end = SvgPoint(e, f, relative, current);
+                    path.AddBezier(
+                        ToSvgTarget(current, target, minX, minY, sx, sy),
+                        ToSvgTarget(c1, target, minX, minY, sx, sy),
+                        ToSvgTarget(c2, target, minX, minY, sx, sy),
+                        ToSvgTarget(end, target, minX, minY, sx, sy));
+                    current = end;
+                }
+                else if (upper == 'Q')
+                {
+                    if (!ReadSvgNumber(tokens, ref index, out a) ||
+                        !ReadSvgNumber(tokens, ref index, out b) ||
+                        !ReadSvgNumber(tokens, ref index, out c) ||
+                        !ReadSvgNumber(tokens, ref index, out d)) break;
+                    PointF control = SvgPoint(a, b, relative, current);
+                    PointF end = SvgPoint(c, d, relative, current);
+                    PointF c1 = new PointF(
+                        current.X + (control.X - current.X) * 2f / 3f,
+                        current.Y + (control.Y - current.Y) * 2f / 3f);
+                    PointF c2 = new PointF(
+                        end.X + (control.X - end.X) * 2f / 3f,
+                        end.Y + (control.Y - end.Y) * 2f / 3f);
+                    path.AddBezier(
+                        ToSvgTarget(current, target, minX, minY, sx, sy),
+                        ToSvgTarget(c1, target, minX, minY, sx, sy),
+                        ToSvgTarget(c2, target, minX, minY, sx, sy),
+                        ToSvgTarget(end, target, minX, minY, sx, sy));
+                    current = end;
+                }
+                else
+                {
+                    index++;
+                }
+            }
+
+            return path;
+        }
+
+        private static List<string> TokenizeSvgPath(string data)
+        {
+            List<string> tokens = new List<string>();
+            if (string.IsNullOrEmpty(data))
+                return tokens;
+
+            int i = 0;
+            while (i < data.Length)
+            {
+                char ch = data[i];
+                if (char.IsLetter(ch))
+                {
+                    tokens.Add(ch.ToString());
+                    i++;
+                    continue;
+                }
+
+                if (char.IsWhiteSpace(ch) || ch == ',')
+                {
+                    i++;
+                    continue;
+                }
+
+                int start = i;
+                if (ch == '+' || ch == '-') i++;
+                bool seenDot = false;
+                bool seenExponent = false;
+
+                while (i < data.Length)
+                {
+                    ch = data[i];
+                    if (char.IsDigit(ch))
+                    {
+                        i++;
+                        continue;
+                    }
+                    if (ch == '.' && !seenDot && !seenExponent)
+                    {
+                        seenDot = true;
+                        i++;
+                        continue;
+                    }
+                    if ((ch == 'e' || ch == 'E') && !seenExponent)
+                    {
+                        seenExponent = true;
+                        i++;
+                        if (i < data.Length && (data[i] == '+' || data[i] == '-')) i++;
+                        continue;
+                    }
+                    break;
+                }
+
+                if (i > start)
+                    tokens.Add(data.Substring(start, i - start));
+                else
+                    i++;
+            }
+            return tokens;
+        }
+
+        private static bool IsSvgCommand(string token)
+        {
+            return !string.IsNullOrEmpty(token) && token.Length == 1 && char.IsLetter(token[0]);
+        }
+
+        private static bool ReadSvgNumber(
+            List<string> tokens,
+            ref int index,
+            out float value)
+        {
+            value = 0f;
+            if (index >= tokens.Count || IsSvgCommand(tokens[index]))
+                return false;
+            bool ok = float.TryParse(
+                tokens[index],
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out value);
+            index++;
+            return ok;
+        }
+
+        private static PointF SvgPoint(
+            float x,
+            float y,
+            bool relative,
+            PointF current)
+        {
+            return relative
+                ? new PointF(current.X + x, current.Y + y)
+                : new PointF(x, y);
+        }
+
+        private static PointF ToSvgTarget(
+            PointF point,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy)
+        {
+            return new PointF(
+                target.Left + (point.X - minX) * sx,
+                target.Top + (point.Y - minY) * sy);
+        }
+
+        private static void DrawEnhancedGraphicFrame(
+            ZipArchive zip,
+            Graphics g,
+            XmlNode frame,
+            Dictionary<string, string> rels,
+            TransformContext ctx,
+            Dictionary<string, Color> theme)
+        {
+            RectangleF rect;
+            if (!TryGetRect(frame, ctx, out rect))
+                return;
+
+            XmlNode tbl = FindFirst(frame, "tbl");
+            if (tbl != null)
+            {
+                DrawRichTable(g, tbl, rect, theme);
+                return;
+            }
+
+            XmlNode graphicData = FindFirst(frame, "graphicData");
+            string uri = graphicData == null ? string.Empty : GetAttr(graphicData, "uri");
+
+            if (uri.IndexOf("chart", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                XmlNode chart = FindFirst(frame, "chart");
+                string rid = GetRelationshipId(chart);
+                if (!string.IsNullOrEmpty(rid) && rels.ContainsKey(rid))
+                {
+                    XmlDocument chartDoc = LoadXml(zip, rels[rid]);
+                    if (chartDoc != null && DrawExtendedChart(g, chartDoc, rect, theme))
+                        return;
+                }
+            }
+
+            if (uri.IndexOf("diagram", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                FindFirst(frame, "relIds") != null)
+            {
+                XmlNode relIds = FindFirst(frame, "relIds");
+                string dataRid = null;
+                if (relIds != null && relIds.Attributes != null)
+                {
+                    for (int i = 0; i < relIds.Attributes.Count; i++)
+                    {
+                        XmlAttribute attribute = relIds.Attributes[i];
+                        if (attribute.LocalName == "dm")
+                        {
+                            dataRid = attribute.Value;
+                            break;
+                        }
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(dataRid) && rels.ContainsKey(dataRid))
+                {
+                    XmlDocument dataDoc = LoadXml(zip, rels[dataRid]);
+                    if (dataDoc != null && DrawStructuredSmartArt(g, dataDoc, rect, theme))
+                        return;
+                }
+            }
+
+            DrawGraphicFrame(zip, g, frame, rels, ctx, theme);
+        }
+
+        private static bool DrawExtendedChart(
+            Graphics g,
+            XmlDocument chartDoc,
+            RectangleF rect,
+            Dictionary<string, Color> theme)
+        {
+            if (chartDoc == null)
+                return false;
+
+            if (FindFirst(chartDoc, "doughnutChart") != null)
+            {
+                DrawDoughnutChart(g, chartDoc, rect, theme);
+                return true;
+            }
+            if (FindFirst(chartDoc, "scatterChart") != null ||
+                FindFirst(chartDoc, "bubbleChart") != null)
+            {
+                DrawScatterChart(g, chartDoc, rect, theme,
+                    FindFirst(chartDoc, "bubbleChart") != null);
+                return true;
+            }
+            if (FindFirst(chartDoc, "radarChart") != null)
+            {
+                DrawRadarChart(g, chartDoc, rect, theme);
+                return true;
+            }
+            if (FindFirst(chartDoc, "areaChart") != null)
+            {
+                DrawAreaChart(g, chartDoc, rect, theme);
+                return true;
+            }
+
+            DrawChart(g, chartDoc, rect, theme);
+            return true;
+        }
+
+        private static Color[] EnhancedChartPalette(Dictionary<string, Color> theme)
+        {
+            return new Color[]
+            {
+                ThemeOrDefault(theme, "accent1", Color.FromArgb(79,129,189)),
+                ThemeOrDefault(theme, "accent2", Color.FromArgb(192,80,77)),
+                ThemeOrDefault(theme, "accent3", Color.FromArgb(155,187,89)),
+                ThemeOrDefault(theme, "accent4", Color.FromArgb(128,100,162)),
+                ThemeOrDefault(theme, "accent5", Color.FromArgb(75,172,198)),
+                ThemeOrDefault(theme, "accent6", Color.FromArgb(247,150,70))
+            };
+        }
+
+        private static List<ChartSeriesData> ReadStandardChartSeries(XmlDocument chartDoc)
+        {
+            List<ChartSeriesData> series = new List<ChartSeriesData>();
+            List<XmlNode> nodes = FindAll(chartDoc, "ser");
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                ChartSeriesData item = new ChartSeriesData();
+                item.Name = ReadChartSeriesName(nodes[i]);
+                ReadChartCategories(nodes[i], item.Categories);
+                ReadChartValues(nodes[i], item.Values);
+                if (item.Values.Count > 0)
+                    series.Add(item);
+            }
+            return series;
+        }
+
+        private static void PrepareChartSurface(
+            Graphics g,
+            RectangleF rect,
+            XmlDocument chartDoc,
+            out RectangleF plot)
+        {
+            using (Brush bg = new SolidBrush(Color.White))
+                g.FillRectangle(bg, rect);
+            using (Pen border = new Pen(Color.FromArgb(210, 210, 210), 1f))
+                g.DrawRectangle(border, rect.X, rect.Y, rect.Width, rect.Height);
+
+            string title = ReadChartTitle(chartDoc);
+            float top = string.IsNullOrEmpty(title) ? 12f : Math.Max(34f, rect.Height * 0.10f);
+            if (!string.IsNullOrEmpty(title))
+            {
+                using (Font font = SafeFont("Arial", Math.Max(10f, Math.Min(18f, rect.Height / 18f)), FontStyle.Bold))
+                using (Brush brush = new SolidBrush(Color.FromArgb(45, 45, 45)))
+                using (StringFormat sf = new StringFormat())
+                {
+                    sf.Alignment = StringAlignment.Center;
+                    sf.LineAlignment = StringAlignment.Center;
+                    g.DrawString(title, font, brush,
+                        new RectangleF(rect.Left + 5f, rect.Top + 4f, rect.Width - 10f, top - 4f), sf);
+                }
+            }
+
+            plot = new RectangleF(
+                rect.Left + Math.Max(28f, rect.Width * 0.08f),
+                rect.Top + top,
+                Math.Max(12f, rect.Width - Math.Max(70f, rect.Width * 0.18f)),
+                Math.Max(12f, rect.Height - top - Math.Max(30f, rect.Height * 0.10f)));
+        }
+
+        private static void DrawDoughnutChart(
+            Graphics g,
+            XmlDocument chartDoc,
+            RectangleF rect,
+            Dictionary<string, Color> theme)
+        {
+            RectangleF plot;
+            PrepareChartSurface(g, rect, chartDoc, out plot);
+            List<ChartSeriesData> series = ReadStandardChartSeries(chartDoc);
+            if (series.Count == 0)
+            {
+                DrawPlaceholder(g, plot, "Doughnut chart");
+                return;
+            }
+
+            ChartSeriesData data = series[0];
+            double total = 0.0;
+            for (int i = 0; i < data.Values.Count; i++)
+                total += Math.Abs(data.Values[i]);
+            if (total <= 0.0) total = 1.0;
+
+            float size = Math.Min(plot.Width, plot.Height) * 0.88f;
+            RectangleF pie = new RectangleF(
+                plot.Left + (plot.Width - size) / 2f,
+                plot.Top + (plot.Height - size) / 2f,
+                size,
+                size);
+            Color[] palette = EnhancedChartPalette(theme);
+            float angle = -90f;
+
+            for (int i = 0; i < data.Values.Count; i++)
+            {
+                float sweep = (float)(360.0 * Math.Abs(data.Values[i]) / total);
+                using (Brush brush = new SolidBrush(palette[i % palette.Length]))
+                    g.FillPie(brush, pie.X, pie.Y, pie.Width, pie.Height, angle, sweep);
+                angle += sweep;
+            }
+
+            float holeSize = size * 0.52f;
+            RectangleF hole = new RectangleF(
+                pie.Left + (pie.Width - holeSize) / 2f,
+                pie.Top + (pie.Height - holeSize) / 2f,
+                holeSize,
+                holeSize);
+            using (Brush white = new SolidBrush(Color.White))
+                g.FillEllipse(white, hole);
+
+            DrawChartLegend(g, rect, series, palette);
+        }
+
+        private static void DrawAreaChart(
+            Graphics g,
+            XmlDocument chartDoc,
+            RectangleF rect,
+            Dictionary<string, Color> theme)
+        {
+            RectangleF plot;
+            PrepareChartSurface(g, rect, chartDoc, out plot);
+            List<ChartSeriesData> series = ReadStandardChartSeries(chartDoc);
+            if (series.Count == 0)
+            {
+                DrawPlaceholder(g, plot, "Area chart");
+                return;
+            }
+
+            double max = 0.0;
+            int count = 0;
+            for (int s = 0; s < series.Count; s++)
+            {
+                count = Math.Max(count, series[s].Values.Count);
+                for (int i = 0; i < series[s].Values.Count; i++)
+                    max = Math.Max(max, Math.Abs(series[s].Values[i]));
+            }
+            if (max <= 0.0) max = 1.0;
+            if (count <= 0) count = 1;
+
+            Color[] palette = EnhancedChartPalette(theme);
+            using (Pen axis = new Pen(Color.FromArgb(110, 110, 110), 1f))
+            {
+                g.DrawLine(axis, plot.Left, plot.Bottom, plot.Right, plot.Bottom);
+                g.DrawLine(axis, plot.Left, plot.Top, plot.Left, plot.Bottom);
+            }
+
+            for (int s = 0; s < series.Count; s++)
+            {
+                ChartSeriesData item = series[s];
+                if (item.Values.Count == 0) continue;
+                List<PointF> points = new List<PointF>();
+                points.Add(new PointF(plot.Left, plot.Bottom));
+                for (int i = 0; i < item.Values.Count; i++)
+                {
+                    float x = count <= 1
+                        ? plot.Left + plot.Width / 2f
+                        : plot.Left + plot.Width * i / (count - 1f);
+                    float y = plot.Bottom - (float)(plot.Height * item.Values[i] / max);
+                    points.Add(new PointF(x, y));
+                }
+                points.Add(new PointF(
+                    item.Values.Count <= 1 ? plot.Right : plot.Right,
+                    plot.Bottom));
+
+                Color color = palette[s % palette.Length];
+                using (Brush fill = new SolidBrush(Color.FromArgb(72, color)))
+                    g.FillPolygon(fill, points.ToArray());
+                using (Pen pen = new Pen(color, 2f))
+                {
+                    PointF[] line = points.GetRange(1, points.Count - 2).ToArray();
+                    if (line.Length > 1) g.DrawLines(pen, line);
+                }
+            }
+
+            DrawChartCategoryLabels(g, plot, series[0], count, "column");
+            DrawChartLegend(g, rect, series, palette);
+        }
+
+        private static void DrawScatterChart(
+            Graphics g,
+            XmlDocument chartDoc,
+            RectangleF rect,
+            Dictionary<string, Color> theme,
+            bool bubble)
+        {
+            RectangleF plot;
+            PrepareChartSurface(g, rect, chartDoc, out plot);
+            List<XmlNode> seriesNodes = FindAll(chartDoc, "ser");
+            Color[] palette = EnhancedChartPalette(theme);
+
+            double minX = double.MaxValue, maxX = double.MinValue;
+            double minY = double.MaxValue, maxY = double.MinValue;
+            List<List<double>> allX = new List<List<double>>();
+            List<List<double>> allY = new List<List<double>>();
+            List<List<double>> allSize = new List<List<double>>();
+
+            for (int s = 0; s < seriesNodes.Count; s++)
+            {
+                List<double> xs = ReadCachedNumbers(DirectChild(seriesNodes[s], "xVal"));
+                List<double> ys = ReadCachedNumbers(DirectChild(seriesNodes[s], "yVal"));
+                List<double> sizes = ReadCachedNumbers(DirectChild(seriesNodes[s], "bubbleSize"));
+                allX.Add(xs); allY.Add(ys); allSize.Add(sizes);
+
+                int count = Math.Min(xs.Count, ys.Count);
+                for (int i = 0; i < count; i++)
+                {
+                    minX = Math.Min(minX, xs[i]); maxX = Math.Max(maxX, xs[i]);
+                    minY = Math.Min(minY, ys[i]); maxY = Math.Max(maxY, ys[i]);
+                }
+            }
+
+            if (minX == double.MaxValue)
+            {
+                DrawPlaceholder(g, plot, bubble ? "Bubble chart" : "Scatter chart");
+                return;
+            }
+            if (Math.Abs(maxX - minX) < 0.000001) maxX = minX + 1.0;
+            if (Math.Abs(maxY - minY) < 0.000001) maxY = minY + 1.0;
+
+            using (Pen axis = new Pen(Color.FromArgb(110, 110, 110), 1f))
+            {
+                g.DrawRectangle(axis, plot.X, plot.Y, plot.Width, plot.Height);
+            }
+
+            for (int s = 0; s < allX.Count; s++)
+            {
+                int count = Math.Min(allX[s].Count, allY[s].Count);
+                Color color = palette[s % palette.Length];
+                for (int i = 0; i < count; i++)
+                {
+                    float x = plot.Left + (float)((allX[s][i] - minX) / (maxX - minX)) * plot.Width;
+                    float y = plot.Bottom - (float)((allY[s][i] - minY) / (maxY - minY)) * plot.Height;
+                    float radius = 4f;
+                    if (bubble && i < allSize[s].Count)
+                        radius = Math.Max(3f, Math.Min(16f, (float)Math.Sqrt(Math.Abs(allSize[s][i]))));
+                    using (Brush brush = new SolidBrush(Color.FromArgb(160, color)))
+                        g.FillEllipse(brush, x - radius, y - radius, radius * 2f, radius * 2f);
+                    using (Pen pen = new Pen(color, 1f))
+                        g.DrawEllipse(pen, x - radius, y - radius, radius * 2f, radius * 2f);
+                }
+            }
+        }
+
+        private static void DrawRadarChart(
+            Graphics g,
+            XmlDocument chartDoc,
+            RectangleF rect,
+            Dictionary<string, Color> theme)
+        {
+            RectangleF plot;
+            PrepareChartSurface(g, rect, chartDoc, out plot);
+            List<ChartSeriesData> series = ReadStandardChartSeries(chartDoc);
+            if (series.Count == 0)
+            {
+                DrawPlaceholder(g, plot, "Radar chart");
+                return;
+            }
+
+            int count = 0;
+            double max = 0.0;
+            for (int s = 0; s < series.Count; s++)
+            {
+                count = Math.Max(count, series[s].Values.Count);
+                for (int i = 0; i < series[s].Values.Count; i++)
+                    max = Math.Max(max, Math.Abs(series[s].Values[i]));
+            }
+            if (count < 3 || max <= 0.0)
+            {
+                DrawChart(g, chartDoc, rect, theme);
+                return;
+            }
+
+            float cx = plot.Left + plot.Width / 2f;
+            float cy = plot.Top + plot.Height / 2f;
+            float radius = Math.Min(plot.Width, plot.Height) * 0.43f;
+            using (Pen grid = new Pen(Color.FromArgb(190, 195, 200), 1f))
+            {
+                for (int ring = 1; ring <= 4; ring++)
+                {
+                    PointF[] ringPoints = new PointF[count];
+                    for (int i = 0; i < count; i++)
+                    {
+                        double angle = -Math.PI / 2.0 + i * Math.PI * 2.0 / count;
+                        float rr = radius * ring / 4f;
+                        ringPoints[i] = new PointF(
+                            cx + (float)Math.Cos(angle) * rr,
+                            cy + (float)Math.Sin(angle) * rr);
+                    }
+                    g.DrawPolygon(grid, ringPoints);
+                }
+                for (int i = 0; i < count; i++)
+                {
+                    double angle = -Math.PI / 2.0 + i * Math.PI * 2.0 / count;
+                    g.DrawLine(grid, cx, cy,
+                        cx + (float)Math.Cos(angle) * radius,
+                        cy + (float)Math.Sin(angle) * radius);
+                }
+            }
+
+            Color[] palette = EnhancedChartPalette(theme);
+            for (int s = 0; s < series.Count; s++)
+            {
+                if (series[s].Values.Count == 0) continue;
+                PointF[] points = new PointF[count];
+                for (int i = 0; i < count; i++)
+                {
+                    double value = i < series[s].Values.Count ? Math.Abs(series[s].Values[i]) : 0.0;
+                    float rr = radius * (float)(value / max);
+                    double angle = -Math.PI / 2.0 + i * Math.PI * 2.0 / count;
+                    points[i] = new PointF(
+                        cx + (float)Math.Cos(angle) * rr,
+                        cy + (float)Math.Sin(angle) * rr);
+                }
+                Color color = palette[s % palette.Length];
+                using (Brush brush = new SolidBrush(Color.FromArgb(42, color)))
+                    g.FillPolygon(brush, points);
+                using (Pen pen = new Pen(color, 2f))
+                    g.DrawPolygon(pen, points);
+            }
+            DrawChartLegend(g, rect, series, palette);
+        }
+
+        private static List<double> ReadCachedNumbers(XmlNode parent)
+        {
+            List<double> result = new List<double>();
+            XmlNode cache = FindFirst(parent, "numCache");
+            if (cache == null)
+                cache = FindFirst(parent, "numLit");
+            if (cache == null)
+                return result;
+
+            List<XmlNode> points = FindAll(cache, "pt");
+            for (int i = 0; i < points.Count; i++)
+            {
+                XmlNode value = DirectChild(points[i], "v");
+                double parsed;
+                if (value != null && double.TryParse(
+                    value.InnerText,
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out parsed))
+                {
+                    result.Add(parsed);
+                }
+            }
+            return result;
+        }
+
+        private static bool DrawStructuredSmartArt(
+            Graphics g,
+            XmlDocument dataDoc,
+            RectangleF rect,
+            Dictionary<string, Color> theme)
+        {
+            List<XmlNode> points = FindAll(dataDoc, "pt");
+            List<XmlNode> connections = FindAll(dataDoc, "cxn");
+            Dictionary<string, SmartNode> nodes =
+                new Dictionary<string, SmartNode>(StringComparer.Ordinal);
+            HashSet<string> incoming = new HashSet<string>(StringComparer.Ordinal);
+
+            for (int i = 0; i < points.Count; i++)
+            {
+                string id = GetAttr(points[i], "modelId");
+                if (string.IsNullOrEmpty(id))
+                    continue;
+
+                string type = GetAttr(points[i], "type");
+                if (type == "doc" || type == "asst")
+                    continue;
+
+                SmartNode node = new SmartNode();
+                node.Id = id;
+                node.Label = ReadSmartArtLabel(points[i]);
+                if (string.IsNullOrEmpty(node.Label))
+                    node.Label = "•";
+                nodes[id] = node;
+            }
+
+            for (int i = 0; i < connections.Count; i++)
+            {
+                string source = GetAttr(connections[i], "srcId");
+                string destination = GetAttr(connections[i], "destId");
+                if (string.IsNullOrEmpty(source) || string.IsNullOrEmpty(destination) ||
+                    !nodes.ContainsKey(source) || !nodes.ContainsKey(destination) ||
+                    source == destination)
+                    continue;
+
+                if (!nodes[source].Children.Contains(destination))
+                    nodes[source].Children.Add(destination);
+                incoming.Add(destination);
+            }
+
+            if (nodes.Count < 2 || connections.Count == 0)
+                return false;
+
+            List<SmartNode> roots = new List<SmartNode>();
+            foreach (KeyValuePair<string, SmartNode> pair in nodes)
+            {
+                if (!incoming.Contains(pair.Key))
+                    roots.Add(pair.Value);
+            }
+            if (roots.Count == 0)
+            {
+                foreach (KeyValuePair<string, SmartNode> pair in nodes)
+                {
+                    roots.Add(pair.Value);
+                    break;
+                }
+            }
+
+            Queue<SmartNode> queue = new Queue<SmartNode>();
+            HashSet<string> visited = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = 0; i < roots.Count; i++)
+            {
+                roots[i].Depth = 0;
+                queue.Enqueue(roots[i]);
+            }
+
+            while (queue.Count > 0)
+            {
+                SmartNode current = queue.Dequeue();
+                if (!visited.Add(current.Id))
+                    continue;
+                for (int i = 0; i < current.Children.Count; i++)
+                {
+                    SmartNode child;
+                    if (!nodes.TryGetValue(current.Children[i], out child))
+                        continue;
+                    child.Depth = Math.Max(child.Depth, current.Depth + 1);
+                    queue.Enqueue(child);
+                }
+            }
+
+            int maxDepth = 0;
+            foreach (KeyValuePair<string, SmartNode> pair in nodes)
+                maxDepth = Math.Max(maxDepth, pair.Value.Depth);
+
+            Dictionary<string, RectangleF> positions =
+                new Dictionary<string, RectangleF>(StringComparer.Ordinal);
+            for (int depth = 0; depth <= maxDepth; depth++)
+            {
+                List<SmartNode> level = new List<SmartNode>();
+                foreach (KeyValuePair<string, SmartNode> pair in nodes)
+                {
+                    if (pair.Value.Depth == depth)
+                        level.Add(pair.Value);
+                }
+                if (level.Count == 0) continue;
+
+                float columnWidth = rect.Width / Math.Max(1, level.Count);
+                float rowHeight = rect.Height / Math.Max(1, maxDepth + 1);
+                float boxW = Math.Max(42f, columnWidth * 0.72f);
+                float boxH = Math.Max(28f, rowHeight * 0.52f);
+
+                for (int i = 0; i < level.Count; i++)
+                {
+                    float x = rect.Left + i * columnWidth + (columnWidth - boxW) / 2f;
+                    float y = rect.Top + depth * rowHeight + (rowHeight - boxH) / 2f;
+                    positions[level[i].Id] = new RectangleF(x, y, boxW, boxH);
+                }
+            }
+
+            Color accent = ThemeOrDefault(theme, "accent1", Color.FromArgb(79,129,189));
+            using (Pen connector = new Pen(Color.FromArgb(120, accent), 1.6f))
+            {
+                foreach (KeyValuePair<string, SmartNode> pair in nodes)
+                {
+                    RectangleF source;
+                    if (!positions.TryGetValue(pair.Key, out source)) continue;
+                    for (int i = 0; i < pair.Value.Children.Count; i++)
+                    {
+                        RectangleF destination;
+                        if (!positions.TryGetValue(pair.Value.Children[i], out destination)) continue;
+                        g.DrawLine(connector,
+                            source.Left + source.Width / 2f,
+                            source.Bottom,
+                            destination.Left + destination.Width / 2f,
+                            destination.Top);
+                    }
+                }
+            }
+
+            foreach (KeyValuePair<string, SmartNode> pair in nodes)
+            {
+                RectangleF box;
+                if (!positions.TryGetValue(pair.Key, out box)) continue;
+                using (GraphicsPath path = RoundedRectanglePath(box, Math.Min(10f, box.Height * 0.22f)))
+                using (Brush fill = new SolidBrush(Color.FromArgb(235, 242, 251)))
+                using (Pen border = new Pen(accent, 1.4f))
+                {
+                    g.FillPath(fill, path);
+                    g.DrawPath(border, path);
+                }
+                using (Font font = SafeFont("Arial", Math.Max(7f, Math.Min(12f, box.Height / 4f)), FontStyle.Regular))
+                using (Brush text = new SolidBrush(Color.FromArgb(45, 50, 58)))
+                using (StringFormat sf = new StringFormat())
+                {
+                    sf.Alignment = StringAlignment.Center;
+                    sf.LineAlignment = StringAlignment.Center;
+                    sf.Trimming = StringTrimming.EllipsisCharacter;
+                    g.DrawString(pair.Value.Label, font, text, box, sf);
+                }
+            }
+
+            return true;
+        }
+
+        private static string ReadSmartArtLabel(XmlNode point)
+        {
+            if (point == null)
+                return string.Empty;
+            List<XmlNode> texts = FindAll(point, "t");
+            for (int i = 0; i < texts.Count; i++)
+            {
+                string value = texts[i].InnerText;
+                if (!string.IsNullOrEmpty(value))
+                    return value.Trim();
+            }
+            return string.Empty;
+        }
+
+        private static GraphicsPath RoundedRectanglePath(RectangleF rect, float radius)
+        {
+            GraphicsPath path = new GraphicsPath();
+            float d = Math.Max(1f, radius * 2f);
+            path.AddArc(rect.Left, rect.Top, d, d, 180f, 90f);
+            path.AddArc(rect.Right - d, rect.Top, d, d, 270f, 90f);
+            path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0f, 90f);
+            path.AddArc(rect.Left, rect.Bottom - d, d, d, 90f, 90f);
+            path.CloseFigure();
+            return path;
+        }
+
+        private static void DrawEnhancedGroup(
+            ZipArchive zip,
+            Graphics g,
+            XmlNode group,
+            Dictionary<string, string> rels,
+            TransformContext ctx,
+            Dictionary<string, Color> theme,
+            bool inheritedLayer,
+            Dictionary<string, RectangleF> placeholderRects,
+            HashSet<string> hiddenShapeIds,
+            int slideNumber)
+        {
+            TransformContext childContext = BuildGroupContext(group, ctx);
+            RectangleF groupRect;
+            bool hasRect = TryGetGroupRect(group, ctx, out groupRect);
+            GraphicsState state = g.Save();
+
+            try
+            {
+                if (hasRect)
+                    ApplyRotation(g, group, groupRect);
+
+                DrawContainer(
+                    zip,
+                    g,
+                    group,
+                    rels,
+                    childContext,
+                    theme,
+                    inheritedLayer,
+                    placeholderRects,
+                    hiddenShapeIds,
+                    slideNumber);
+            }
+            finally
+            {
+                g.Restore(state);
+            }
+        }
+
+        private static bool TryGetGroupRect(
+            XmlNode group,
+            TransformContext parent,
+            out RectangleF rect)
+        {
+            rect = RectangleF.Empty;
+            XmlNode grpSpPr = DirectChild(group, "grpSpPr");
+            XmlNode xfrm = grpSpPr == null ? null : DirectChild(grpSpPr, "xfrm");
+            XmlNode off = xfrm == null ? null : DirectChild(xfrm, "off");
+            XmlNode ext = xfrm == null ? null : DirectChild(xfrm, "ext");
+            if (off == null || ext == null)
+                return false;
+
+            long x = GetLong(off, "x", 0);
+            long y = GetLong(off, "y", 0);
+            long w = Math.Max(1, GetLong(ext, "cx", 1));
+            long h = Math.Max(1, GetLong(ext, "cy", 1));
+            rect = new RectangleF(
+                (float)(parent.Ax * x + parent.Bx),
+                (float)(parent.Ay * y + parent.By),
+                Math.Abs((float)(parent.Ax * w)),
+                Math.Abs((float)(parent.Ay * h)));
+            return true;
+        }
+    }
+}
