@@ -29,6 +29,7 @@ namespace PptxViewer
             try
             {
                 PptxWriter.Save(document, stage);
+                PptxRichTextPackage.InjectRichText(document, stage);
                 PptxTableWriter.InjectTables(document, stage);
                 ReplaceSafely(stage, destination, backup);
             }
