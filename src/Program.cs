@@ -41,6 +41,8 @@ namespace PptxViewer
 
                 if (TryRunWriterSelfTest(args))
                     return;
+                if (TryRunAnimationSelfTest(args))
+                    return;
                 if (TryRunDocxSelfTest(args))
                     return;
                 if (TryRunXlsxSelfTest(args))
@@ -91,6 +93,7 @@ namespace PptxViewer
                 return false;
 
             return string.Equals(args[0], "--writer-selftest", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "--animation-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--docx-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--xlsx-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--hwpx-selftest", StringComparison.OrdinalIgnoreCase) ||
@@ -113,6 +116,25 @@ namespace PptxViewer
             PptxWriterDiagnostics.CreateAndValidate(outputPath);
             Environment.ExitCode = 0;
             CrashReporter.WriteLine("PPTX Writer self-test passed: " + outputPath);
+            return true;
+        }
+
+        private static bool TryRunAnimationSelfTest(string[] args)
+        {
+            if (!MatchesCommand(args, "--animation-selftest"))
+                return false;
+
+            string outputDirectory =
+                args != null && args.Length > 1 && !string.IsNullOrEmpty(args[1])
+                    ? Path.GetFullPath(args[1])
+                    : Path.Combine(
+                        AppDomain.CurrentDomain.BaseDirectory,
+                        "ANIMATION_SELFTEST_OUTPUT");
+
+            AnimationTimingDiagnostics.CreateAndValidate(outputDirectory);
+            Environment.ExitCode = 0;
+            CrashReporter.WriteLine(
+                "PPTX animation timing self-test passed: " + outputDirectory);
             return true;
         }
 
