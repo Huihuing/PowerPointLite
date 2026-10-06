@@ -52,6 +52,7 @@ namespace PptxViewer
                 "<filter id=\"dropShadow\"><feDropShadow in=\"SourceGraphic\" dx=\"2\" dy=\"1.5\" stdDeviation=\"1\" flood-color=\"#2244aa\" flood-opacity=\"0.7\"/></filter>" +
                 "<filter id=\"offsetOnly\"><feOffset in=\"SourceGraphic\" dx=\"3\" dy=\"3\"/></filter>" +
                 "<filter id=\"offsetBlurChain\"><feOffset in=\"SourceGraphic\" dx=\"8\" dy=\"2\" result=\"shifted\"/><feGaussianBlur in=\"shifted\" stdDeviation=\"1\"/></filter>" +
+                "<filter id=\"offsetBlurBlend\"><feOffset in=\"SourceGraphic\" dx=\"8\" dy=\"2\" result=\"shifted2\"/><feGaussianBlur in=\"shifted2\" stdDeviation=\"1\" result=\"blurred2\"/><feBlend in=\"blurred2\" in2=\"SourceGraphic\" mode=\"normal\"/></filter>" +
                 "<filter id=\"swapRedBlue\"><feColorMatrix in=\"SourceGraphic\" type=\"matrix\" values=\"0 0 1 0 0  0 1 0 0 0  1 0 0 0 0  0 0 0 1 0\"/></filter>" +
                 "<filter id=\"desaturate\"><feColorMatrix in=\"SourceGraphic\" type=\"saturate\" values=\"0\"/></filter>" +
                 "<filter id=\"hueRotate\"><feColorMatrix in=\"SourceGraphic\" type=\"hueRotate\" values=\"240\"/></filter>" +
@@ -71,6 +72,7 @@ namespace PptxViewer
                 "<rect id=\"shadowRect\" x=\"78\" y=\"8\" width=\"6\" height=\"8\" fill=\"#f5c842\" filter=\"url(#dropShadow)\"/>" +
                 "<rect id=\"offsetRect\" x=\"60\" y=\"2\" width=\"6\" height=\"6\" fill=\"#20b9c7\" filter=\"url(#offsetOnly)\"/>" +
                 "<rect id=\"offsetBlurChainRect\" x=\"2\" y=\"2\" width=\"8\" height=\"6\" fill=\"#d64545\" filter=\"url(#offsetBlurChain)\"/>" +
+                "<rect id=\"offsetBlurBlendRect\" x=\"2\" y=\"12\" width=\"8\" height=\"6\" fill=\"#d64545\" filter=\"url(#offsetBlurBlend)\"/>" +
                 "<rect id=\"colorMatrixRect\" x=\"14\" y=\"2\" width=\"8\" height=\"6\" fill=\"#e04030\" filter=\"url(#swapRedBlue)\"/>" +
                 "<rect id=\"saturateRect\" x=\"24\" y=\"2\" width=\"8\" height=\"6\" fill=\"#e04030\" filter=\"url(#desaturate)\"/>" +
                 "<rect id=\"hueRotateRect\" x=\"34\" y=\"2\" width=\"8\" height=\"6\" fill=\"#ff0000\" filter=\"url(#hueRotate)\"/>" +
@@ -397,6 +399,7 @@ namespace PptxViewer
             float chainOffsetY;
             float chainBlurX;
             float chainBlurY;
+            bool chainBlendSource;
 
             if (!TryReadSvgOffsetGaussianChain(
                     offsetBlurChainRect,
@@ -406,7 +409,8 @@ namespace PptxViewer
                     out chainOffsetX,
                     out chainOffsetY,
                     out chainBlurX,
-                    out chainBlurY) ||
+                    out chainBlurY,
+                    out chainBlendSource) ||
                 Math.Abs(
                     chainOffsetX -
                     32f) > 0.1f ||
@@ -418,7 +422,8 @@ namespace PptxViewer
                     4f) > 0.1f ||
                 Math.Abs(
                     chainBlurY -
-                    4f) > 0.1f)
+                    4f) > 0.1f ||
+                chainBlendSource)
             {
                 throw new InvalidOperationException(
                     "SVG feOffset/feGaussianBlur filter chain was not parsed correctly.");
@@ -491,6 +496,105 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "SVG offset/blur chain did not produce only the shifted blurred result.");
+                }
+            }
+
+            XmlNode offsetBlurBlendRect =
+                FindSvgNodeById(
+                    document,
+                    "offsetBlurBlendRect");
+
+            float blendOffsetX;
+            float blendOffsetY;
+            float blendBlurX;
+            float blendBlurY;
+            bool blendSourceGraphic;
+
+            if (!TryReadSvgOffsetGaussianChain(
+                    offsetBlurBlendRect,
+                    document,
+                    4f,
+                    4f,
+                    out blendOffsetX,
+                    out blendOffsetY,
+                    out blendBlurX,
+                    out blendBlurY,
+                    out blendSourceGraphic) ||
+                !blendSourceGraphic)
+            {
+                throw new InvalidOperationException(
+                    "SVG feOffset/feGaussianBlur/feBlend filter chain was not parsed correctly.");
+            }
+
+            using (GraphicsPath blendPath =
+                BuildEnhancedSvgElementPath(
+                    offsetBlurBlendRect,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        160f,
+                        100f),
+                    0f,
+                    0f,
+                    4f,
+                    4f))
+            using (Bitmap blendBitmap =
+                new Bitmap(
+                    160,
+                    100,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics blendGraphics =
+                Graphics.FromImage(
+                    blendBitmap))
+            {
+                blendGraphics.Clear(
+                    Color.White);
+
+                if (!DrawSvgOffsetGaussianChainApproximation(
+                        blendGraphics,
+                        offsetBlurBlendRect,
+                        document,
+                        blendPath,
+                        4f,
+                        4f))
+                {
+                    throw new InvalidOperationException(
+                        "SVG feBlend filter chain was not rendered.");
+                }
+
+                Color originalCenter =
+                    blendBitmap.GetPixel(
+                        24,
+                        60);
+                Color shiftedCenter =
+                    blendBitmap.GetPixel(
+                        56,
+                        68);
+
+                bool originalVisible =
+                    originalCenter.R >
+                        originalCenter.G +
+                        25 &&
+                    originalCenter.R >
+                        originalCenter.B +
+                        25 &&
+                    originalCenter.R <
+                        250;
+                bool shiftedVisible =
+                    shiftedCenter.R >
+                        shiftedCenter.G +
+                        25 &&
+                    shiftedCenter.R >
+                        shiftedCenter.B +
+                        25 &&
+                    shiftedCenter.R <
+                        250;
+
+                if (!originalVisible ||
+                    !shiftedVisible)
+                {
+                    throw new InvalidOperationException(
+                        "SVG normal feBlend chain did not preserve SourceGraphic with the filtered result.");
                 }
             }
 

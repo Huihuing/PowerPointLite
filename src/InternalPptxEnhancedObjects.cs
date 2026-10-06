@@ -5482,12 +5482,14 @@ namespace PptxViewer
             out float offsetX,
             out float offsetY,
             out float blurX,
-            out float blurY)
+            out float blurY,
+            out bool blendSourceGraphic)
         {
             offsetX = 0f;
             offsetY = 0f;
             blurX = 0f;
             blurY = 0f;
+            blendSourceGraphic = false;
 
             if (node == null ||
                 document == null)
@@ -5548,7 +5550,8 @@ namespace PptxViewer
                     child);
             }
 
-            if (primitives.Count != 2)
+            if (primitives.Count != 2 &&
+                primitives.Count != 3)
             {
                 return false;
             }
@@ -5557,6 +5560,11 @@ namespace PptxViewer
                 primitives[0];
             XmlNode second =
                 primitives[1];
+
+            XmlNode blend =
+                primitives.Count == 3
+                    ? primitives[2]
+                    : null;
 
             bool offsetFirst =
                 first.LocalName ==
@@ -5620,6 +5628,75 @@ namespace PptxViewer
                 {
                     return false;
                 }
+            }
+
+            if (blend != null)
+            {
+                if (blend.LocalName !=
+                    "feBlend")
+                {
+                    return false;
+                }
+
+                string mode =
+                    GetAttr(
+                        blend,
+                        "mode");
+
+                if (!string.IsNullOrEmpty(
+                        mode) &&
+                    !string.Equals(
+                        mode,
+                        "normal",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                string secondResult =
+                    GetAttr(
+                        second,
+                        "result");
+                string blendIn =
+                    GetAttr(
+                        blend,
+                        "in");
+                string blendIn2 =
+                    GetAttr(
+                        blend,
+                        "in2");
+
+                bool firstIsChain =
+                    !string.IsNullOrEmpty(
+                        secondResult) &&
+                    string.Equals(
+                        blendIn,
+                        secondResult,
+                        StringComparison.Ordinal) &&
+                    string.Equals(
+                        blendIn2,
+                        "SourceGraphic",
+                        StringComparison.OrdinalIgnoreCase);
+
+                bool secondIsChain =
+                    !string.IsNullOrEmpty(
+                        secondResult) &&
+                    string.Equals(
+                        blendIn2,
+                        secondResult,
+                        StringComparison.Ordinal) &&
+                    string.Equals(
+                        blendIn,
+                        "SourceGraphic",
+                        StringComparison.OrdinalIgnoreCase);
+
+                if (!firstIsChain &&
+                    !secondIsChain)
+                {
+                    return false;
+                }
+
+                blendSourceGraphic = true;
             }
 
             offsetX =
@@ -5721,6 +5798,7 @@ namespace PptxViewer
             float offsetY;
             float blurX;
             float blurY;
+            bool blendSourceGraphic;
 
             if (!TryReadSvgOffsetGaussianChain(
                     node,
@@ -5730,7 +5808,8 @@ namespace PptxViewer
                     out offsetX,
                     out offsetY,
                     out blurX,
-                    out blurY))
+                    out blurY,
+                    out blendSourceGraphic))
             {
                 return false;
             }
@@ -5863,6 +5942,39 @@ namespace PptxViewer
                     }
                 }
 
+                if (blendSourceGraphic)
+                {
+                    if (hasSolidFill &&
+                        fillAlpha > 0)
+                    {
+                        using (Brush sourceBrush =
+                            new SolidBrush(
+                                Color.FromArgb(
+                                    fillAlpha,
+                                    fill)))
+                        {
+                            g.FillPath(
+                                sourceBrush,
+                                path);
+                        }
+                    }
+
+                    if (strokeAlpha > 0)
+                    {
+                        using (Pen sourcePen =
+                            new Pen(
+                                Color.FromArgb(
+                                    strokeAlpha,
+                                    stroke),
+                                strokeWidth))
+                        {
+                            g.DrawPath(
+                                sourcePen,
+                                path);
+                        }
+                    }
+                }
+
                 return true;
             }
 
@@ -5990,6 +6102,39 @@ namespace PptxViewer
                                     shifted);
                             }
                         }
+                    }
+                }
+            }
+
+            if (blendSourceGraphic)
+            {
+                if (hasSolidFill &&
+                    fillAlpha > 0)
+                {
+                    using (Brush sourceBrush =
+                        new SolidBrush(
+                            Color.FromArgb(
+                                fillAlpha,
+                                fill)))
+                    {
+                        g.FillPath(
+                            sourceBrush,
+                            path);
+                    }
+                }
+
+                if (strokeAlpha > 0)
+                {
+                    using (Pen sourcePen =
+                        new Pen(
+                            Color.FromArgb(
+                                strokeAlpha,
+                                stroke),
+                            strokeWidth))
+                    {
+                        g.DrawPath(
+                            sourcePen,
+                            path);
                     }
                 }
             }
