@@ -119,6 +119,7 @@ Microsoft PowerPoint (설치된 경우)
   - 데이터 레이블 separator 기본 반영
   - dLblPos의 ctr/inBase/inEnd/outEnd 및 t/b/l/r 위치 기본 근사
   - series dLbls/dLbl[idx]의 표시 항목·위치·numFmt·separator·delete point override 기본 반영
+  - chart-level dLbls와 series-level dLbls를 별도 scope로 해석
   - legendPos 좌/우/상/하/우상단 배치 및 plot 영역 조정
   - 파이/도넛 category 범례 및 percent 레이블
   - c:ser/c:spPr series 색상 및 c:dPt point 색상 우선 반영
@@ -146,6 +147,7 @@ Microsoft PowerPoint (설치된 경우)
   - hierarchy의 type="asst" assistant node 보존, 부모 좌우 보조 박스 배치 및 side connector 근사
   - hierarchy 일반 자식을 부모 중심별 그룹으로 묶어 sibling spacing과 행 배치를 근사
   - hierarchy parent-child 및 assistant connector를 직각 elbow routing으로 근사
+  - process 같은 행은 node edge 연결, 행 전환 및 verticalProcess는 직각 elbow routing으로 근사
   - 구조를 알 수 없는 경우 기존 static approximation으로 fallback
 - hyperlink / slide navigation / media extraction
 - speaker notes
