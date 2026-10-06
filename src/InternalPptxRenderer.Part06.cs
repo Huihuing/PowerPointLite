@@ -47,6 +47,7 @@ internal static partial class InternalPptxRenderer
             public bool ShowSeriesName;
             public bool ShowPercent;
             public bool ShowLeaderLines;
+            public Color? TextColor;
             public string NumberFormat;
             public string Position;
             public string Separator = ", ";
@@ -70,6 +71,7 @@ internal static partial class InternalPptxRenderer
             public bool? ShowSeriesName;
             public bool? ShowPercent;
             public bool Delete;
+            public Color? TextColor;
             public string NumberFormat;
             public string Position;
             public string Separator;
@@ -175,7 +177,8 @@ internal static partial class InternalPptxRenderer
 
                 ReadChartSeriesLabelOverrides(
                     ser,
-                    data);
+                    data,
+                    theme);
 
                 if (data.Values.Count > 0)
                     series.Add(data);
@@ -437,7 +440,8 @@ internal static partial class InternalPptxRenderer
 
             ChartLabelOptions labelOptions =
                 ReadChartLabelOptions(
-                    chartDoc);
+                    chartDoc,
+                    theme);
 
             ChartBarOptions barOptions =
                 ReadChartBarOptions(
@@ -944,7 +948,7 @@ internal static partial class InternalPptxRenderer
                                     startX,
                                     valueX,
                                     value,
-                                    pointLabels.Position);
+                                    pointLabels);
                             }
                         }
                     }
@@ -1601,6 +1605,15 @@ internal static partial class InternalPptxRenderer
         private static ChartLabelOptions ReadChartLabelOptions(
             XmlDocument chartDoc)
         {
+            return ReadChartLabelOptions(
+                chartDoc,
+                null);
+        }
+
+        private static ChartLabelOptions ReadChartLabelOptions(
+            XmlDocument chartDoc,
+            Dictionary<string, Color> theme)
+        {
             ChartLabelOptions result =
                 new ChartLabelOptions();
 
@@ -1631,6 +1644,10 @@ internal static partial class InternalPptxRenderer
                 ReadChartBooleanChild(
                     labels,
                     "showLeaderLines");
+            result.TextColor =
+                ReadChartDataLabelTextColor(
+                    labels,
+                    theme);
 
             XmlNode numberFormat =
                 DirectChild(
@@ -1677,6 +1694,17 @@ internal static partial class InternalPptxRenderer
         private static void ReadChartSeriesLabelOverrides(
             XmlNode series,
             ChartSeriesData data)
+        {
+            ReadChartSeriesLabelOverrides(
+                series,
+                data,
+                null);
+        }
+
+        private static void ReadChartSeriesLabelOverrides(
+            XmlNode series,
+            ChartSeriesData data,
+            Dictionary<string, Color> theme)
         {
             if (series == null ||
                 data == null)
@@ -1776,6 +1804,11 @@ internal static partial class InternalPptxRenderer
                         parsedBoolean;
                 }
 
+                item.TextColor =
+                    ReadChartDataLabelTextColor(
+                        label,
+                        theme);
+
                 XmlNode numberFormat =
                     DirectChild(
                         label,
@@ -1817,6 +1850,48 @@ internal static partial class InternalPptxRenderer
                     pointIndex] =
                     item;
             }
+        }
+
+        private static Color? ReadChartDataLabelTextColor(
+            XmlNode labels,
+            Dictionary<string, Color> theme)
+        {
+            if (labels == null)
+                return null;
+
+            XmlNode textProperties =
+                DirectChild(
+                    labels,
+                    "txPr");
+
+            if (textProperties == null)
+                return null;
+
+            XmlNode runProperties =
+                FindFirst(
+                    textProperties,
+                    "defRPr");
+
+            if (runProperties == null)
+            {
+                runProperties =
+                    FindFirst(
+                        textProperties,
+                        "rPr");
+            }
+
+            if (runProperties == null)
+            {
+                runProperties =
+                    FindFirst(
+                        textProperties,
+                        "endParaRPr");
+            }
+
+            return ReadSolidFill(
+                runProperties ??
+                textProperties,
+                theme);
         }
 
         private static bool TryReadChartBooleanChild(
@@ -1871,6 +1946,8 @@ internal static partial class InternalPptxRenderer
                     defaults.ShowPercent;
                 result.ShowLeaderLines =
                     defaults.ShowLeaderLines;
+                result.TextColor =
+                    defaults.TextColor;
                 result.NumberFormat =
                     defaults.NumberFormat;
                 result.Position =
@@ -1916,6 +1993,10 @@ internal static partial class InternalPptxRenderer
             if (item.ShowPercent.HasValue)
                 result.ShowPercent =
                     item.ShowPercent.Value;
+
+            if (item.TextColor.HasValue)
+                result.TextColor =
+                    item.TextColor.Value;
 
             if (!string.IsNullOrEmpty(
                     item.NumberFormat))
@@ -2738,6 +2819,47 @@ internal static partial class InternalPptxRenderer
                 magnitude;
         }
 
+        private static void DrawChartLabelText(
+            Graphics g,
+            string text,
+            Font font,
+            Brush fallbackBrush,
+            float x,
+            float y,
+            ChartLabelOptions options)
+        {
+            SolidBrush ownedBrush =
+                null;
+
+            try
+            {
+                Brush drawBrush =
+                    fallbackBrush;
+
+                if (options != null &&
+                    options.TextColor.HasValue)
+                {
+                    ownedBrush =
+                        new SolidBrush(
+                            options.TextColor.Value);
+                    drawBrush =
+                        ownedBrush;
+                }
+
+                g.DrawString(
+                    text,
+                    font,
+                    drawBrush,
+                    x,
+                    y);
+            }
+            finally
+            {
+                if (ownedBrush != null)
+                    ownedBrush.Dispose();
+            }
+        }
+
         private static string NormalizeChartDataLabelPosition(
             string position)
         {
@@ -2756,12 +2878,36 @@ internal static partial class InternalPptxRenderer
             PointF point,
             string position)
         {
+            ChartLabelOptions options =
+                new ChartLabelOptions();
+            options.Position =
+                position;
+
+            DrawChartPointDataLabel(
+                g,
+                font,
+                brush,
+                text,
+                point,
+                options);
+        }
+
+        private static void DrawChartPointDataLabel(
+            Graphics g,
+            Font font,
+            Brush brush,
+            string text,
+            PointF point,
+            ChartLabelOptions options)
+        {
             if (string.IsNullOrEmpty(text))
                 return;
 
             string normalized =
                 NormalizeChartDataLabelPosition(
-                    position);
+                    options == null
+                        ? null
+                        : options.Position);
 
             SizeF size =
                 g.MeasureString(
@@ -2812,12 +2958,14 @@ internal static partial class InternalPptxRenderer
                     2f;
             }
 
-            g.DrawString(
+            DrawChartLabelText(
+                g,
                 text,
                 font,
                 brush,
                 x,
-                y);
+                y,
+                options);
         }
 
         private static void DrawBarChartDataLabel(
@@ -2831,12 +2979,42 @@ internal static partial class InternalPptxRenderer
             double value,
             string position)
         {
+            ChartLabelOptions options =
+                new ChartLabelOptions();
+            options.Position =
+                position;
+
+            DrawBarChartDataLabel(
+                g,
+                font,
+                brush,
+                text,
+                bar,
+                baseX,
+                valueX,
+                value,
+                options);
+        }
+
+        private static void DrawBarChartDataLabel(
+            Graphics g,
+            Font font,
+            Brush brush,
+            string text,
+            RectangleF bar,
+            float baseX,
+            float valueX,
+            double value,
+            ChartLabelOptions options)
+        {
             if (string.IsNullOrEmpty(text))
                 return;
 
             string normalized =
                 NormalizeChartDataLabelPosition(
-                    position);
+                    options == null
+                        ? null
+                        : options.Position);
 
             SizeF size =
                 g.MeasureString(
@@ -2886,12 +3064,14 @@ internal static partial class InternalPptxRenderer
                           4f;
             }
 
-            g.DrawString(
+            DrawChartLabelText(
+                g,
                 text,
                 font,
                 brush,
                 x,
-                centerY);
+                centerY,
+                options);
         }
 
         private static void DrawColumnChartDataLabel(
@@ -2905,12 +3085,42 @@ internal static partial class InternalPptxRenderer
             double value,
             string position)
         {
+            ChartLabelOptions options =
+                new ChartLabelOptions();
+            options.Position =
+                position;
+
+            DrawColumnChartDataLabel(
+                g,
+                font,
+                brush,
+                text,
+                bar,
+                baseY,
+                valueY,
+                value,
+                options);
+        }
+
+        private static void DrawColumnChartDataLabel(
+            Graphics g,
+            Font font,
+            Brush brush,
+            string text,
+            RectangleF bar,
+            float baseY,
+            float valueY,
+            double value,
+            ChartLabelOptions options)
+        {
             if (string.IsNullOrEmpty(text))
                 return;
 
             string normalized =
                 NormalizeChartDataLabelPosition(
-                    position);
+                    options == null
+                        ? null
+                        : options.Position);
 
             SizeF size =
                 g.MeasureString(
@@ -2973,12 +3183,14 @@ internal static partial class InternalPptxRenderer
                         : valueY + 2f;
             }
 
-            g.DrawString(
+            DrawChartLabelText(
+                g,
                 text,
                 font,
                 brush,
                 x,
-                y);
+                y,
+                options);
         }
 
         private static void DrawChartValueLabel(
@@ -3241,12 +3453,14 @@ internal static partial class InternalPptxRenderer
                             }
                         }
 
-                        g.DrawString(
+                        DrawChartLabelText(
+                            g,
                             label,
                             font,
                             brush,
                             x,
-                            y);
+                            y,
+                            pointLabels);
                     }
 
                     start += sweep;
