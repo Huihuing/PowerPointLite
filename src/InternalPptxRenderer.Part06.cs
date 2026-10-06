@@ -696,6 +696,18 @@ internal static partial class InternalPptxRenderer
                 }
             }
 
+            DrawChartAxisTickMarks(
+                g,
+                plot,
+                axisScale,
+                categoryCount,
+                kind,
+                zeroX,
+                zeroY,
+                chartDoc,
+                categoryAxisStyle,
+                valueAxisStyle);
+
             using (Font valueFont = SafeFont(
                 "Arial",
                 Math.Max(
@@ -4808,6 +4820,426 @@ internal static partial class InternalPptxRenderer
             }
 
             return 0.0;
+        }
+
+        private static string ReadChartAxisTickMark(
+            XmlDocument chartDoc,
+            string axisName,
+            string tickName)
+        {
+            if (chartDoc == null ||
+                string.IsNullOrEmpty(
+                    axisName) ||
+                string.IsNullOrEmpty(
+                    tickName))
+            {
+                return string.Empty;
+            }
+
+            XmlNode axis =
+                FindFirst(
+                    chartDoc,
+                    axisName);
+
+            if (axis == null)
+                return string.Empty;
+
+            XmlNode tick =
+                DirectChild(
+                    axis,
+                    tickName);
+
+            if (tick == null)
+                return string.Empty;
+
+            string value =
+                GetAttr(
+                    tick,
+                    "val") ??
+                string.Empty;
+
+            if (value == "in" ||
+                value == "out" ||
+                value == "cross" ||
+                value == "none")
+            {
+                return value;
+            }
+
+            return string.Empty;
+        }
+
+        private static void DrawChartAxisTickMarks(
+            Graphics g,
+            RectangleF plot,
+            ChartAxisScale scale,
+            int categoryCount,
+            string kind,
+            float categoryAxisX,
+            float categoryAxisY,
+            XmlDocument chartDoc,
+            ChartLineStyle categoryStyle,
+            ChartLineStyle valueStyle)
+        {
+            if (g == null ||
+                scale == null ||
+                chartDoc == null)
+            {
+                return;
+            }
+
+            string categoryMajor =
+                ReadChartAxisTickMark(
+                    chartDoc,
+                    "catAx",
+                    "majorTickMark");
+            string valueMajor =
+                ReadChartAxisTickMark(
+                    chartDoc,
+                    "valAx",
+                    "majorTickMark");
+            string valueMinor =
+                ReadChartAxisTickMark(
+                    chartDoc,
+                    "valAx",
+                    "minorTickMark");
+
+            if ((string.IsNullOrEmpty(
+                     categoryMajor) ||
+                 categoryMajor == "none") &&
+                (string.IsNullOrEmpty(
+                     valueMajor) ||
+                 valueMajor == "none") &&
+                (string.IsNullOrEmpty(
+                     valueMinor) ||
+                 valueMinor == "none"))
+            {
+                return;
+            }
+
+            if (categoryStyle == null)
+                categoryStyle =
+                    new ChartLineStyle();
+
+            if (valueStyle == null)
+                valueStyle =
+                    new ChartLineStyle();
+
+            using (Pen categoryPen =
+                new Pen(
+                    categoryStyle.Color,
+                    Math.Max(
+                        1f,
+                        categoryStyle.Width)))
+            using (Pen valuePen =
+                new Pen(
+                    valueStyle.Color,
+                    Math.Max(
+                        1f,
+                        valueStyle.Width)))
+            {
+                categoryPen.DashStyle =
+                    categoryStyle.DashStyle;
+                valuePen.DashStyle =
+                    valueStyle.DashStyle;
+
+                if (!string.IsNullOrEmpty(
+                        categoryMajor) &&
+                    categoryMajor != "none" &&
+                    categoryCount > 0)
+                {
+                    if (kind == "bar")
+                    {
+                        float groupH =
+                            plot.Height /
+                            categoryCount;
+
+                        for (int i = 0;
+                             i < categoryCount;
+                             i++)
+                        {
+                            float y =
+                                plot.Top +
+                                (i + 0.5f) *
+                                groupH;
+
+                            DrawChartTickMark(
+                                g,
+                                categoryPen,
+                                plot,
+                                false,
+                                categoryAxisX,
+                                y,
+                                categoryMajor,
+                                5f);
+                        }
+                    }
+                    else
+                    {
+                        for (int i = 0;
+                             i < categoryCount;
+                             i++)
+                        {
+                            float x;
+
+                            if (kind == "line" &&
+                                categoryCount > 1)
+                            {
+                                x =
+                                    plot.Left +
+                                    plot.Width *
+                                    i /
+                                    (categoryCount - 1f);
+                            }
+                            else
+                            {
+                                float groupW =
+                                    plot.Width /
+                                    categoryCount;
+
+                                x =
+                                    plot.Left +
+                                    (i + 0.5f) *
+                                    groupW;
+                            }
+
+                            DrawChartTickMark(
+                                g,
+                                categoryPen,
+                                plot,
+                                true,
+                                x,
+                                categoryAxisY,
+                                categoryMajor,
+                                5f);
+                        }
+                    }
+                }
+
+                List<double> majorTicks =
+                    BuildChartAxisTicks(
+                        scale);
+
+                if (!string.IsNullOrEmpty(
+                        valueMajor) &&
+                    valueMajor != "none")
+                {
+                    for (int i = 0;
+                         i < majorTicks.Count;
+                         i++)
+                    {
+                        double fraction =
+                            ChartAxisFraction(
+                                majorTicks[i],
+                                scale);
+
+                        if (kind == "bar")
+                        {
+                            float x =
+                                plot.Left +
+                                plot.Width *
+                                (float)fraction;
+
+                            DrawChartTickMark(
+                                g,
+                                valuePen,
+                                plot,
+                                true,
+                                x,
+                                plot.Bottom,
+                                valueMajor,
+                                5f);
+                        }
+                        else
+                        {
+                            float y =
+                                plot.Bottom -
+                                plot.Height *
+                                (float)fraction;
+
+                            DrawChartTickMark(
+                                g,
+                                valuePen,
+                                plot,
+                                false,
+                                plot.Left,
+                                y,
+                                valueMajor,
+                                5f);
+                        }
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(
+                        valueMinor) &&
+                    valueMinor != "none")
+                {
+                    List<double> minorTicks =
+                        BuildChartMinorAxisTicks(
+                            scale,
+                            majorTicks);
+
+                    for (int i = 0;
+                         i < minorTicks.Count;
+                         i++)
+                    {
+                        double fraction =
+                            ChartAxisFraction(
+                                minorTicks[i],
+                                scale);
+
+                        if (kind == "bar")
+                        {
+                            float x =
+                                plot.Left +
+                                plot.Width *
+                                (float)fraction;
+
+                            DrawChartTickMark(
+                                g,
+                                valuePen,
+                                plot,
+                                true,
+                                x,
+                                plot.Bottom,
+                                valueMinor,
+                                3f);
+                        }
+                        else
+                        {
+                            float y =
+                                plot.Bottom -
+                                plot.Height *
+                                (float)fraction;
+
+                            DrawChartTickMark(
+                                g,
+                                valuePen,
+                                plot,
+                                false,
+                                plot.Left,
+                                y,
+                                valueMinor,
+                                3f);
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void DrawChartTickMark(
+            Graphics g,
+            Pen pen,
+            RectangleF plot,
+            bool horizontalAxis,
+            float x,
+            float y,
+            string tickType,
+            float length)
+        {
+            if (g == null ||
+                pen == null ||
+                length <= 0f)
+            {
+                return;
+            }
+
+            if (horizontalAxis)
+            {
+                float insideDirection =
+                    y >=
+                        plot.Top +
+                        plot.Height *
+                        0.5f
+                        ? -1f
+                        : 1f;
+
+                float fromY = y;
+                float toY = y;
+
+                if (tickType == "cross")
+                {
+                    fromY =
+                        y -
+                        length;
+                    toY =
+                        y +
+                        length;
+                }
+                else if (tickType == "in")
+                {
+                    toY =
+                        y +
+                        insideDirection *
+                        length;
+                }
+                else if (tickType == "out")
+                {
+                    toY =
+                        y -
+                        insideDirection *
+                        length;
+                }
+                else
+                {
+                    return;
+                }
+
+                g.DrawLine(
+                    pen,
+                    x,
+                    fromY,
+                    x,
+                    toY);
+            }
+            else
+            {
+                float insideDirection =
+                    x <=
+                        plot.Left +
+                        plot.Width *
+                        0.5f
+                        ? 1f
+                        : -1f;
+
+                float fromX = x;
+                float toX = x;
+
+                if (tickType == "cross")
+                {
+                    fromX =
+                        x -
+                        length;
+                    toX =
+                        x +
+                        length;
+                }
+                else if (tickType == "in")
+                {
+                    toX =
+                        x +
+                        insideDirection *
+                        length;
+                }
+                else if (tickType == "out")
+                {
+                    toX =
+                        x -
+                        insideDirection *
+                        length;
+                }
+                else
+                {
+                    return;
+                }
+
+                g.DrawLine(
+                    pen,
+                    fromX,
+                    y,
+                    toX,
+                    y);
+            }
         }
 
         private static string ReadChartAxisTickLabelPosition(
