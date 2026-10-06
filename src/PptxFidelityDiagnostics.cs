@@ -80,7 +80,7 @@ namespace PptxViewer
                 "<c:chart>" +
                 "<c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarterly Delta</a:t></a:r></a:p></c:rich></c:tx></c:title>" +
                 "<c:plotArea><c:barChart><c:barDir val=\"col\"/>" +
-                "<c:dLbls><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:dLblPos val=\"inEnd\"/><c:showVal val=\"1\"/><c:showCatName val=\"1\"/><c:txPr><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr><a:solidFill><a:srgbClr val=\"224488\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr><c:separator> · </c:separator></c:dLbls>" +
+                "<c:dLbls><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:dLblPos val=\"inEnd\"/><c:showVal val=\"1\"/><c:showCatName val=\"1\"/><c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"FFF1CC\"/></a:solidFill><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"12700\"><a:solidFill><a:srgbClr val=\"775511\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr><c:txPr><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr><a:solidFill><a:srgbClr val=\"224488\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr><c:separator> · </c:separator></c:dLbls>" +
                 BuildSyntheticChartSeries(
                     0,
                     "North",
@@ -501,6 +501,16 @@ namespace PptxViewer
                 labels.TextColor.Value.R != 0x22 ||
                 labels.TextColor.Value.G != 0x44 ||
                 labels.TextColor.Value.B != 0x88 ||
+                !labels.FillColor.HasValue ||
+                labels.FillColor.Value.R != 0xFF ||
+                labels.FillColor.Value.G != 0xF1 ||
+                labels.FillColor.Value.B != 0xCC ||
+                labels.BorderStyle == null ||
+                labels.BorderStyle.Color.R != 0x77 ||
+                labels.BorderStyle.Color.G != 0x55 ||
+                labels.BorderStyle.Color.B != 0x11 ||
+                labels.BorderStyle.DashStyle !=
+                    DashStyle.Dot ||
                 labels.NumberFormat != "0.0" ||
                 labels.Position != "inEnd" ||
                 labels.Separator != " · ")
@@ -612,7 +622,7 @@ namespace PptxViewer
             pointOverrideDoc.LoadXml(
                 "<c:ser xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
                 "<c:dLbls>" +
-                "<c:dLbl><c:idx val=\"0\"/><c:showVal val=\"0\"/><c:showSerName val=\"1\"/><c:dLblPos val=\"ctr\"/><c:txPr><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr><a:solidFill><a:srgbClr val=\"AA3377\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr><c:separator> / </c:separator></c:dLbl>" +
+                "<c:dLbl><c:idx val=\"0\"/><c:showVal val=\"0\"/><c:showSerName val=\"1\"/><c:dLblPos val=\"ctr\"/><c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"CCEEFF\"/></a:solidFill><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"19050\"><a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill><a:prstDash val=\"dash\"/></a:ln></c:spPr><c:txPr><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr><a:solidFill><a:srgbClr val=\"AA3377\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr><c:separator> / </c:separator></c:dLbl>" +
                 "<c:dLbl><c:idx val=\"1\"/><c:delete val=\"1\"/></c:dLbl>" +
                 "</c:dLbls></c:ser>");
 
@@ -670,6 +680,16 @@ namespace PptxViewer
                 resolvedPointZero.TextColor.Value.R != 0xAA ||
                 resolvedPointZero.TextColor.Value.G != 0x33 ||
                 resolvedPointZero.TextColor.Value.B != 0x77 ||
+                !resolvedPointZero.FillColor.HasValue ||
+                resolvedPointZero.FillColor.Value.R != 0xCC ||
+                resolvedPointZero.FillColor.Value.G != 0xEE ||
+                resolvedPointZero.FillColor.Value.B != 0xFF ||
+                resolvedPointZero.BorderStyle == null ||
+                resolvedPointZero.BorderStyle.Color.R != 0x33 ||
+                resolvedPointZero.BorderStyle.Color.G != 0x66 ||
+                resolvedPointZero.BorderStyle.Color.B != 0x99 ||
+                resolvedPointZero.BorderStyle.DashStyle !=
+                    DashStyle.Dash ||
                 resolvedPointZero.Position != "ctr" ||
                 resolvedPointZero.Separator != " / " ||
                 resolvedPointOne.HasAny)
@@ -776,6 +796,22 @@ namespace PptxViewer
                         170,
                         51,
                         119);
+                coloredLabelOptions.FillColor =
+                    Color.FromArgb(
+                        204,
+                        238,
+                        255);
+                coloredLabelOptions.BorderStyle =
+                    new ChartLineStyle();
+                coloredLabelOptions.BorderStyle.Color =
+                    Color.FromArgb(
+                        51,
+                        102,
+                        153);
+                coloredLabelOptions.BorderStyle.Width =
+                    1f;
+                coloredLabelOptions.BorderStyle.DashStyle =
+                    DashStyle.Solid;
 
                 DrawColumnChartDataLabel(
                     dataLabelGraphics,
@@ -823,6 +859,39 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Chart dLbl txPr text color was not rendered.");
+                }
+
+                bool labelBoxVisible =
+                    false;
+
+                for (int y = 48;
+                     y < 78 &&
+                     !labelBoxVisible;
+                     y++)
+                {
+                    for (int x = 100;
+                         x < 122;
+                         x++)
+                    {
+                        Color pixel =
+                            dataLabelBitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.B > 180 &&
+                            pixel.G > 150 &&
+                            pixel.R > 120)
+                        {
+                            labelBoxVisible = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!labelBoxVisible)
+                {
+                    throw new InvalidOperationException(
+                        "Chart dLbl spPr fill was not rendered behind the label.");
                 }
             }
 
