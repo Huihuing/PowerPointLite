@@ -61,6 +61,7 @@ namespace PptxViewer
                 "<filter id=\"offsetCompositeIn\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedIn\"/><feGaussianBlur in=\"shiftedIn\" stdDeviation=\"0\" result=\"filteredIn\"/><feComposite in=\"SourceGraphic\" in2=\"filteredIn\" operator=\"in\"/></filter>" +
                 "<filter id=\"offsetCompositeOut\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedOut\"/><feGaussianBlur in=\"shiftedOut\" stdDeviation=\"0\" result=\"filteredOut\"/><feComposite in=\"SourceGraphic\" in2=\"filteredOut\" operator=\"out\"/></filter>" +
                 "<filter id=\"offsetCompositeXor\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedXor\"/><feGaussianBlur in=\"shiftedXor\" stdDeviation=\"0\" result=\"filteredXor\"/><feComposite in=\"SourceGraphic\" in2=\"filteredXor\" operator=\"xor\"/></filter>" +
+                "<filter id=\"offsetCompositeAtop\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedAtop\"/><feGaussianBlur in=\"shiftedAtop\" stdDeviation=\"0\" result=\"filteredAtop\"/><feComposite in=\"SourceGraphic\" in2=\"filteredAtop\" operator=\"atop\"/></filter>" +
                 "<filter id=\"swapRedBlue\"><feColorMatrix in=\"SourceGraphic\" type=\"matrix\" values=\"0 0 1 0 0  0 1 0 0 0  1 0 0 0 0  0 0 0 1 0\"/></filter>" +
                 "<filter id=\"desaturate\"><feColorMatrix in=\"SourceGraphic\" type=\"saturate\" values=\"0\"/></filter>" +
                 "<filter id=\"hueRotate\"><feColorMatrix in=\"SourceGraphic\" type=\"hueRotate\" values=\"240\"/></filter>" +
@@ -74,6 +75,7 @@ namespace PptxViewer
                 "<rect id=\"offsetCompositeInRect\" x=\"2\" y=\"72\" width=\"8\" height=\"6\" fill=\"#3f7fd1\" filter=\"url(#offsetCompositeIn)\"/>" +
                 "<rect id=\"offsetCompositeOutRect\" x=\"12\" y=\"72\" width=\"8\" height=\"6\" fill=\"#3f7fd1\" filter=\"url(#offsetCompositeOut)\"/>" +
                 "<rect id=\"offsetCompositeXorRect\" x=\"22\" y=\"72\" width=\"8\" height=\"6\" fill=\"#3f7fd1\" filter=\"url(#offsetCompositeXor)\"/>" +
+                "<rect id=\"offsetCompositeAtopRect\" x=\"30\" y=\"72\" width=\"8\" height=\"6\" fill=\"#3f7fd1\" filter=\"url(#offsetCompositeAtop)\"/>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<g color=\"hsl(326deg 53% 50% / 100%)\"><use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" color=\"inherit\" fill=\"currentColor\"/></g>" +
@@ -1256,6 +1258,111 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "SVG feComposite xor did not retain only the non-overlapping source regions.");
+                }
+            }
+
+            XmlNode offsetCompositeAtopRect =
+                FindSvgNodeById(
+                    document,
+                    "offsetCompositeAtopRect");
+
+            float compositeAtopOffsetX;
+            float compositeAtopOffsetY;
+            float compositeAtopBlurX;
+            float compositeAtopBlurY;
+            bool compositeAtopSourceGraphic;
+            string compositeAtopMode;
+
+            if (!TryReadSvgOffsetGaussianChain(
+                    offsetCompositeAtopRect,
+                    document,
+                    4f,
+                    4f,
+                    out compositeAtopOffsetX,
+                    out compositeAtopOffsetY,
+                    out compositeAtopBlurX,
+                    out compositeAtopBlurY,
+                    out compositeAtopSourceGraphic,
+                    out compositeAtopMode) ||
+                !compositeAtopSourceGraphic ||
+                compositeAtopMode != "atop")
+            {
+                throw new InvalidOperationException(
+                    "SVG feComposite atop chain was not parsed correctly.");
+            }
+
+            using (GraphicsPath compositeAtopPath =
+                BuildEnhancedSvgElementPath(
+                    offsetCompositeAtopRect,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        160f,
+                        340f),
+                    0f,
+                    0f,
+                    4f,
+                    4f))
+            using (Bitmap compositeAtopBitmap =
+                new Bitmap(
+                    160,
+                    340,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics compositeAtopGraphics =
+                Graphics.FromImage(
+                    compositeAtopBitmap))
+            {
+                compositeAtopGraphics.Clear(
+                    Color.White);
+
+                if (!DrawSvgOffsetGaussianChainApproximation(
+                        compositeAtopGraphics,
+                        offsetCompositeAtopRect,
+                        document,
+                        compositeAtopPath,
+                        4f,
+                        4f))
+                {
+                    throw new InvalidOperationException(
+                        "SVG feComposite atop chain was not rendered.");
+                }
+
+                Color sourceOnly =
+                    compositeAtopBitmap.GetPixel(
+                        124,
+                        300);
+                Color overlap =
+                    compositeAtopBitmap.GetPixel(
+                        136,
+                        300);
+                Color shiftedOnly =
+                    compositeAtopBitmap.GetPixel(
+                        156,
+                        300);
+
+                bool sourceOnlyEmpty =
+                    sourceOnly.R > 245 &&
+                    sourceOnly.G > 245 &&
+                    sourceOnly.B > 245;
+                bool overlapVisible =
+                    overlap.B >
+                        overlap.R + 30 &&
+                    overlap.B >
+                        overlap.G + 5 &&
+                    overlap.B < 250;
+                bool shiftedOnlyVisible =
+                    shiftedOnly.B >
+                        shiftedOnly.R + 30 &&
+                    shiftedOnly.B >
+                        shiftedOnly.G + 5 &&
+                    shiftedOnly.B < 250;
+
+                if (!sourceOnlyEmpty ||
+                    !overlapVisible ||
+                    !shiftedOnlyVisible)
+                {
+                    throw new InvalidOperationException(
+                        "SVG feComposite atop did not preserve the second-input coverage.");
                 }
             }
 
