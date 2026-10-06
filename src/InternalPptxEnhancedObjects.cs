@@ -10971,11 +10971,19 @@ namespace PptxViewer
             Graphics g,
             RectangleF rect,
             XmlDocument chartDoc,
+            Dictionary<string, Color> theme,
             out RectangleF plot)
         {
+            Color chartBackground =
+                ReadChartAreaFill(
+                    chartDoc,
+                    theme,
+                    "chartSpace",
+                    Color.White);
+
             using (Brush bg =
                 new SolidBrush(
-                    Color.White))
+                    chartBackground))
             {
                 g.FillRectangle(
                     bg,
@@ -11123,6 +11131,22 @@ namespace PptxViewer
                         rect.Height -
                             topPad -
                             bottomPad));
+
+            Color plotBackground =
+                ReadChartAreaFill(
+                    chartDoc,
+                    theme,
+                    "plotArea",
+                    chartBackground);
+
+            using (Brush plotBrush =
+                new SolidBrush(
+                    plotBackground))
+            {
+                g.FillRectangle(
+                    plotBrush,
+                    plot);
+            }
         }
 
         private static void DrawDoughnutChart(
@@ -11132,7 +11156,7 @@ namespace PptxViewer
             Dictionary<string, Color> theme)
         {
             RectangleF plot;
-            PrepareChartSurface(g, rect, chartDoc, out plot);
+            PrepareChartSurface(g, rect, chartDoc, theme, out plot);
             List<ChartSeriesData> series = ReadStandardChartSeries(chartDoc, theme);
             if (series.Count == 0)
             {
@@ -11191,12 +11215,23 @@ namespace PptxViewer
                 pie.Top + (pie.Height - holeSize) / 2f,
                 holeSize,
                 holeSize);
-            using (Brush white =
+            Color doughnutHoleColor =
+                ReadChartAreaFill(
+                    chartDoc,
+                    theme,
+                    "plotArea",
+                    ReadChartAreaFill(
+                        chartDoc,
+                        theme,
+                        "chartSpace",
+                        Color.White));
+
+            using (Brush holeBrush =
                 new SolidBrush(
-                    Color.White))
+                    doughnutHoleColor))
             {
                 g.FillEllipse(
-                    white,
+                    holeBrush,
                     hole);
             }
 
@@ -11408,6 +11443,7 @@ namespace PptxViewer
                 g,
                 rect,
                 chartDoc,
+                theme,
                 out plot);
 
             List<ChartSeriesData> series =
