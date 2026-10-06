@@ -48,6 +48,8 @@ internal static partial class InternalPptxRenderer
             public bool ShowPercent;
             public bool ShowLeaderLines;
             public Color? TextColor;
+            public Color? FillColor;
+            public ChartLineStyle BorderStyle;
             public string NumberFormat;
             public string Position;
             public string Separator = ", ";
@@ -72,6 +74,8 @@ internal static partial class InternalPptxRenderer
             public bool? ShowPercent;
             public bool Delete;
             public Color? TextColor;
+            public Color? FillColor;
+            public ChartLineStyle BorderStyle;
             public string NumberFormat;
             public string Position;
             public string Separator;
@@ -1649,6 +1653,12 @@ internal static partial class InternalPptxRenderer
                     labels,
                     theme);
 
+            ReadChartDataLabelBoxStyle(
+                labels,
+                theme,
+                out result.FillColor,
+                out result.BorderStyle);
+
             XmlNode numberFormat =
                 DirectChild(
                     labels,
@@ -1809,6 +1819,12 @@ internal static partial class InternalPptxRenderer
                         label,
                         theme);
 
+                ReadChartDataLabelBoxStyle(
+                    label,
+                    theme,
+                    out item.FillColor,
+                    out item.BorderStyle);
+
                 XmlNode numberFormat =
                     DirectChild(
                         label,
@@ -1850,6 +1866,89 @@ internal static partial class InternalPptxRenderer
                     pointIndex] =
                     item;
             }
+        }
+
+        private static void ReadChartDataLabelBoxStyle(
+            XmlNode labels,
+            Dictionary<string, Color> theme,
+            out Color? fillColor,
+            out ChartLineStyle borderStyle)
+        {
+            fillColor = null;
+            borderStyle = null;
+
+            if (labels == null)
+                return;
+
+            XmlNode shapeProperties =
+                DirectChild(
+                    labels,
+                    "spPr");
+
+            if (shapeProperties == null)
+                return;
+
+            fillColor =
+                ReadSolidFill(
+                    shapeProperties,
+                    theme);
+
+            XmlNode line =
+                DirectChild(
+                    shapeProperties,
+                    "ln");
+
+            if (line == null)
+                return;
+
+            ChartLineStyle style =
+                new ChartLineStyle();
+            style.Color =
+                Color.FromArgb(
+                    110,
+                    110,
+                    110);
+            style.Width = 1f;
+
+            Color? lineColor =
+                ReadSolidFill(
+                    line,
+                    theme);
+
+            if (lineColor.HasValue)
+                style.Color =
+                    lineColor.Value;
+
+            long width =
+                GetLong(
+                    line,
+                    "w",
+                    0);
+
+            if (width > 0)
+            {
+                style.Width =
+                    Math.Max(
+                        1f,
+                        EmuToRenderPixels(
+                            width));
+            }
+
+            XmlNode dash =
+                DirectChild(
+                    line,
+                    "prstDash");
+
+            style.DashStyle =
+                ParseChartDashStyle(
+                    dash == null
+                        ? string.Empty
+                        : GetAttr(
+                            dash,
+                            "val"));
+
+            borderStyle =
+                style;
         }
 
         private static Color? ReadChartDataLabelTextColor(
@@ -1948,6 +2047,10 @@ internal static partial class InternalPptxRenderer
                     defaults.ShowLeaderLines;
                 result.TextColor =
                     defaults.TextColor;
+                result.FillColor =
+                    defaults.FillColor;
+                result.BorderStyle =
+                    defaults.BorderStyle;
                 result.NumberFormat =
                     defaults.NumberFormat;
                 result.Position =
@@ -1997,6 +2100,14 @@ internal static partial class InternalPptxRenderer
             if (item.TextColor.HasValue)
                 result.TextColor =
                     item.TextColor.Value;
+
+            if (item.FillColor.HasValue)
+                result.FillColor =
+                    item.FillColor.Value;
+
+            if (item.BorderStyle != null)
+                result.BorderStyle =
+                    item.BorderStyle;
 
             if (!string.IsNullOrEmpty(
                     item.NumberFormat))
@@ -2844,6 +2955,55 @@ internal static partial class InternalPptxRenderer
                             options.TextColor.Value);
                     drawBrush =
                         ownedBrush;
+                }
+
+                SizeF textSize =
+                    g.MeasureString(
+                        text,
+                        font);
+
+                RectangleF labelBox =
+                    new RectangleF(
+                        x - 3f,
+                        y - 1f,
+                        Math.Max(
+                            1f,
+                            textSize.Width + 6f),
+                        Math.Max(
+                            1f,
+                            textSize.Height + 2f));
+
+                if (options != null &&
+                    options.FillColor.HasValue)
+                {
+                    using (Brush fill =
+                        new SolidBrush(
+                            options.FillColor.Value))
+                    {
+                        g.FillRectangle(
+                            fill,
+                            labelBox);
+                    }
+                }
+
+                if (options != null &&
+                    options.BorderStyle != null)
+                {
+                    using (Pen border =
+                        new Pen(
+                            options.BorderStyle.Color,
+                            options.BorderStyle.Width))
+                    {
+                        border.DashStyle =
+                            options.BorderStyle.DashStyle;
+
+                        g.DrawRectangle(
+                            border,
+                            labelBox.X,
+                            labelBox.Y,
+                            labelBox.Width,
+                            labelBox.Height);
+                    }
                 }
 
                 g.DrawString(
