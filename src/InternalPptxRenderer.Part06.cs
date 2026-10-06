@@ -62,6 +62,18 @@ internal static partial class InternalPptxRenderer
             }
         }
 
+        private sealed class ChartPointLabelOverride
+        {
+            public bool? ShowValue;
+            public bool? ShowCategoryName;
+            public bool? ShowSeriesName;
+            public bool? ShowPercent;
+            public bool Delete;
+            public string NumberFormat;
+            public string Position;
+            public string Separator;
+        }
+
         private sealed class ChartBarOptions
         {
             public string Grouping = "clustered";
@@ -157,6 +169,10 @@ internal static partial class InternalPptxRenderer
                     data.Values.Count);
 
                 ReadChartSeriesVisualStyle(
+                    ser,
+                    data);
+
+                ReadChartSeriesLabelOverrides(
                     ser,
                     data);
 
@@ -439,7 +455,9 @@ internal static partial class InternalPptxRenderer
                     palette,
                     firstSliceAngle);
 
-                if (labelOptions.HasAny)
+                if (HasAnyChartSeriesDataLabel(
+                        labelOptions,
+                        series[0]))
                 {
                     DrawPieChartValueLabels(
                         g,
@@ -754,23 +772,31 @@ internal static partial class InternalPptxRenderer
                                         color);
                                 }
 
-                                if (labelOptions.HasAny &&
-                                    i < sd.Values.Count)
+                                if (i < sd.Values.Count)
                                 {
-                                    string label =
-                                        BuildChartDataLabel(
+                                    ChartLabelOptions pointLabels =
+                                        ResolveChartPointLabelOptions(
                                             labelOptions,
                                             sd,
-                                            i,
-                                            false);
+                                            i);
 
-                                    DrawChartPointDataLabel(
-                                        g,
-                                        valueFont,
-                                        valueBrush,
-                                        label,
-                                        point,
-                                        labelOptions.Position);
+                                    if (pointLabels.HasAny)
+                                    {
+                                        string label =
+                                            BuildChartDataLabel(
+                                                pointLabels,
+                                                sd,
+                                                i,
+                                                false);
+
+                                        DrawChartPointDataLabel(
+                                            g,
+                                            valueFont,
+                                            valueBrush,
+                                            label,
+                                            point,
+                                            pointLabels.Position);
+                                    }
                                 }
                             }
                         }
@@ -884,11 +910,17 @@ internal static partial class InternalPptxRenderer
                                         barH - 1));
                             }
 
-                            if (labelOptions.HasAny)
+                            ChartLabelOptions pointLabels =
+                                ResolveChartPointLabelOptions(
+                                    labelOptions,
+                                    series[si],
+                                    ci);
+
+                            if (pointLabels.HasAny)
                             {
                                 string label =
                                     BuildChartDataLabel(
-                                        labelOptions,
+                                        pointLabels,
                                         series[si],
                                         ci,
                                         false);
@@ -908,7 +940,7 @@ internal static partial class InternalPptxRenderer
                                     startX,
                                     valueX,
                                     value,
-                                    labelOptions.Position);
+                                    pointLabels.Position);
                             }
                         }
                     }
@@ -1021,11 +1053,17 @@ internal static partial class InternalPptxRenderer
                                     height);
                             }
 
-                            if (labelOptions.HasAny)
+                            ChartLabelOptions pointLabels =
+                                ResolveChartPointLabelOptions(
+                                    labelOptions,
+                                    series[si],
+                                    ci);
+
+                            if (pointLabels.HasAny)
                             {
                                 string label =
                                     BuildChartDataLabel(
-                                        labelOptions,
+                                        pointLabels,
                                         series[si],
                                         ci,
                                         false);
@@ -1045,7 +1083,7 @@ internal static partial class InternalPptxRenderer
                                     startY,
                                     valueY,
                                     value,
-                                    labelOptions.Position);
+                                    pointLabels.Position);
                             }
                         }
                     }
@@ -1586,6 +1624,299 @@ internal static partial class InternalPptxRenderer
             }
 
             return result;
+        }
+
+        private static void ReadChartSeriesLabelOverrides(
+            XmlNode series,
+            ChartSeriesData data)
+        {
+            if (series == null ||
+                data == null)
+            {
+                return;
+            }
+
+            XmlNode labels =
+                DirectChild(
+                    series,
+                    "dLbls");
+
+            if (labels == null)
+                return;
+
+            for (int i = 0;
+                 i < labels.ChildNodes.Count;
+                 i++)
+            {
+                XmlNode label =
+                    labels.ChildNodes[i];
+
+                if (label == null ||
+                    label.NodeType !=
+                        XmlNodeType.Element ||
+                    label.LocalName !=
+                        "dLbl")
+                {
+                    continue;
+                }
+
+                XmlNode index =
+                    DirectChild(
+                        label,
+                        "idx");
+
+                int pointIndex;
+
+                if (index == null ||
+                    !int.TryParse(
+                        GetAttr(
+                            index,
+                            "val"),
+                        out pointIndex) ||
+                    pointIndex < 0)
+                {
+                    continue;
+                }
+
+                ChartPointLabelOverride item =
+                    new ChartPointLabelOverride();
+
+                bool parsedBoolean;
+
+                if (TryReadChartBooleanChild(
+                        label,
+                        "showVal",
+                        out parsedBoolean))
+                {
+                    item.ShowValue =
+                        parsedBoolean;
+                }
+
+                if (TryReadChartBooleanChild(
+                        label,
+                        "showCatName",
+                        out parsedBoolean))
+                {
+                    item.ShowCategoryName =
+                        parsedBoolean;
+                }
+
+                if (TryReadChartBooleanChild(
+                        label,
+                        "showSerName",
+                        out parsedBoolean))
+                {
+                    item.ShowSeriesName =
+                        parsedBoolean;
+                }
+
+                if (TryReadChartBooleanChild(
+                        label,
+                        "showPercent",
+                        out parsedBoolean))
+                {
+                    item.ShowPercent =
+                        parsedBoolean;
+                }
+
+                if (TryReadChartBooleanChild(
+                        label,
+                        "delete",
+                        out parsedBoolean))
+                {
+                    item.Delete =
+                        parsedBoolean;
+                }
+
+                XmlNode numberFormat =
+                    DirectChild(
+                        label,
+                        "numFmt");
+
+                if (numberFormat != null)
+                {
+                    item.NumberFormat =
+                        GetAttr(
+                            numberFormat,
+                            "formatCode");
+                }
+
+                XmlNode position =
+                    DirectChild(
+                        label,
+                        "dLblPos");
+
+                if (position != null)
+                {
+                    item.Position =
+                        GetAttr(
+                            position,
+                            "val");
+                }
+
+                XmlNode separator =
+                    DirectChild(
+                        label,
+                        "separator");
+
+                if (separator != null)
+                {
+                    item.Separator =
+                        separator.InnerText;
+                }
+
+                data.PointLabelOverrides[
+                    pointIndex] =
+                    item;
+            }
+        }
+
+        private static bool TryReadChartBooleanChild(
+            XmlNode parent,
+            string childName,
+            out bool value)
+        {
+            value = false;
+
+            XmlNode child =
+                DirectChild(
+                    parent,
+                    childName);
+
+            if (child == null)
+                return false;
+
+            string raw =
+                GetAttr(
+                    child,
+                    "val");
+
+            value =
+                string.IsNullOrEmpty(
+                    raw) ||
+                raw == "1" ||
+                string.Equals(
+                    raw,
+                    "true",
+                    StringComparison.OrdinalIgnoreCase);
+
+            return true;
+        }
+
+        private static ChartLabelOptions ResolveChartPointLabelOptions(
+            ChartLabelOptions defaults,
+            ChartSeriesData series,
+            int index)
+        {
+            ChartLabelOptions result =
+                new ChartLabelOptions();
+
+            if (defaults != null)
+            {
+                result.ShowValue =
+                    defaults.ShowValue;
+                result.ShowCategoryName =
+                    defaults.ShowCategoryName;
+                result.ShowSeriesName =
+                    defaults.ShowSeriesName;
+                result.ShowPercent =
+                    defaults.ShowPercent;
+                result.NumberFormat =
+                    defaults.NumberFormat;
+                result.Position =
+                    defaults.Position;
+                result.Separator =
+                    defaults.Separator;
+            }
+
+            if (series == null)
+                return result;
+
+            ChartPointLabelOverride item;
+
+            if (!series.PointLabelOverrides.TryGetValue(
+                    index,
+                    out item) ||
+                item == null)
+            {
+                return result;
+            }
+
+            if (item.Delete)
+            {
+                result.ShowValue = false;
+                result.ShowCategoryName = false;
+                result.ShowSeriesName = false;
+                result.ShowPercent = false;
+                return result;
+            }
+
+            if (item.ShowValue.HasValue)
+                result.ShowValue =
+                    item.ShowValue.Value;
+
+            if (item.ShowCategoryName.HasValue)
+                result.ShowCategoryName =
+                    item.ShowCategoryName.Value;
+
+            if (item.ShowSeriesName.HasValue)
+                result.ShowSeriesName =
+                    item.ShowSeriesName.Value;
+
+            if (item.ShowPercent.HasValue)
+                result.ShowPercent =
+                    item.ShowPercent.Value;
+
+            if (!string.IsNullOrEmpty(
+                    item.NumberFormat))
+            {
+                result.NumberFormat =
+                    item.NumberFormat;
+            }
+
+            if (!string.IsNullOrEmpty(
+                    item.Position))
+            {
+                result.Position =
+                    item.Position;
+            }
+
+            if (item.Separator != null)
+            {
+                result.Separator =
+                    item.Separator;
+            }
+
+            return result;
+        }
+
+        private static bool HasAnyChartSeriesDataLabel(
+            ChartLabelOptions defaults,
+            ChartSeriesData series)
+        {
+            if (defaults != null &&
+                defaults.HasAny)
+            {
+                return true;
+            }
+
+            if (series == null)
+                return false;
+
+            foreach (KeyValuePair<int, ChartPointLabelOverride> pair
+                in series.PointLabelOverrides)
+            {
+                ChartLabelOptions resolved =
+                    ResolveChartPointLabelOptions(
+                        defaults,
+                        series,
+                        pair.Key);
+
+                if (resolved.HasAny)
+                    return true;
+            }
+
+            return false;
         }
 
         private static bool ReadChartBooleanChild(
@@ -2695,25 +3026,6 @@ internal static partial class InternalPptxRenderer
                     plot.Height) *
                 0.82f;
 
-            string labelPosition =
-                NormalizeChartDataLabelPosition(
-                    options == null
-                        ? null
-                        : options.Position);
-
-            float radiusFactor =
-                labelPosition == "ctr"
-                    ? 0.18f
-                    : labelPosition == "outend"
-                        ? 0.48f
-                        : labelPosition == "inend"
-                            ? 0.31f
-                            : 0.34f;
-
-            float radius =
-                diameter *
-                radiusFactor;
-
             float cx =
                 plot.Left +
                 plot.Width /
@@ -2767,40 +3079,66 @@ internal static partial class InternalPptxRenderer
                         Math.PI /
                         180.0;
 
-                    string label =
-                        BuildChartDataLabel(
+                    ChartLabelOptions pointLabels =
+                        ResolveChartPointLabelOptions(
                             options,
                             series,
-                            i,
-                            true);
+                            i);
 
-                    SizeF size =
-                        g.MeasureString(
+                    if (pointLabels.HasAny)
+                    {
+                        string labelPosition =
+                            NormalizeChartDataLabelPosition(
+                                pointLabels.Position);
+
+                        float radiusFactor =
+                            labelPosition == "ctr"
+                                ? 0.18f
+                                : labelPosition == "outend"
+                                    ? 0.48f
+                                    : labelPosition == "inend"
+                                        ? 0.31f
+                                        : 0.34f;
+
+                        float radius =
+                            diameter *
+                            radiusFactor;
+
+                        string label =
+                            BuildChartDataLabel(
+                                pointLabels,
+                                series,
+                                i,
+                                true);
+
+                        SizeF size =
+                            g.MeasureString(
+                                label,
+                                font);
+
+                        float x =
+                            cx +
+                            (float)Math.Cos(
+                                radians) *
+                            radius -
+                            size.Width /
+                            2f;
+
+                        float y =
+                            cy +
+                            (float)Math.Sin(
+                                radians) *
+                            radius -
+                            size.Height /
+                            2f;
+
+                        g.DrawString(
                             label,
-                            font);
-
-                    float x =
-                        cx +
-                        (float)Math.Cos(
-                            radians) *
-                        radius -
-                        size.Width /
-                        2f;
-
-                    float y =
-                        cy +
-                        (float)Math.Sin(
-                            radians) *
-                        radius -
-                        size.Height /
-                        2f;
-
-                    g.DrawString(
-                        label,
-                        font,
-                        brush,
-                        x,
-                        y);
+                            font,
+                            brush,
+                            x,
+                            y);
+                    }
 
                     start += sweep;
                 }
