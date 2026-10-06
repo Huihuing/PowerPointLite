@@ -504,6 +504,49 @@ namespace PptxViewer
                     "Chart data-label options were not parsed correctly.");
             }
 
+            XmlDocument pointOverrideDoc =
+                new XmlDocument();
+
+            pointOverrideDoc.LoadXml(
+                "<c:ser xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
+                "<c:dLbls>" +
+                "<c:dLbl><c:idx val=\"0\"/><c:showVal val=\"0\"/><c:showSerName val=\"1\"/><c:dLblPos val=\"ctr\"/><c:separator> / </c:separator></c:dLbl>" +
+                "<c:dLbl><c:idx val=\"1\"/><c:delete val=\"1\"/></c:dLbl>" +
+                "</c:dLbls></c:ser>");
+
+            ChartSeriesData pointOverrideSeries =
+                new ChartSeriesData();
+            pointOverrideSeries.Name = "North";
+            pointOverrideSeries.Values.Add(42.0);
+            pointOverrideSeries.Values.Add(19.0);
+            pointOverrideSeries.Categories.Add("Q1");
+            pointOverrideSeries.Categories.Add("Q2");
+
+            ReadChartSeriesLabelOverrides(
+                pointOverrideDoc.DocumentElement,
+                pointOverrideSeries);
+
+            ChartLabelOptions resolvedPointZero =
+                ResolveChartPointLabelOptions(
+                    labels,
+                    pointOverrideSeries,
+                    0);
+            ChartLabelOptions resolvedPointOne =
+                ResolveChartPointLabelOptions(
+                    labels,
+                    pointOverrideSeries,
+                    1);
+
+            if (resolvedPointZero.ShowValue ||
+                !resolvedPointZero.ShowSeriesName ||
+                resolvedPointZero.Position != "ctr" ||
+                resolvedPointZero.Separator != " / " ||
+                resolvedPointOne.HasAny)
+            {
+                throw new InvalidOperationException(
+                    "Per-point chart dLbl overrides were not applied correctly.");
+            }
+
             ChartSeriesData labelSeries =
                 new ChartSeriesData();
             labelSeries.Categories.Add("Q1");
