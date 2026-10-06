@@ -23,6 +23,7 @@ internal static partial class InternalPptxRenderer
             public double Minimum;
             public double Maximum;
             public double MajorUnit;
+            public double MinorUnit;
             public bool Reverse;
             public string NumberFormat;
         }
@@ -546,6 +547,9 @@ internal static partial class InternalPptxRenderer
                     StringComparison.OrdinalIgnoreCase),
                 valueTickLabelPosition,
                 ReadChartMajorGridlineStyle(
+                    chartDoc,
+                    theme),
+                ReadChartMinorGridlineStyle(
                     chartDoc,
                     theme));
 
@@ -1845,6 +1849,27 @@ internal static partial class InternalPptxRenderer
                     unit;
             }
 
+            XmlNode minorUnit =
+                DirectChild(
+                    valueAxis,
+                    "minorUnit");
+
+            if (minorUnit != null &&
+                double.TryParse(
+                    GetAttr(
+                        minorUnit,
+                        "val"),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out unit) &&
+                unit > 0.0 &&
+                !double.IsNaN(unit) &&
+                !double.IsInfinity(unit))
+            {
+                scale.MinorUnit =
+                    unit;
+            }
+
             XmlNode numberFormat =
                 DirectChild(
                     valueAxis,
@@ -1896,6 +1921,12 @@ internal static partial class InternalPptxRenderer
             {
                 scale.MajorUnit = 0.0;
             }
+
+            if (scale.MinorUnit <= 0.0 ||
+                scale.MinorUnit > range * 4.0)
+            {
+                scale.MinorUnit = 0.0;
+            }
         }
 
         private static double ChartAxisFraction(
@@ -1935,7 +1966,8 @@ internal static partial class InternalPptxRenderer
             string kind,
             bool showLabels,
             string tickLabelPosition,
-            ChartLineStyle gridStyle)
+            ChartLineStyle gridStyle,
+            ChartLineStyle minorGridStyle)
         {
             if (scale == null)
                 return;
@@ -1943,6 +1975,62 @@ internal static partial class InternalPptxRenderer
             List<double> ticks =
                 BuildChartAxisTicks(
                     scale);
+
+            if (minorGridStyle != null)
+            {
+                List<double> minorTicks =
+                    BuildChartMinorAxisTicks(
+                        scale,
+                        ticks);
+
+                using (Pen minorGrid =
+                    new Pen(
+                        minorGridStyle.Color,
+                        minorGridStyle.Width))
+                {
+                    minorGrid.DashStyle =
+                        minorGridStyle.DashStyle;
+
+                    for (int i = 0;
+                         i < minorTicks.Count;
+                         i++)
+                    {
+                        double fraction =
+                            ChartAxisFraction(
+                                minorTicks[i],
+                                scale);
+
+                        if (kind == "bar")
+                        {
+                            float x =
+                                plot.Left +
+                                plot.Width *
+                                (float)fraction;
+
+                            g.DrawLine(
+                                minorGrid,
+                                x,
+                                plot.Top,
+                                x,
+                                plot.Bottom);
+                        }
+                        else
+                        {
+                            float y =
+                                plot.Bottom -
+                                plot.Height *
+                                (float)fraction;
+
+                            g.DrawLine(
+                                minorGrid,
+                                plot.Left,
+                                y,
+                                plot.Right,
+                                y);
+                        }
+                    }
+                }
+            }
 
             if (gridStyle == null)
             {
@@ -2133,6 +2221,91 @@ internal static partial class InternalPptxRenderer
                     scale.Minimum);
                 ticks.Add(
                     scale.Maximum);
+            }
+
+            return ticks;
+        }
+
+        private static List<double> BuildChartMinorAxisTicks(
+            ChartAxisScale scale,
+            List<double> majorTicks)
+        {
+            List<double> ticks =
+                new List<double>();
+
+            if (scale == null)
+                return ticks;
+
+            double unit =
+                scale.MinorUnit;
+
+            if (unit <= 0.0)
+            {
+                double major =
+                    scale.MajorUnit;
+
+                if (major <= 0.0)
+                {
+                    major =
+                        ChooseNiceChartUnit(
+                            (scale.Maximum -
+                             scale.Minimum) /
+                            5.0);
+                }
+
+                unit =
+                    major /
+                    2.0;
+            }
+
+            if (unit <= 0.0)
+                return ticks;
+
+            double first =
+                Math.Ceiling(
+                    scale.Minimum /
+                    unit) *
+                unit;
+
+            int guard = 0;
+
+            for (double value = first;
+                 value <=
+                    scale.Maximum +
+                    unit * 0.0001 &&
+                 guard < 128;
+                 value += unit)
+            {
+                bool isMajor =
+                    false;
+
+                if (majorTicks != null)
+                {
+                    for (int i = 0;
+                         i < majorTicks.Count;
+                         i++)
+                    {
+                        if (Math.Abs(
+                                majorTicks[i] -
+                                value) <=
+                            Math.Max(
+                                0.0000001,
+                                unit *
+                                0.001))
+                        {
+                            isMajor = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!isMajor)
+                {
+                    ticks.Add(
+                        value);
+                }
+
+                guard++;
             }
 
             return ticks;
@@ -2929,6 +3102,92 @@ internal static partial class InternalPptxRenderer
                         markerRect);
                 }
             }
+        }
+
+        private static ChartLineStyle ReadChartMinorGridlineStyle(
+            XmlDocument chartDoc,
+            Dictionary<string, Color> theme)
+        {
+            XmlNode valueAxis =
+                chartDoc == null
+                    ? null
+                    : FindFirst(
+                        chartDoc,
+                        "valAx");
+
+            XmlNode minorGridlines =
+                valueAxis == null
+                    ? null
+                    : DirectChild(
+                        valueAxis,
+                        "minorGridlines");
+
+            if (minorGridlines == null)
+                return null;
+
+            ChartLineStyle style =
+                new ChartLineStyle();
+            style.Color =
+                Color.FromArgb(
+                    238,
+                    240,
+                    243);
+            style.Width = 1f;
+
+            XmlNode shapeProperties =
+                DirectChild(
+                    minorGridlines,
+                    "spPr");
+            XmlNode line =
+                shapeProperties == null
+                    ? null
+                    : DirectChild(
+                        shapeProperties,
+                        "ln");
+
+            if (line == null)
+                return style;
+
+            Color? color =
+                ReadSolidFill(
+                    line,
+                    theme);
+
+            if (color.HasValue)
+            {
+                style.Color =
+                    color.Value;
+            }
+
+            long width =
+                GetLong(
+                    line,
+                    "w",
+                    0);
+
+            if (width > 0)
+            {
+                style.Width =
+                    Math.Max(
+                        1f,
+                        EmuToRenderPixels(
+                            width));
+            }
+
+            XmlNode dash =
+                DirectChild(
+                    line,
+                    "prstDash");
+
+            style.DashStyle =
+                ParseChartDashStyle(
+                    dash == null
+                        ? string.Empty
+                        : GetAttr(
+                            dash,
+                            "val"));
+
+            return style;
         }
 
         private static ChartLineStyle ReadChartMajorGridlineStyle(
