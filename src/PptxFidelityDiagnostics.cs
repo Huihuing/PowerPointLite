@@ -1845,14 +1845,76 @@ namespace PptxViewer
                 SyntheticSmartPoint("3", "Build") +
                 SyntheticSmartPoint("4", "Test") +
                 SyntheticSmartPoint("5", "Release") +
+                SyntheticSmartAssistantPoint("A", "Advisor") +
                 "</dgm:ptLst>" +
                 "<dgm:cxnLst>" +
                 SyntheticSmartConnection("1", "2") +
                 SyntheticSmartConnection("2", "3") +
                 SyntheticSmartConnection("3", "4") +
                 SyntheticSmartConnection("4", "5") +
+                SyntheticSmartConnection("2", "A") +
                 "</dgm:cxnLst>" +
                 "</dgm:dataModel>");
+
+            SmartNode hierarchyRoot =
+                new SmartNode();
+            hierarchyRoot.Id = "root";
+            hierarchyRoot.Label = "Root";
+            hierarchyRoot.Depth = 0;
+
+            SmartNode hierarchyChild =
+                new SmartNode();
+            hierarchyChild.Id = "child";
+            hierarchyChild.Label = "Child";
+            hierarchyChild.Depth = 1;
+            hierarchyChild.ParentId = "root";
+
+            SmartNode hierarchyAssistant =
+                new SmartNode();
+            hierarchyAssistant.Id = "assistant";
+            hierarchyAssistant.Label = "Assistant";
+            hierarchyAssistant.Depth = 1;
+            hierarchyAssistant.IsAssistant = true;
+            hierarchyAssistant.ParentId = "root";
+
+            List<SmartNode> hierarchyNodes =
+                new List<SmartNode>();
+            hierarchyNodes.Add(
+                hierarchyRoot);
+            hierarchyNodes.Add(
+                hierarchyChild);
+            hierarchyNodes.Add(
+                hierarchyAssistant);
+
+            Dictionary<string, RectangleF> hierarchyPositions =
+                BuildHierarchySmartArtPositions(
+                    hierarchyNodes,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        420f,
+                        260f),
+                    1);
+
+            RectangleF rootPosition;
+            RectangleF assistantPosition;
+
+            if (!hierarchyPositions.TryGetValue(
+                    "root",
+                    out rootPosition) ||
+                !hierarchyPositions.TryGetValue(
+                    "assistant",
+                    out assistantPosition) ||
+                rootPosition.IntersectsWith(
+                    assistantPosition) ||
+                (assistantPosition.Left <
+                    rootPosition.Right &&
+                 assistantPosition.Right >
+                    rootPosition.Left))
+            {
+                throw new InvalidOperationException(
+                    "SmartArt hierarchy assistant was not positioned beside its parent.");
+            }
 
             string[] kinds =
                 new string[]
@@ -1985,6 +2047,18 @@ namespace PptxViewer
                 "<dgm:pt modelId=\"" +
                 System.Security.SecurityElement.Escape(id) +
                 "\"><dgm:t><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>" +
+                System.Security.SecurityElement.Escape(label) +
+                "</a:t></a:r></a:p></dgm:t></dgm:pt>";
+        }
+
+        private static string SyntheticSmartAssistantPoint(
+            string id,
+            string label)
+        {
+            return
+                "<dgm:pt modelId=\"" +
+                System.Security.SecurityElement.Escape(id) +
+                "\" type=\"asst\"><dgm:t><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>" +
                 System.Security.SecurityElement.Escape(label) +
                 "</a:t></a:r></a:p></dgm:t></dgm:pt>";
         }

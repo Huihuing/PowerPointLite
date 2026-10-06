@@ -20,6 +20,8 @@ namespace PptxViewer
             public string Label;
             public readonly List<string> Children = new List<string>();
             public int Depth;
+            public bool IsAssistant;
+            public string ParentId;
         }
 
         private sealed class SvgGradientStop
@@ -11560,8 +11562,7 @@ namespace PptxViewer
                         points[i],
                         "type");
 
-                if (type == "doc" ||
-                    type == "asst")
+                if (type == "doc")
                 {
                     continue;
                 }
@@ -11569,6 +11570,11 @@ namespace PptxViewer
                 SmartNode node =
                     new SmartNode();
                 node.Id = id;
+                node.IsAssistant =
+                    string.Equals(
+                        type,
+                        "asst",
+                        StringComparison.OrdinalIgnoreCase);
                 node.Label =
                     ReadSmartArtLabel(
                         points[i]);
@@ -11610,6 +11616,17 @@ namespace PptxViewer
                 {
                     nodes[source].Children.Add(
                         destination);
+                }
+
+                SmartNode destinationNode;
+                if (nodes.TryGetValue(
+                        destination,
+                        out destinationNode) &&
+                    string.IsNullOrEmpty(
+                        destinationNode.ParentId))
+                {
+                    destinationNode.ParentId =
+                        source;
                 }
 
                 incoming.Add(
@@ -11694,10 +11711,13 @@ namespace PptxViewer
                  i < orderedNodes.Count;
                  i++)
             {
-                maxDepth =
-                    Math.Max(
-                        maxDepth,
-                        orderedNodes[i].Depth);
+                if (!orderedNodes[i].IsAssistant)
+                {
+                    maxDepth =
+                        Math.Max(
+                            maxDepth,
+                            orderedNodes[i].Depth);
+                }
             }
 
             string layoutKind =
@@ -11747,10 +11767,20 @@ namespace PptxViewer
                             node.Depth) %
                         palette.Length];
 
+                if (node.IsAssistant)
+                {
+                    accent =
+                        LightenSmartArtColor(
+                            accent,
+                            0.18f);
+                }
+
                 Color fill =
                     LightenSmartArtColor(
                         accent,
-                        0.82f);
+                        node.IsAssistant
+                            ? 0.90f
+                            : 0.82f);
 
                 if (layoutKind == "venn")
                 {
@@ -11781,6 +11811,12 @@ namespace PptxViewer
                         accent,
                         1.6f))
                 {
+                    if (node.IsAssistant)
+                    {
+                        border.DashStyle =
+                            DashStyle.Dash;
+                    }
+
                     g.FillPath(
                         fillBrush,
                         path);
@@ -11797,9 +11833,11 @@ namespace PptxViewer
                             13f,
                             box.Height /
                             4.2f)),
-                    node.Depth == 0
-                        ? FontStyle.Bold
-                        : FontStyle.Regular))
+                    node.IsAssistant
+                        ? FontStyle.Italic
+                        : node.Depth == 0
+                            ? FontStyle.Bold
+                            : FontStyle.Regular))
                 using (Brush text =
                     new SolidBrush(
                         Color.FromArgb(
@@ -12005,8 +12043,11 @@ namespace PptxViewer
                      i < nodes.Count;
                      i++)
                 {
-                    if (nodes[i].Depth == depth)
+                    if (nodes[i].Depth == depth &&
+                        !nodes[i].IsAssistant)
+                    {
                         level.Add(nodes[i]);
+                    }
                 }
 
                 if (level.Count == 0)
@@ -12054,6 +12095,131 @@ namespace PptxViewer
                             boxW,
                             boxH);
                 }
+            }
+
+            Dictionary<string, int> assistantCounts =
+                new Dictionary<string, int>(
+                    StringComparer.Ordinal);
+
+            for (int i = 0;
+                 i < nodes.Count;
+                 i++)
+            {
+                SmartNode assistant =
+                    nodes[i];
+
+                if (!assistant.IsAssistant)
+                    continue;
+
+                RectangleF parentBox;
+                if (string.IsNullOrEmpty(
+                        assistant.ParentId) ||
+                    !positions.TryGetValue(
+                        assistant.ParentId,
+                        out parentBox))
+                {
+                    continue;
+                }
+
+                int assistantIndex = 0;
+                assistantCounts.TryGetValue(
+                    assistant.ParentId,
+                    out assistantIndex);
+                assistantCounts[
+                    assistant.ParentId] =
+                    assistantIndex + 1;
+
+                float gap =
+                    Math.Max(
+                        8f,
+                        Math.Min(
+                            rect.Width,
+                            rect.Height) *
+                        0.025f);
+
+                float boxW =
+                    Math.Max(
+                        42f,
+                        parentBox.Width *
+                        0.62f);
+                float boxH =
+                    Math.Max(
+                        24f,
+                        parentBox.Height *
+                        0.72f);
+
+                float leftSpace =
+                    parentBox.Left -
+                    rect.Left;
+                float rightSpace =
+                    rect.Right -
+                    parentBox.Right;
+
+                bool placeLeft =
+                    assistantIndex % 2 == 0;
+
+                if (placeLeft &&
+                    leftSpace <
+                        boxW + gap &&
+                    rightSpace >
+                        leftSpace)
+                {
+                    placeLeft = false;
+                }
+                else if (!placeLeft &&
+                         rightSpace <
+                            boxW + gap &&
+                         leftSpace >
+                            rightSpace)
+                {
+                    placeLeft = true;
+                }
+
+                float x =
+                    placeLeft
+                        ? parentBox.Left -
+                          gap -
+                          boxW
+                        : parentBox.Right +
+                          gap;
+
+                x =
+                    Math.Max(
+                        rect.Left,
+                        Math.Min(
+                            rect.Right -
+                            boxW,
+                            x));
+
+                float pairOffset =
+                    (assistantIndex / 2) *
+                    Math.Max(
+                        5f,
+                        boxH *
+                        0.55f);
+
+                float y =
+                    parentBox.Top +
+                    (parentBox.Height -
+                     boxH) /
+                    2f +
+                    pairOffset;
+
+                y =
+                    Math.Max(
+                        rect.Top,
+                        Math.Min(
+                            rect.Bottom -
+                            boxH,
+                            y));
+
+                positions[
+                    assistant.Id] =
+                    new RectangleF(
+                        x,
+                        y,
+                        boxW,
+                        boxH);
             }
 
             return positions;
@@ -12797,8 +12963,40 @@ namespace PptxViewer
                         PointF from;
                         PointF to;
 
-                        if (layoutKind == "hierarchy" ||
-                            layoutKind == "verticalProcess")
+                        SmartNode destinationNode;
+                        bool destinationIsAssistant =
+                            nodes.TryGetValue(
+                                node.Children[i],
+                                out destinationNode) &&
+                            destinationNode.IsAssistant;
+
+                        if (layoutKind == "hierarchy" &&
+                            destinationIsAssistant)
+                        {
+                            bool assistantOnLeft =
+                                destination.Left <
+                                source.Left;
+
+                            from =
+                                new PointF(
+                                    assistantOnLeft
+                                        ? source.Left
+                                        : source.Right,
+                                    source.Top +
+                                    source.Height /
+                                    2f);
+
+                            to =
+                                new PointF(
+                                    assistantOnLeft
+                                        ? destination.Right
+                                        : destination.Left,
+                                    destination.Top +
+                                    destination.Height /
+                                    2f);
+                        }
+                        else if (layoutKind == "hierarchy" ||
+                                 layoutKind == "verticalProcess")
                         {
                             from =
                                 new PointF(
