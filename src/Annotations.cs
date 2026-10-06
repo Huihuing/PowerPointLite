@@ -71,6 +71,9 @@ namespace PptxViewer
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
+            if (HandlePdfExportShortcut(keyData))
+                return true;
+
             if (internalSlideShowMode)
             {
                 if (keyData == (Keys.Control | Keys.A))

@@ -8,15 +8,19 @@ namespace PptxViewer
 {
     public sealed partial class MainForm : Form
     {
-        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        private bool HandlePdfExportShortcut(
+            Keys keyData)
         {
-            if (keyData == (Keys.Control | Keys.Shift | Keys.P))
+            if (keyData !=
+                (Keys.Control |
+                 Keys.Shift |
+                 Keys.P))
             {
-                ExportCurrentPresentationToPdf();
-                return true;
+                return false;
             }
 
-            return base.ProcessCmdKey(ref msg, keyData);
+            ExportCurrentPresentationToPdf();
+            return true;
         }
 
         private void ExportCurrentPresentationToPdf()
