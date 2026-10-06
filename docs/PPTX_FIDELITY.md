@@ -119,7 +119,7 @@ Microsoft PowerPoint (설치된 경우)
   - 데이터 레이블 separator 기본 반영
   - dLblPos의 ctr/inBase/inEnd/outEnd 및 t/b/l/r 위치 기본 근사
   - pie/doughnut showLeaderLines 및 leaderLines spPr/ln solidFill·width·prstDash 기본 반영
-  - dLbls/dLbl[idx] txPr의 solidFill 텍스트 색상 기본 반영
+  - dLbls/dLbl[idx] txPr의 solidFill 텍스트 색상 및 sz/b/i/latin typeface 기본 반영
   - dLbls/dLbl[idx] spPr의 solidFill 배경과 ln 색상·굵기·dash 박스 스타일 기본 반영
   - series dLbls/dLbl[idx]의 표시 항목·위치·numFmt·separator·delete point override 기본 반영
   - chart-level dLbls와 series-level dLbls를 별도 scope로 해석
