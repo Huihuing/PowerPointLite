@@ -1732,6 +1732,19 @@ namespace PptxViewer
                                 CombineMode.Intersect);
                         }
 
+                        if (DrawSvgColorMatrixApproximation(
+                                g,
+                                node,
+                                parent.OwnerDocument,
+                                path,
+                                target,
+                                sx,
+                                sy))
+                        {
+                            drew = true;
+                            continue;
+                        }
+
                         if (DrawSvgOffsetGaussianChainApproximation(
                                 g,
                                 node,
@@ -4918,6 +4931,474 @@ namespace PptxViewer
                     DashStyle.Solid;
                 return false;
             }
+        }
+
+        private static bool TryReadSvgColorMatrix(
+            XmlNode node,
+            XmlDocument document,
+            out float[] matrix)
+        {
+            matrix = null;
+
+            if (node == null ||
+                document == null)
+            {
+                return false;
+            }
+
+            string filterId =
+                ExtractSvgUrlId(
+                    GetSvgStyleInherited(
+                        node,
+                        "filter"));
+
+            if (string.IsNullOrEmpty(
+                    filterId))
+            {
+                return false;
+            }
+
+            XmlNode filter =
+                FindSvgNodeById(
+                    document,
+                    filterId);
+
+            if (filter == null ||
+                filter.LocalName !=
+                    "filter")
+            {
+                return false;
+            }
+
+            XmlNode colorMatrix =
+                null;
+            int primitiveCount =
+                0;
+
+            for (int i = 0;
+                 i < filter.ChildNodes.Count;
+                 i++)
+            {
+                XmlNode child =
+                    filter.ChildNodes[i];
+
+                if (child == null ||
+                    child.NodeType !=
+                        XmlNodeType.Element)
+                {
+                    continue;
+                }
+
+                if (child.LocalName ==
+                        "animate" ||
+                    child.LocalName ==
+                        "set")
+                {
+                    continue;
+                }
+
+                primitiveCount++;
+
+                if (child.LocalName ==
+                    "feColorMatrix")
+                {
+                    colorMatrix =
+                        child;
+                }
+            }
+
+            if (primitiveCount != 1 ||
+                colorMatrix == null)
+            {
+                return false;
+            }
+
+            string input =
+                GetAttr(
+                    colorMatrix,
+                    "in");
+
+            if (!string.IsNullOrEmpty(
+                    input) &&
+                !string.Equals(
+                    input,
+                    "SourceGraphic",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            string type =
+                GetAttr(
+                    colorMatrix,
+                    "type");
+
+            if (string.IsNullOrEmpty(
+                    type))
+            {
+                type =
+                    "matrix";
+            }
+
+            if (string.Equals(
+                    type,
+                    "matrix",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                List<float> values =
+                    ParseSvgNumberList(
+                        GetAttr(
+                            colorMatrix,
+                            "values"));
+
+                if (values.Count != 20)
+                {
+                    return false;
+                }
+
+                matrix =
+                    values.ToArray();
+                return true;
+            }
+
+            if (string.Equals(
+                    type,
+                    "saturate",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                float saturation =
+                    Math.Max(
+                        0f,
+                        ParseSvgFloat(
+                            GetAttr(
+                                colorMatrix,
+                                "values"),
+                            1f));
+
+                matrix =
+                    new float[]
+                    {
+                        0.213f + 0.787f * saturation,
+                        0.715f - 0.715f * saturation,
+                        0.072f - 0.072f * saturation,
+                        0f,
+                        0f,
+
+                        0.213f - 0.213f * saturation,
+                        0.715f + 0.285f * saturation,
+                        0.072f - 0.072f * saturation,
+                        0f,
+                        0f,
+
+                        0.213f - 0.213f * saturation,
+                        0.715f - 0.715f * saturation,
+                        0.072f + 0.928f * saturation,
+                        0f,
+                        0f,
+
+                        0f,
+                        0f,
+                        0f,
+                        1f,
+                        0f
+                    };
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private static Color ApplySvgColorMatrix(
+            Color source,
+            float[] matrix)
+        {
+            if (matrix == null ||
+                matrix.Length != 20)
+            {
+                return source;
+            }
+
+            float r =
+                source.R /
+                255f;
+            float g =
+                source.G /
+                255f;
+            float b =
+                source.B /
+                255f;
+            float a =
+                source.A /
+                255f;
+
+            float outR =
+                matrix[0] * r +
+                matrix[1] * g +
+                matrix[2] * b +
+                matrix[3] * a +
+                matrix[4];
+            float outG =
+                matrix[5] * r +
+                matrix[6] * g +
+                matrix[7] * b +
+                matrix[8] * a +
+                matrix[9];
+            float outB =
+                matrix[10] * r +
+                matrix[11] * g +
+                matrix[12] * b +
+                matrix[13] * a +
+                matrix[14];
+            float outA =
+                matrix[15] * r +
+                matrix[16] * g +
+                matrix[17] * b +
+                matrix[18] * a +
+                matrix[19];
+
+            return Color.FromArgb(
+                Math.Max(
+                    0,
+                    Math.Min(
+                        255,
+                        (int)Math.Round(
+                            Math.Max(
+                                0f,
+                                Math.Min(
+                                    1f,
+                                    outA)) *
+                            255f))),
+                Math.Max(
+                    0,
+                    Math.Min(
+                        255,
+                        (int)Math.Round(
+                            Math.Max(
+                                0f,
+                                Math.Min(
+                                    1f,
+                                    outR)) *
+                            255f))),
+                Math.Max(
+                    0,
+                    Math.Min(
+                        255,
+                        (int)Math.Round(
+                            Math.Max(
+                                0f,
+                                Math.Min(
+                                    1f,
+                                    outG)) *
+                            255f))),
+                Math.Max(
+                    0,
+                    Math.Min(
+                        255,
+                        (int)Math.Round(
+                            Math.Max(
+                                0f,
+                                Math.Min(
+                                    1f,
+                                    outB)) *
+                            255f))));
+        }
+
+        private static bool DrawSvgColorMatrixApproximation(
+            Graphics g,
+            XmlNode node,
+            XmlDocument document,
+            GraphicsPath path,
+            RectangleF target,
+            float sx,
+            float sy)
+        {
+            if (g == null ||
+                node == null ||
+                path == null ||
+                path.PointCount == 0)
+            {
+                return false;
+            }
+
+            float[] matrix;
+
+            if (!TryReadSvgColorMatrix(
+                    node,
+                    document,
+                    out matrix))
+            {
+                return false;
+            }
+
+            string fillValue =
+                GetSvgStyleInherited(
+                    node,
+                    "fill");
+
+            bool hasFill =
+                !string.Equals(
+                    fillValue,
+                    "none",
+                    StringComparison.OrdinalIgnoreCase) &&
+                string.IsNullOrEmpty(
+                    ExtractSvgUrlId(
+                        fillValue));
+
+            Color fill =
+                ReadSvgColorInherited(
+                    node,
+                    "fill",
+                    Color.Black);
+
+            float overallOpacity =
+                ReadSvgOpacity(
+                    GetSvgStyleInherited(
+                        node,
+                        "opacity"),
+                    1f);
+            float fillOpacity =
+                ReadSvgOpacity(
+                    GetSvgStyleInherited(
+                        node,
+                        "fill-opacity"),
+                    1f);
+
+            Color filteredFill =
+                ApplySvgColorMatrix(
+                    Color.FromArgb(
+                        Math.Max(
+                            0,
+                            Math.Min(
+                                255,
+                                (int)Math.Round(
+                                    fill.A *
+                                    overallOpacity *
+                                    fillOpacity))),
+                        fill),
+                    matrix);
+
+            string strokeValue =
+                GetSvgStyleInherited(
+                    node,
+                    "stroke");
+            Color stroke =
+                ReadSvgColorInherited(
+                    node,
+                    "stroke",
+                    Color.Transparent);
+            float strokeOpacity =
+                ReadSvgOpacity(
+                    GetSvgStyleInherited(
+                        node,
+                        "stroke-opacity"),
+                    1f);
+
+            bool hasStroke =
+                !string.IsNullOrEmpty(
+                    strokeValue) &&
+                !string.Equals(
+                    strokeValue,
+                    "none",
+                    StringComparison.OrdinalIgnoreCase) &&
+                string.IsNullOrEmpty(
+                    ExtractSvgUrlId(
+                        strokeValue));
+
+            Color filteredStroke =
+                ApplySvgColorMatrix(
+                    Color.FromArgb(
+                        Math.Max(
+                            0,
+                            Math.Min(
+                                255,
+                                (int)Math.Round(
+                                    stroke.A *
+                                    overallOpacity *
+                                    strokeOpacity))),
+                        stroke),
+                    matrix);
+
+            if ((!hasFill ||
+                 filteredFill.A <= 0) &&
+                (!hasStroke ||
+                 filteredStroke.A <= 0))
+            {
+                return false;
+            }
+
+            if (hasFill &&
+                filteredFill.A > 0)
+            {
+                using (Brush brush =
+                    new SolidBrush(
+                        filteredFill))
+                {
+                    g.FillPath(
+                        brush,
+                        path);
+                }
+            }
+
+            if (hasStroke &&
+                filteredStroke.A > 0)
+            {
+                float strokeWidth =
+                    Math.Max(
+                        1f,
+                        ParseSvgFloat(
+                            GetSvgStyleInherited(
+                                node,
+                                "stroke-width"),
+                            1f) *
+                        Math.Min(
+                            Math.Abs(sx),
+                            Math.Abs(sy)));
+
+                using (Pen pen =
+                    new Pen(
+                        filteredStroke,
+                        strokeWidth))
+                {
+                    string lineCap =
+                        GetSvgStyleInherited(
+                            node,
+                            "stroke-linecap");
+
+                    if (lineCap == "round")
+                        pen.StartCap = pen.EndCap = LineCap.Round;
+                    else if (lineCap == "square")
+                        pen.StartCap = pen.EndCap = LineCap.Square;
+
+                    string lineJoin =
+                        GetSvgStyleInherited(
+                            node,
+                            "stroke-linejoin");
+
+                    if (lineJoin == "round")
+                        pen.LineJoin = LineJoin.Round;
+                    else if (lineJoin == "bevel")
+                        pen.LineJoin = LineJoin.Bevel;
+
+                    ApplySvgStrokeMiterLimit(
+                        pen,
+                        node);
+
+                    ApplySvgStrokeDashPattern(
+                        pen,
+                        node,
+                        target,
+                        sx,
+                        sy,
+                        strokeWidth);
+
+                    g.DrawPath(
+                        pen,
+                        path);
+                }
+            }
+
+            return true;
         }
 
         private static bool TryReadSvgOffsetGaussianChain(

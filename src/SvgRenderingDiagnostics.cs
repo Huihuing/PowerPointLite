@@ -52,6 +52,8 @@ namespace PptxViewer
                 "<filter id=\"dropShadow\"><feDropShadow in=\"SourceGraphic\" dx=\"2\" dy=\"1.5\" stdDeviation=\"1\" flood-color=\"#2244aa\" flood-opacity=\"0.7\"/></filter>" +
                 "<filter id=\"offsetOnly\"><feOffset in=\"SourceGraphic\" dx=\"3\" dy=\"3\"/></filter>" +
                 "<filter id=\"offsetBlurChain\"><feOffset in=\"SourceGraphic\" dx=\"8\" dy=\"2\" result=\"shifted\"/><feGaussianBlur in=\"shifted\" stdDeviation=\"1\"/></filter>" +
+                "<filter id=\"swapRedBlue\"><feColorMatrix in=\"SourceGraphic\" type=\"matrix\" values=\"0 0 1 0 0  0 1 0 0 0  1 0 0 0 0  0 0 0 1 0\"/></filter>" +
+                "<filter id=\"desaturate\"><feColorMatrix in=\"SourceGraphic\" type=\"saturate\" values=\"0\"/></filter>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<g color=\"hsl(326deg 53% 50% / 100%)\"><use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" color=\"inherit\" fill=\"currentColor\"/></g>" +
@@ -67,6 +69,8 @@ namespace PptxViewer
                 "<rect id=\"shadowRect\" x=\"78\" y=\"8\" width=\"6\" height=\"8\" fill=\"#f5c842\" filter=\"url(#dropShadow)\"/>" +
                 "<rect id=\"offsetRect\" x=\"60\" y=\"2\" width=\"6\" height=\"6\" fill=\"#20b9c7\" filter=\"url(#offsetOnly)\"/>" +
                 "<rect id=\"offsetBlurChainRect\" x=\"2\" y=\"2\" width=\"8\" height=\"6\" fill=\"#d64545\" filter=\"url(#offsetBlurChain)\"/>" +
+                "<rect id=\"colorMatrixRect\" x=\"14\" y=\"2\" width=\"8\" height=\"6\" fill=\"#e04030\" filter=\"url(#swapRedBlue)\"/>" +
+                "<rect id=\"saturateRect\" x=\"24\" y=\"2\" width=\"8\" height=\"6\" fill=\"#e04030\" filter=\"url(#desaturate)\"/>" +
                 "<line id=\"dashLine\" x1=\"100\" y1=\"4\" x2=\"132\" y2=\"4\" stroke=\"#111\" stroke-width=\"2\" stroke-linejoin=\"miter\" stroke-miterlimit=\"2.5\" stroke-dasharray=\"4 3\" stroke-dashoffset=\"1\"/>" +
                 "<path id=\"nonzeroPath\" d=\"M 2 30 H 14 V 38 H 2 Z M 5 32 H 11 V 36 H 5 Z\" fill=\"#f28c28\" fill-rule=\"nonzero\"/>" +
                 "<path id=\"evenoddPath\" d=\"M 2 40 H 14 V 48 H 2 Z M 5 42 H 11 V 46 H 5 Z\" fill=\"#159a8c\" fill-rule=\"evenodd\"/>" +
@@ -483,6 +487,117 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "SVG offset/blur chain did not produce only the shifted blurred result.");
+                }
+            }
+
+            XmlNode colorMatrixRect =
+                FindSvgNodeById(
+                    document,
+                    "colorMatrixRect");
+            XmlNode saturateRect =
+                FindSvgNodeById(
+                    document,
+                    "saturateRect");
+
+            float[] swapMatrix;
+            float[] saturationMatrix;
+
+            if (!TryReadSvgColorMatrix(
+                    colorMatrixRect,
+                    document,
+                    out swapMatrix) ||
+                !TryReadSvgColorMatrix(
+                    saturateRect,
+                    document,
+                    out saturationMatrix))
+            {
+                throw new InvalidOperationException(
+                    "SVG feColorMatrix matrix or saturate mode was not parsed.");
+            }
+
+            Color swapped =
+                ApplySvgColorMatrix(
+                    Color.FromArgb(
+                        255,
+                        224,
+                        64,
+                        48),
+                    swapMatrix);
+            Color desaturated =
+                ApplySvgColorMatrix(
+                    Color.FromArgb(
+                        255,
+                        224,
+                        64,
+                        48),
+                    saturationMatrix);
+
+            if (swapped.B < 210 ||
+                swapped.R > 70 ||
+                Math.Abs(
+                    desaturated.R -
+                    desaturated.G) > 2 ||
+                Math.Abs(
+                    desaturated.G -
+                    desaturated.B) > 2)
+            {
+                throw new InvalidOperationException(
+                    "SVG feColorMatrix did not transform colors as expected.");
+            }
+
+            using (GraphicsPath colorMatrixPath =
+                BuildEnhancedSvgElementPath(
+                    colorMatrixRect,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        160f,
+                        80f),
+                    0f,
+                    0f,
+                    4f,
+                    4f))
+            using (Bitmap colorMatrixBitmap =
+                new Bitmap(
+                    160,
+                    80,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics colorMatrixGraphics =
+                Graphics.FromImage(
+                    colorMatrixBitmap))
+            {
+                colorMatrixGraphics.Clear(
+                    Color.White);
+
+                if (!DrawSvgColorMatrixApproximation(
+                        colorMatrixGraphics,
+                        colorMatrixRect,
+                        document,
+                        colorMatrixPath,
+                        new RectangleF(
+                            0f,
+                            0f,
+                            160f,
+                            80f),
+                        4f,
+                        4f))
+                {
+                    throw new InvalidOperationException(
+                        "SVG feColorMatrix approximation did not render.");
+                }
+
+                Color filteredPixel =
+                    colorMatrixBitmap.GetPixel(
+                        72,
+                        20);
+
+                if (filteredPixel.B <
+                        150 ||
+                    filteredPixel.R >
+                        110)
+                {
+                    throw new InvalidOperationException(
+                        "SVG feColorMatrix rendered output did not use the transformed color.");
                 }
             }
 

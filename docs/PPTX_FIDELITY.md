@@ -79,6 +79,7 @@ Microsoft PowerPoint (설치된 경우)
   - 단일 feDropShadow(SourceGraphic)의 dx/dy/stdDeviation/flood-color/flood-opacity 기본 근사
   - 단일 feOffset(SourceGraphic)의 dx/dy 이동 기본 근사
   - feOffset ↔ feGaussianBlur 2단계 SourceGraphic 체인의 result/in 연결과 최종 shifted-blur 근사
+  - 단일 feColorMatrix(SourceGraphic)의 matrix 4×5 및 saturate 기본 색 변환(solid fill/stroke)
 - shape
   - 기본 Office preset
   - custom geometry의 line / cubic / quadratic / arcTo path
@@ -200,7 +201,7 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 - SmartArt 고유 layout algorithm의 세부 spacing/assistant/routing semantics
 - chart의 모든 axis/style/data-label/3D 조합
 - theme effect style 참조 전체 및 복합 shadow/effect 조합
-- 2단계 offset/blur 외의 SVG filter chain(feColorMatrix/feBlend/feComposite 등) 및 복잡한 mask luminance/gradient 등 고급 SVG 기능
+- feColorMatrix hueRotate/luminanceToAlpha, feBlend/feComposite 및 3단계 이상 SVG filter chain, 복잡한 mask luminance/gradient 등 고급 SVG 기능
 - SVG use subtree의 복잡한 CSS cascade/selector, viewport가 있는 symbol의 자식별 확장, root filter/clip/mask 조합 전체
 - artisticBlur 외의 artistic preset 등 고급 image artistic effects
 - 3D material/lighting, camera projection 및 bevel/extrusion profile의 정확한 PowerPoint parity
