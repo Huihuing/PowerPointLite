@@ -25,7 +25,11 @@ Microsoft PowerPoint (설치된 경우)
   - paragraph alignment
   - bullet
   - before/after spacing
-  - vertical anchor / vertical text 일부
+  - body margins / wrap / vertical anchor / vertical text 일부
+  - normAutofit fontScale + overflow 추가 축소 근사
+  - spAutoFit 텍스트 영역 확장 근사 / noAutofit
+  - defTabSz / tabLst 기본 탭 정지점
+  - 간단 RTL paragraph 배치
 - raster image 및 crop / rotate / flip / alpha
 - grayscale / bi-level / brightness / contrast 그림 효과의 GDI+ 근사
 - PNG / JPEG / GIF / BMP

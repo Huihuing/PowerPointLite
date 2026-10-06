@@ -33,25 +33,32 @@ namespace PptxViewer
             public string Text;
             public RichRunStyle Style;
             public bool Break;
+            public bool Tab;
         }
 
         private sealed class RichTextLine
         {
             public readonly List<RichTextToken> Tokens = new List<RichTextToken>();
+            public readonly List<float> TabStops = new List<float>();
             public float Width;
             public float Height;
             public float LeftOffset;
             public float AvailableWidth;
+            public float DefaultTabSize = 48f;
+            public bool RightToLeft;
         }
 
         private sealed class RichParagraphLayout
         {
             public readonly List<RichTextLine> Lines = new List<RichTextLine>();
+            public readonly List<float> TabStops = new List<float>();
             public float Before;
             public float After;
             public float TotalHeight;
             public float LineFactor = 1f;
             public float AbsoluteLineHeight;
+            public float DefaultTabSize = 48f;
+            public bool RightToLeft;
             public StringAlignment Alignment = StringAlignment.Near;
         }
 
@@ -72,8 +79,11 @@ namespace PptxViewer
             float tIns = 4f;
             float bIns = 4f;
             bool wrap = true;
+            bool normalAutoFitEnabled = false;
+            bool shapeAutoFitEnabled = false;
             float fontScale = 1f;
             float lineReduction = 0f;
+            float defaultTabSize = 48f;
             string anchor = "t";
             string vertical = "";
 
@@ -93,14 +103,38 @@ namespace PptxViewer
 
                 vertical = GetAttr(bodyPr, "vert");
 
+                long tabSizeEmu =
+                    GetLong(
+                        bodyPr,
+                        "defTabSz",
+                        914400);
+                defaultTabSize =
+                    Math.Max(
+                        8f,
+                        EmuToRenderPixels(
+                            tabSizeEmu));
+
                 XmlNode normalAutoFit = DirectChild(bodyPr, "normAutofit");
+                XmlNode shapeAutoFit = DirectChild(bodyPr, "spAutoFit");
+                XmlNode noAutoFit = DirectChild(bodyPr, "noAutofit");
+
                 if (normalAutoFit != null)
                 {
+                    normalAutoFitEnabled = true;
                     long scale = GetLong(normalAutoFit, "fontScale", 100000);
                     fontScale = Math.Max(0.1f, Math.Min(1f, scale / 100000f));
 
                     long reduction = GetLong(normalAutoFit, "lnSpcReduction", 0);
                     lineReduction = Math.Max(0f, Math.Min(0.8f, reduction / 100000f));
+                }
+                else if (shapeAutoFit != null)
+                {
+                    shapeAutoFitEnabled = true;
+                }
+                else if (noAutoFit != null)
+                {
+                    fontScale = 1f;
+                    lineReduction = 0f;
                 }
             }
 
@@ -137,29 +171,66 @@ namespace PptxViewer
                         inner.Width);
                 }
 
-                List<RichParagraphLayout> layouts = new List<RichParagraphLayout>();
-                float totalHeight = 0f;
-                int paragraphIndex = 0;
-
-                foreach (XmlNode paragraph in txBody.ChildNodes)
-                {
-                    if (paragraph.LocalName != "p")
-                        continue;
-
-                    RichParagraphLayout paragraphLayout = BuildRichParagraphLayout(
+                float totalHeight;
+                List<RichParagraphLayout> layouts =
+                    BuildRichParagraphLayouts(
                         g,
-                        paragraph,
+                        txBody,
                         layoutRect,
                         theme,
                         slideNumber,
-                        paragraphIndex,
                         wrap,
                         fontScale,
-                        lineReduction);
+                        lineReduction,
+                        defaultTabSize,
+                        out totalHeight);
 
-                    layouts.Add(paragraphLayout);
-                    totalHeight += paragraphLayout.TotalHeight;
-                    paragraphIndex++;
+                if (normalAutoFitEnabled &&
+                    totalHeight > layoutRect.Height + 1f &&
+                    fontScale > 0.11f)
+                {
+                    float fitRatio =
+                        Math.Max(
+                            0.1f,
+                            Math.Min(
+                                1f,
+                                layoutRect.Height /
+                                Math.Max(
+                                    1f,
+                                    totalHeight)));
+
+                    float adjustedScale =
+                        Math.Max(
+                            0.1f,
+                            Math.Min(
+                                fontScale,
+                                fontScale *
+                                fitRatio *
+                                0.98f));
+
+                    if (adjustedScale <
+                        fontScale - 0.005f)
+                    {
+                        layouts =
+                            BuildRichParagraphLayouts(
+                                g,
+                                txBody,
+                                layoutRect,
+                                theme,
+                                slideNumber,
+                                wrap,
+                                adjustedScale,
+                                lineReduction,
+                                defaultTabSize,
+                                out totalHeight);
+                    }
+                }
+
+                if (shapeAutoFitEnabled &&
+                    totalHeight > layoutRect.Height)
+                {
+                    layoutRect.Height =
+                        totalHeight;
                 }
 
                 float y = layoutRect.Top;
@@ -208,6 +279,50 @@ namespace PptxViewer
             }
         }
 
+        private static List<RichParagraphLayout> BuildRichParagraphLayouts(
+            Graphics g,
+            XmlNode txBody,
+            RectangleF layoutRect,
+            Dictionary<string, Color> theme,
+            int slideNumber,
+            bool wrap,
+            float fontScale,
+            float lineReduction,
+            float defaultTabSize,
+            out float totalHeight)
+        {
+            List<RichParagraphLayout> layouts =
+                new List<RichParagraphLayout>();
+
+            totalHeight = 0f;
+            int paragraphIndex = 0;
+
+            foreach (XmlNode paragraph in txBody.ChildNodes)
+            {
+                if (paragraph.LocalName != "p")
+                    continue;
+
+                RichParagraphLayout paragraphLayout =
+                    BuildRichParagraphLayout(
+                        g,
+                        paragraph,
+                        layoutRect,
+                        theme,
+                        slideNumber,
+                        paragraphIndex,
+                        wrap,
+                        fontScale,
+                        lineReduction,
+                        defaultTabSize);
+
+                layouts.Add(paragraphLayout);
+                totalHeight += paragraphLayout.TotalHeight;
+                paragraphIndex++;
+            }
+
+            return layouts;
+        }
+
         private static RichParagraphLayout BuildRichParagraphLayout(
             Graphics g,
             XmlNode paragraph,
@@ -217,9 +332,11 @@ namespace PptxViewer
             int paragraphIndex,
             bool wrap,
             float fontScale,
-            float lineReduction)
+            float lineReduction,
+            float defaultTabSize)
         {
             RichParagraphLayout result = new RichParagraphLayout();
+            result.DefaultTabSize = Math.Max(8f, defaultTabSize);
             XmlNode pPr = DirectChild(paragraph, "pPr");
             XmlNode defaultRPr = pPr != null ? DirectChild(pPr, "defRPr") : null;
             XmlNode endRPr = DirectChild(paragraph, "endParaRPr");
@@ -249,11 +366,45 @@ namespace PptxViewer
                 marginRight = EmuToRenderPixels(GetLong(pPr, "marR", 0));
                 indent = EmuToRenderPixels(GetLong(pPr, "indent", 0));
 
+                string rtlValue = GetAttr(pPr, "rtl");
+                result.RightToLeft =
+                    IsRichBooleanTrue(rtlValue);
+
                 string alignment = GetAttr(pPr, "algn");
                 if (alignment == "ctr")
                     result.Alignment = StringAlignment.Center;
                 else if (alignment == "r")
                     result.Alignment = StringAlignment.Far;
+                else if (alignment == "l")
+                    result.Alignment = StringAlignment.Near;
+                else if (result.RightToLeft)
+                    result.Alignment = StringAlignment.Far;
+
+                XmlNode tabList =
+                    DirectChild(
+                        pPr,
+                        "tabLst");
+
+                if (tabList != null)
+                {
+                    foreach (XmlNode tab in tabList.ChildNodes)
+                    {
+                        if (tab.LocalName != "tab")
+                            continue;
+
+                        float position =
+                            EmuToRenderPixels(
+                                GetLong(
+                                    tab,
+                                    "pos",
+                                    0));
+
+                        if (position > 0f)
+                            result.TabStops.Add(position);
+                    }
+
+                    result.TabStops.Sort();
+                }
 
                 result.Before = ReadRichSpacingPixels(g, DirectChild(pPr, "spcBef"), displayBaseStyle.SizePt);
                 result.After = ReadRichSpacingPixels(g, DirectChild(pPr, "spcAft"), displayBaseStyle.SizePt);
@@ -273,6 +424,16 @@ namespace PptxViewer
                 if (child.LocalName == "br")
                 {
                     tokens.Add(new RichTextToken { Break = true });
+                    continue;
+                }
+
+                if (child.LocalName == "tab")
+                {
+                    tokens.Add(new RichTextToken
+                    {
+                        Tab = true,
+                        Style = displayBaseStyle.Clone()
+                    });
                     continue;
                 }
 
@@ -325,7 +486,10 @@ namespace PptxViewer
                 indent,
                 true,
                 displayBaseStyle,
-                g);
+                g,
+                result.TabStops,
+                result.DefaultTabSize,
+                result.RightToLeft);
 
             for (int i = 0; i < tokens.Count; i++)
             {
@@ -342,15 +506,42 @@ namespace PptxViewer
                         indent,
                         false,
                         displayBaseStyle,
-                        g);
+                        g,
+                        result.TabStops,
+                        result.DefaultTabSize,
+                        result.RightToLeft);
                     continue;
                 }
 
                 float tokenWidth;
                 float tokenHeight;
-                MeasureRichToken(g, token, out tokenWidth, out tokenHeight);
 
-                bool whitespaceOnly = string.IsNullOrWhiteSpace(token.Text);
+                if (token.Tab)
+                {
+                    tokenWidth =
+                        CalculateRichTabAdvance(
+                            line,
+                            line.LeftOffset +
+                            line.Width);
+                    tokenHeight =
+                        RichFontHeight(
+                            g,
+                            token.Style != null
+                                ? token.Style
+                                : displayBaseStyle);
+                }
+                else
+                {
+                    MeasureRichToken(
+                        g,
+                        token,
+                        out tokenWidth,
+                        out tokenHeight);
+                }
+
+                bool whitespaceOnly =
+                    !token.Tab &&
+                    string.IsNullOrWhiteSpace(token.Text);
                 bool wouldOverflow =
                     wrap &&
                     line.Tokens.Count > 0 &&
@@ -411,15 +602,99 @@ namespace PptxViewer
             float indent,
             bool firstLine,
             RichRunStyle baseStyle,
-            Graphics g)
+            Graphics g,
+            List<float> tabStops,
+            float defaultTabSize,
+            bool rightToLeft)
         {
-            RichTextLine line = new RichTextLine();
-            float offset = marginLeft + (firstLine ? indent : 0f);
-            offset = Math.Max(0f, offset);
+            RichTextLine line =
+                new RichTextLine();
+
+            float offset =
+                marginLeft +
+                (firstLine
+                    ? indent
+                    : 0f);
+
+            offset =
+                Math.Max(
+                    0f,
+                    offset);
+
             line.LeftOffset = offset;
-            line.AvailableWidth = Math.Max(1f, inner.Width - offset - Math.Max(0f, marginRight));
-            line.Height = RichFontHeight(g, baseStyle);
+            line.AvailableWidth =
+                Math.Max(
+                    1f,
+                    inner.Width -
+                    offset -
+                    Math.Max(
+                        0f,
+                        marginRight));
+            line.Height =
+                RichFontHeight(
+                    g,
+                    baseStyle);
+            line.DefaultTabSize =
+                Math.Max(
+                    8f,
+                    defaultTabSize);
+            line.RightToLeft =
+                rightToLeft;
+
+            if (tabStops != null)
+            {
+                for (int i = 0;
+                     i < tabStops.Count;
+                     i++)
+                {
+                    line.TabStops.Add(
+                        tabStops[i]);
+                }
+            }
+
             return line;
+        }
+
+        private static float CalculateRichTabAdvance(
+            RichTextLine line,
+            float currentOffset)
+        {
+            if (line == null)
+                return 1f;
+
+            for (int i = 0;
+                 i < line.TabStops.Count;
+                 i++)
+            {
+                float stop =
+                    line.TabStops[i];
+
+                if (stop >
+                    currentOffset + 0.5f)
+                {
+                    return Math.Max(
+                        1f,
+                        stop -
+                        currentOffset);
+                }
+            }
+
+            float tabSize =
+                Math.Max(
+                    8f,
+                    line.DefaultTabSize);
+
+            float next =
+                ((float)Math.Floor(
+                    currentOffset /
+                    tabSize) +
+                 1f) *
+                tabSize;
+
+            return Math.Max(
+                1f,
+                next -
+                currentOffset);
         }
 
         private static void AddRichBulletToken(
@@ -739,7 +1014,29 @@ namespace PptxViewer
             {
                 float width;
                 float height;
-                MeasureRichToken(g, line.Tokens[i], out width, out height);
+
+                if (line.Tokens[i] != null &&
+                    line.Tokens[i].Tab)
+                {
+                    width =
+                        CalculateRichTabAdvance(
+                            line,
+                            line.LeftOffset +
+                            line.Width);
+                    height =
+                        RichFontHeight(
+                            g,
+                            line.Tokens[i].Style);
+                }
+                else
+                {
+                    MeasureRichToken(
+                        g,
+                        line.Tokens[i],
+                        out width,
+                        out height);
+                }
+
                 line.Width += width;
                 measuredHeight = Math.Max(measuredHeight, height);
             }
@@ -756,27 +1053,95 @@ namespace PptxViewer
             if (line == null)
                 return;
 
-            float x = startX;
+            float consumed = 0f;
+            float x = line.RightToLeft
+                ? startX + line.Width
+                : startX;
 
-            for (int i = 0; i < line.Tokens.Count; i++)
+            for (int i = 0;
+                 i < line.Tokens.Count;
+                 i++)
             {
-                RichTextToken token = line.Tokens[i];
-                if (token == null || token.Style == null || string.IsNullOrEmpty(token.Text))
+                RichTextToken token =
+                    line.Tokens[i];
+
+                if (token == null)
                     continue;
+
+                if (token.Tab)
+                {
+                    float advance =
+                        CalculateRichTabAdvance(
+                            line,
+                            line.LeftOffset +
+                            consumed);
+
+                    consumed += advance;
+
+                    if (line.RightToLeft)
+                        x -= advance;
+                    else
+                        x += advance;
+
+                    continue;
+                }
+
+                if (token.Style == null ||
+                    string.IsNullOrEmpty(
+                        token.Text))
+                {
+                    continue;
+                }
 
                 float width;
                 float height;
-                MeasureRichToken(g, token, out width, out height);
+                MeasureRichToken(
+                    g,
+                    token,
+                    out width,
+                    out height);
 
-                using (Font font = SafeFont(token.Style.FontName, token.Style.SizePt, token.Style.FontStyle))
-                using (Brush brush = new SolidBrush(token.Style.Color))
-                using (StringFormat format = (StringFormat)StringFormat.GenericTypographic.Clone())
+                float drawX = x;
+
+                if (line.RightToLeft)
                 {
-                    format.FormatFlags |= StringFormatFlags.MeasureTrailingSpaces;
-                    g.DrawString(token.Text, font, brush, x, y, format);
+                    x -= width;
+                    drawX = x;
                 }
 
-                x += width;
+                using (Font font = SafeFont(
+                    token.Style.FontName,
+                    token.Style.SizePt,
+                    token.Style.FontStyle))
+                using (Brush brush =
+                    new SolidBrush(
+                        token.Style.Color))
+                using (StringFormat format =
+                    (StringFormat)
+                    StringFormat.GenericTypographic.Clone())
+                {
+                    format.FormatFlags |=
+                        StringFormatFlags.MeasureTrailingSpaces;
+
+                    if (line.RightToLeft)
+                    {
+                        format.FormatFlags |=
+                            StringFormatFlags.DirectionRightToLeft;
+                    }
+
+                    g.DrawString(
+                        token.Text,
+                        font,
+                        brush,
+                        drawX,
+                        y,
+                        format);
+                }
+
+                if (!line.RightToLeft)
+                    x += width;
+
+                consumed += width;
             }
         }
 
