@@ -498,7 +498,13 @@ internal static partial class InternalPptxRenderer
                 g,
                 plot,
                 axisScale,
-                kind);
+                kind,
+                !string.Equals(
+                    ReadChartAxisTickLabelPosition(
+                        chartDoc,
+                        "valAx"),
+                    "none",
+                    StringComparison.OrdinalIgnoreCase));
 
             double range =
                 Math.Max(
@@ -1855,7 +1861,8 @@ internal static partial class InternalPptxRenderer
             Graphics g,
             RectangleF plot,
             ChartAxisScale scale,
-            string kind)
+            string kind,
+            bool showLabels)
         {
             if (scale == null)
                 return;
@@ -1911,24 +1918,27 @@ internal static partial class InternalPptxRenderer
                             x,
                             plot.Bottom);
 
-                        string label =
-                            FormatChartAxisNumber(
-                                value,
-                                scale.NumberFormat);
+                        if (showLabels)
+                        {
+                            string label =
+                                FormatChartAxisNumber(
+                                    value,
+                                    scale.NumberFormat);
 
-                        SizeF size =
-                            g.MeasureString(
+                            SizeF size =
+                                g.MeasureString(
+                                    label,
+                                    font);
+
+                            g.DrawString(
                                 label,
-                                font);
-
-                        g.DrawString(
-                            label,
-                            font,
-                            text,
-                            x -
-                                size.Width /
-                                2f,
-                            plot.Bottom + 2f);
+                                font,
+                                text,
+                                x -
+                                    size.Width /
+                                    2f,
+                                plot.Bottom + 2f);
+                        }
                     }
                     else
                     {
@@ -1944,26 +1954,29 @@ internal static partial class InternalPptxRenderer
                             plot.Right,
                             y);
 
-                        string label =
-                            FormatChartAxisNumber(
-                                value,
-                                scale.NumberFormat);
+                        if (showLabels)
+                        {
+                            string label =
+                                FormatChartAxisNumber(
+                                    value,
+                                    scale.NumberFormat);
 
-                        SizeF size =
-                            g.MeasureString(
+                            SizeF size =
+                                g.MeasureString(
+                                    label,
+                                    font);
+
+                            g.DrawString(
                                 label,
-                                font);
-
-                        g.DrawString(
-                            label,
-                            font,
-                            text,
-                            plot.Left -
-                                size.Width -
-                                4f,
-                            y -
-                                size.Height /
-                                2f);
+                                font,
+                                text,
+                                plot.Left -
+                                    size.Width -
+                                    4f,
+                                y -
+                                    size.Height /
+                                    2f);
+                        }
                     }
                 }
             }

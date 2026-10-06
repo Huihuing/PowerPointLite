@@ -92,7 +92,7 @@ namespace PptxViewer
                     new double[] { -18.0, 34.0, 51.0, -39.0 }) +
                 "</c:barChart>" +
                 "<c:catAx><c:axId val=\"1\"/><c:tickLblPos val=\"none\"/><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarter</a:t></a:r></a:p></c:rich></c:tx></c:title></c:catAx>" +
-                "<c:valAx><c:axId val=\"2\"/><c:scaling><c:orientation val=\"minMax\"/><c:min val=\"-50\"/><c:max val=\"80\"/></c:scaling><c:majorUnit val=\"20\"/><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Delta</a:t></a:r></a:p></c:rich></c:tx></c:title></c:valAx>" +
+                "<c:valAx><c:axId val=\"2\"/><c:tickLblPos val=\"none\"/><c:scaling><c:orientation val=\"minMax\"/><c:min val=\"-50\"/><c:max val=\"80\"/></c:scaling><c:majorUnit val=\"20\"/><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Delta</a:t></a:r></a:p></c:rich></c:tx></c:title></c:valAx>" +
                 "</c:plotArea>" +
                 "<c:legend><c:legendPos val=\"b\"/></c:legend>" +
                 "</c:chart></c:chartSpace>");
@@ -191,6 +191,17 @@ namespace PptxViewer
             {
                 throw new InvalidOperationException(
                     "Chart category-axis tick label visibility was not parsed.");
+            }
+
+            if (!string.Equals(
+                    ReadChartAxisTickLabelPosition(
+                        chart,
+                        "valAx"),
+                    "none",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "Chart value-axis tick label visibility was not parsed.");
             }
 
             ChartAxisScale scale =

@@ -121,6 +121,7 @@ Microsoft PowerPoint (설치된 경우)
   - c:ser/c:spPr series 색상 및 c:dPt point 색상 우선 반영
   - valAx/catAx 축 제목 기본 렌더
   - catAx tickLblPos=none 카테고리 축 레이블 숨김
+  - valAx tickLblPos=none 값 축 숫자 레이블 숨김 (gridline 유지)
   - valAx numFmt의 기본 소수/천단위/퍼센트 표시
   - line chart series 선 굵기/prstDash 및 circle/square/diamond/triangle/x/plus marker
   - bar/column grouping: clustered / stacked / percentStacked

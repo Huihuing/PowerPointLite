@@ -10973,7 +10973,13 @@ namespace PptxViewer
                 g,
                 plot,
                 axisScale,
-                "column");
+                "column",
+                !string.Equals(
+                    ReadChartAxisTickLabelPosition(
+                        chartDoc,
+                        "valAx"),
+                    "none",
+                    StringComparison.OrdinalIgnoreCase));
 
             float zeroY =
                 plot.Bottom -
