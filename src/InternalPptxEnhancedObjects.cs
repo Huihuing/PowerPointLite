@@ -5691,19 +5691,56 @@ namespace PptxViewer
             };
         }
 
-        private static List<ChartSeriesData> ReadStandardChartSeries(XmlDocument chartDoc)
+        private static List<ChartSeriesData> ReadStandardChartSeries(
+            XmlDocument chartDoc,
+            Dictionary<string, Color> theme)
         {
-            List<ChartSeriesData> series = new List<ChartSeriesData>();
-            List<XmlNode> nodes = FindAll(chartDoc, "ser");
-            for (int i = 0; i < nodes.Count; i++)
+            List<ChartSeriesData> series =
+                new List<ChartSeriesData>();
+
+            List<XmlNode> nodes =
+                FindAll(
+                    chartDoc,
+                    "ser");
+
+            for (int i = 0;
+                 i < nodes.Count;
+                 i++)
             {
-                ChartSeriesData item = new ChartSeriesData();
-                item.Name = ReadChartSeriesName(nodes[i]);
-                ReadChartCategories(nodes[i], item.Categories);
-                ReadChartValues(nodes[i], item.Values);
+                ChartSeriesData item =
+                    new ChartSeriesData();
+
+                item.Name =
+                    ReadChartSeriesName(
+                        nodes[i]);
+
+                ReadChartCategories(
+                    nodes[i],
+                    item.Categories);
+
+                ReadChartValues(
+                    nodes[i],
+                    item.Values);
+
+                item.ExplicitColor =
+                    ReadChartSeriesColor(
+                        nodes[i],
+                        theme);
+
+                ReadChartPointColors(
+                    nodes[i],
+                    theme,
+                    item.PointColors,
+                    item.Values.Count);
+
+                ReadChartSeriesVisualStyle(
+                    nodes[i],
+                    item);
+
                 if (item.Values.Count > 0)
                     series.Add(item);
             }
+
             return series;
         }
 
@@ -5748,7 +5785,7 @@ namespace PptxViewer
         {
             RectangleF plot;
             PrepareChartSurface(g, rect, chartDoc, out plot);
-            List<ChartSeriesData> series = ReadStandardChartSeries(chartDoc);
+            List<ChartSeriesData> series = ReadStandardChartSeries(chartDoc, theme);
             if (series.Count == 0)
             {
                 DrawPlaceholder(g, plot, "Doughnut chart");
@@ -5775,8 +5812,25 @@ namespace PptxViewer
             for (int i = 0; i < data.Values.Count; i++)
             {
                 float sweep = (float)(360.0 * Math.Abs(data.Values[i]) / total);
-                using (Brush brush = new SolidBrush(palette[i % palette.Length]))
-                    g.FillPie(brush, pie.X, pie.Y, pie.Width, pie.Height, angle, sweep);
+                Color sliceColor =
+                    GetChartPointColor(
+                        data,
+                        i,
+                        palette);
+
+                using (Brush brush =
+                    new SolidBrush(
+                        sliceColor))
+                {
+                    g.FillPie(
+                        brush,
+                        pie.X,
+                        pie.Y,
+                        pie.Width,
+                        pie.Height,
+                        angle,
+                        sweep);
+                }
                 angle += sweep;
             }
 
@@ -5809,7 +5863,7 @@ namespace PptxViewer
         {
             RectangleF plot;
             PrepareChartSurface(g, rect, chartDoc, out plot);
-            List<ChartSeriesData> series = ReadStandardChartSeries(chartDoc);
+            List<ChartSeriesData> series = ReadStandardChartSeries(chartDoc, theme);
             if (series.Count == 0)
             {
                 DrawPlaceholder(g, plot, "Area chart");
@@ -5852,13 +5906,58 @@ namespace PptxViewer
                     item.Values.Count <= 1 ? plot.Right : plot.Right,
                     plot.Bottom));
 
-                Color color = palette[s % palette.Length];
-                using (Brush fill = new SolidBrush(Color.FromArgb(72, color)))
-                    g.FillPolygon(fill, points.ToArray());
-                using (Pen pen = new Pen(color, 2f))
+                Color color =
+                    GetChartSeriesColor(
+                        series,
+                        s,
+                        palette);
+
+                using (Brush fill =
+                    new SolidBrush(
+                        Color.FromArgb(
+                            72,
+                            color)))
                 {
-                    PointF[] line = points.GetRange(1, points.Count - 2).ToArray();
-                    if (line.Length > 1) g.DrawLines(pen, line);
+                    g.FillPolygon(
+                        fill,
+                        points.ToArray());
+                }
+
+                using (Pen pen =
+                    new Pen(
+                        color,
+                        Math.Max(
+                            1f,
+                            item.LineWidth)))
+                {
+                    pen.DashStyle =
+                        item.LineDashStyle;
+
+                    PointF[] line =
+                        points.GetRange(
+                            1,
+                            points.Count - 2)
+                            .ToArray();
+
+                    if (line.Length > 1)
+                        g.DrawLines(
+                            pen,
+                            line);
+
+                    if (item.MarkerEnabled)
+                    {
+                        for (int i = 0;
+                             i < line.Length;
+                             i++)
+                        {
+                            DrawChartMarker(
+                                g,
+                                line[i],
+                                item.MarkerSymbol,
+                                item.MarkerSize,
+                                color);
+                        }
+                    }
                 }
             }
 
@@ -5945,7 +6044,7 @@ namespace PptxViewer
         {
             RectangleF plot;
             PrepareChartSurface(g, rect, chartDoc, out plot);
-            List<ChartSeriesData> series = ReadStandardChartSeries(chartDoc);
+            List<ChartSeriesData> series = ReadStandardChartSeries(chartDoc, theme);
             if (series.Count == 0)
             {
                 DrawPlaceholder(g, plot, "Radar chart");
@@ -6007,11 +6106,51 @@ namespace PptxViewer
                         cx + (float)Math.Cos(angle) * rr,
                         cy + (float)Math.Sin(angle) * rr);
                 }
-                Color color = palette[s % palette.Length];
-                using (Brush brush = new SolidBrush(Color.FromArgb(42, color)))
-                    g.FillPolygon(brush, points);
-                using (Pen pen = new Pen(color, 2f))
-                    g.DrawPolygon(pen, points);
+                Color color =
+                    GetChartSeriesColor(
+                        series,
+                        s,
+                        palette);
+
+                using (Brush brush =
+                    new SolidBrush(
+                        Color.FromArgb(
+                            42,
+                            color)))
+                {
+                    g.FillPolygon(
+                        brush,
+                        points);
+                }
+
+                using (Pen pen =
+                    new Pen(
+                        color,
+                        Math.Max(
+                            1f,
+                            series[s].LineWidth)))
+                {
+                    pen.DashStyle =
+                        series[s].LineDashStyle;
+                    g.DrawPolygon(
+                        pen,
+                        points);
+                }
+
+                if (series[s].MarkerEnabled)
+                {
+                    for (int i = 0;
+                         i < points.Length;
+                         i++)
+                    {
+                        DrawChartMarker(
+                            g,
+                            points[i],
+                            series[s].MarkerSymbol,
+                            series[s].MarkerSize,
+                            color);
+                    }
+                }
             }
             DrawChartLegend(
                 g,
