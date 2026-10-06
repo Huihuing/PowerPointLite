@@ -86,6 +86,20 @@ namespace PptxViewer
             propertyPanel.Width = 300;
             propertyPanel.Padding = new Padding(14);
             propertyPanel.BackColor = ApplicationTheme.Sidebar;
+            propertyPanel.Paint += delegate(object sender, PaintEventArgs e)
+            {
+                using (Pen divider = new Pen(ApplicationTheme.Divider))
+                {
+                    e.Graphics.DrawLine(
+                        divider,
+                        0,
+                        0,
+                        0,
+                        Math.Max(
+                            0,
+                            propertyPanel.ClientSize.Height - 1));
+                }
+            };
             Controls.Add(propertyPanel);
 
             Label propertyTitle = MakeLabel("Text properties", 0, 0, 250, 28, true);
@@ -101,8 +115,8 @@ namespace PptxViewer
             textEditor.Height = 160;
             textEditor.Multiline = true;
             textEditor.ScrollBars = ScrollBars.Vertical;
-            textEditor.BackColor = Color.FromArgb(245, 246, 248);
-            textEditor.ForeColor = Color.FromArgb(28, 31, 36);
+            textEditor.BackColor = ApplicationTheme.Surface;
+            textEditor.ForeColor = ApplicationTheme.PrimaryText;
             textEditor.BorderStyle = BorderStyle.FixedSingle;
             propertyPanel.Controls.Add(textEditor);
 
@@ -114,8 +128,9 @@ namespace PptxViewer
             fontPicker.Top = 258;
             fontPicker.Width = 270;
             fontPicker.DropDownStyle = ComboBoxStyle.DropDownList;
-            fontPicker.BackColor = Color.White;
-            fontPicker.ForeColor = Color.FromArgb(28, 31, 36);
+            fontPicker.FlatStyle = FlatStyle.Flat;
+            fontPicker.BackColor = ApplicationTheme.Surface;
+            fontPicker.ForeColor = ApplicationTheme.PrimaryText;
             propertyPanel.Controls.Add(fontPicker);
 
             List<string> installedFonts = SystemFontCatalog.GetInstalledFamilyNames();
@@ -133,6 +148,9 @@ namespace PptxViewer
             fontSize.Maximum = 400;
             fontSize.DecimalPlaces = 1;
             fontSize.Increment = 0.5M;
+            fontSize.BackColor = ApplicationTheme.Surface;
+            fontSize.ForeColor = ApplicationTheme.PrimaryText;
+            fontSize.BorderStyle = BorderStyle.FixedSingle;
             propertyPanel.Controls.Add(fontSize);
 
             boldCheck = new CheckBox();
@@ -159,6 +177,9 @@ namespace PptxViewer
             alignmentPicker.Top = 378;
             alignmentPicker.Width = 132;
             alignmentPicker.DropDownStyle = ComboBoxStyle.DropDownList;
+            alignmentPicker.FlatStyle = FlatStyle.Flat;
+            alignmentPicker.BackColor = ApplicationTheme.Surface;
+            alignmentPicker.ForeColor = ApplicationTheme.PrimaryText;
             alignmentPicker.Items.Add("Left");
             alignmentPicker.Items.Add("Center");
             alignmentPicker.Items.Add("Right");
@@ -172,6 +193,9 @@ namespace PptxViewer
             colorEditor.Top = 438;
             colorEditor.Width = 132;
             colorEditor.MaxLength = 7;
+            colorEditor.BackColor = ApplicationTheme.Surface;
+            colorEditor.ForeColor = ApplicationTheme.PrimaryText;
+            colorEditor.BorderStyle = BorderStyle.FixedSingle;
             propertyPanel.Controls.Add(colorEditor);
 
             Panel slidePanel = new Panel();
@@ -179,6 +203,20 @@ namespace PptxViewer
             slidePanel.Width = 220;
             slidePanel.Padding = new Padding(10);
             slidePanel.BackColor = ApplicationTheme.Sidebar;
+            slidePanel.Paint += delegate(object sender, PaintEventArgs e)
+            {
+                using (Pen divider = new Pen(ApplicationTheme.Divider))
+                {
+                    e.Graphics.DrawLine(
+                        divider,
+                        slidePanel.ClientSize.Width - 1,
+                        0,
+                        slidePanel.ClientSize.Width - 1,
+                        Math.Max(
+                            0,
+                            slidePanel.ClientSize.Height - 1));
+                }
+            };
             Controls.Add(slidePanel);
 
             Label slidesTitle = new Label();
