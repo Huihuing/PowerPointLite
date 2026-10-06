@@ -12137,23 +12137,44 @@ namespace PptxViewer
                             rect.Height) *
                         0.025f);
 
-                float boxW =
-                    Math.Max(
-                        42f,
-                        parentBox.Width *
-                        0.62f);
-                float boxH =
-                    Math.Max(
-                        24f,
-                        parentBox.Height *
-                        0.72f);
-
                 float leftSpace =
                     parentBox.Left -
                     rect.Left;
                 float rightSpace =
                     rect.Right -
                     parentBox.Right;
+
+                float desiredBoxW =
+                    Math.Max(
+                        42f,
+                        parentBox.Width *
+                        0.62f);
+                float sideCapacity =
+                    Math.Max(
+                        0f,
+                        Math.Max(
+                            leftSpace,
+                            rightSpace) -
+                        gap);
+
+                float boxW =
+                    sideCapacity >= 42f
+                        ? Math.Min(
+                            desiredBoxW,
+                            sideCapacity)
+                        : Math.Max(
+                            32f,
+                            Math.Min(
+                                parentBox.Width *
+                                    0.42f,
+                                rect.Width *
+                                    0.20f));
+
+                float boxH =
+                    Math.Max(
+                        24f,
+                        parentBox.Height *
+                        0.72f);
 
                 bool placeLeft =
                     assistantIndex % 2 == 0;
