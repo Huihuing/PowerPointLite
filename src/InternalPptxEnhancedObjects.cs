@@ -10956,6 +10956,10 @@ namespace PptxViewer
                     nodes[i],
                     item);
 
+                ReadChartSeriesLabelOverrides(
+                    nodes[i],
+                    item);
+
                 if (item.Values.Count > 0)
                     series.Add(item);
             }
@@ -11200,7 +11204,9 @@ namespace PptxViewer
                 ReadChartLabelOptions(
                     chartDoc);
 
-            if (labels.HasAny)
+            if (HasAnyChartSeriesDataLabel(
+                    labels,
+                    data))
             {
                 DrawDoughnutChartValueLabels(
                     g,
@@ -11271,12 +11277,6 @@ namespace PptxViewer
                     hole.Height) /
                 2f;
 
-            float labelRadius =
-                innerRadius +
-                (outerRadius -
-                 innerRadius) *
-                0.55f;
-
             float angle =
                 startAngle;
 
@@ -11321,43 +11321,74 @@ namespace PptxViewer
                         Math.PI /
                         180.0;
 
-                    string label =
-                        BuildChartDataLabel(
+                    ChartLabelOptions pointLabels =
+                        ResolveChartPointLabelOptions(
                             options,
                             series,
-                            i,
-                            true);
+                            i);
 
-                    if (!string.IsNullOrEmpty(
-                            label))
+                    if (pointLabels.HasAny)
                     {
-                        SizeF size =
-                            g.MeasureString(
+                        string normalizedPosition =
+                            NormalizeChartDataLabelPosition(
+                                pointLabels.Position);
+
+                        float radialFactor =
+                            normalizedPosition == "outend"
+                                ? 1.10f
+                                : normalizedPosition == "ctr"
+                                    ? 0.50f
+                                    : normalizedPosition == "inend"
+                                        ? 0.72f
+                                        : 0.55f;
+
+                        float labelRadius =
+                            normalizedPosition == "outend"
+                                ? outerRadius *
+                                  radialFactor
+                                : innerRadius +
+                                  (outerRadius -
+                                   innerRadius) *
+                                  radialFactor;
+
+                        string label =
+                            BuildChartDataLabel(
+                                pointLabels,
+                                series,
+                                i,
+                                true);
+
+                        if (!string.IsNullOrEmpty(
+                                label))
+                        {
+                            SizeF size =
+                                g.MeasureString(
+                                    label,
+                                    font);
+
+                            float x =
+                                cx +
+                                (float)Math.Cos(
+                                    radians) *
+                                labelRadius -
+                                size.Width /
+                                2f;
+
+                            float y =
+                                cy +
+                                (float)Math.Sin(
+                                    radians) *
+                                labelRadius -
+                                size.Height /
+                                2f;
+
+                            g.DrawString(
                                 label,
-                                font);
-
-                        float x =
-                            cx +
-                            (float)Math.Cos(
-                                radians) *
-                            labelRadius -
-                            size.Width /
-                            2f;
-
-                        float y =
-                            cy +
-                            (float)Math.Sin(
-                                radians) *
-                            labelRadius -
-                            size.Height /
-                            2f;
-
-                        g.DrawString(
-                            label,
-                            font,
-                            brush,
-                            x,
-                            y);
+                                font,
+                                brush,
+                                x,
+                                y);
+                        }
                     }
 
                     angle +=
@@ -11754,30 +11785,38 @@ namespace PptxViewer
                         }
                     }
 
-                    if (labels.HasAny)
+                    if (HasAnyChartSeriesDataLabel(
+                            labels,
+                            item))
                     {
                         for (int i = 0;
                              i < item.Values.Count &&
                              i < topPoints.Count;
                              i++)
                         {
+                            ChartLabelOptions pointLabels =
+                                ResolveChartPointLabelOptions(
+                                    labels,
+                                    item,
+                                    i);
+
+                            if (!pointLabels.HasAny)
+                                continue;
+
                             string label =
                                 BuildChartDataLabel(
-                                    labels,
+                                    pointLabels,
                                     item,
                                     i,
                                     false);
 
-                            DrawChartValueLabel(
+                            DrawChartPointDataLabel(
                                 g,
                                 labelFont,
                                 labelBrush,
                                 label,
-                                topPoints[i].X,
-                                topPoints[i].Y -
-                                    labelFont.Height -
-                                    2f,
-                                true);
+                                topPoints[i],
+                                pointLabels.Position);
                         }
                     }
                 }
