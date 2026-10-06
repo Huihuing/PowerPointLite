@@ -57,7 +57,7 @@ namespace PptxViewer
         private sealed class RichParagraphLayout
         {
             public readonly List<RichTextLine> Lines = new List<RichTextLine>();
-            public readonly List<float> TabStops = new List<float>();
+            public readonly List<RichTabStop> TabStops = new List<RichTabStop>();
             public float Before;
             public float After;
             public float TotalHeight;
