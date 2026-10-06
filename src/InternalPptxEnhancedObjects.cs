@@ -5632,25 +5632,52 @@ namespace PptxViewer
 
             if (blend != null)
             {
-                if (blend.LocalName !=
-                    "feBlend")
+                bool isBlend =
+                    blend.LocalName ==
+                    "feBlend";
+                bool isComposite =
+                    blend.LocalName ==
+                    "feComposite";
+
+                if (!isBlend &&
+                    !isComposite)
                 {
                     return false;
                 }
 
-                string mode =
-                    GetAttr(
-                        blend,
-                        "mode");
-
-                if (!string.IsNullOrEmpty(
-                        mode) &&
-                    !string.Equals(
-                        mode,
-                        "normal",
-                        StringComparison.OrdinalIgnoreCase))
+                if (isBlend)
                 {
-                    return false;
+                    string mode =
+                        GetAttr(
+                            blend,
+                            "mode");
+
+                    if (!string.IsNullOrEmpty(
+                            mode) &&
+                        !string.Equals(
+                            mode,
+                            "normal",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    string op =
+                        GetAttr(
+                            blend,
+                            "operator");
+
+                    if (!string.IsNullOrEmpty(
+                            op) &&
+                        !string.Equals(
+                            op,
+                            "over",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
                 }
 
                 string secondResult =

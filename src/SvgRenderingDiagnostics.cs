@@ -53,11 +53,13 @@ namespace PptxViewer
                 "<filter id=\"offsetOnly\"><feOffset in=\"SourceGraphic\" dx=\"3\" dy=\"3\"/></filter>" +
                 "<filter id=\"offsetBlurChain\"><feOffset in=\"SourceGraphic\" dx=\"8\" dy=\"2\" result=\"shifted\"/><feGaussianBlur in=\"shifted\" stdDeviation=\"1\"/></filter>" +
                 "<filter id=\"offsetBlurBlend\"><feOffset in=\"SourceGraphic\" dx=\"8\" dy=\"2\" result=\"shifted2\"/><feGaussianBlur in=\"shifted2\" stdDeviation=\"1\" result=\"blurred2\"/><feBlend in=\"blurred2\" in2=\"SourceGraphic\" mode=\"normal\"/></filter>" +
+                "<filter id=\"offsetBlurComposite\"><feOffset in=\"SourceGraphic\" dx=\"8\" dy=\"2\" result=\"shifted3\"/><feGaussianBlur in=\"shifted3\" stdDeviation=\"1\" result=\"blurred3\"/><feComposite in=\"SourceGraphic\" in2=\"blurred3\" operator=\"over\"/></filter>" +
                 "<filter id=\"swapRedBlue\"><feColorMatrix in=\"SourceGraphic\" type=\"matrix\" values=\"0 0 1 0 0  0 1 0 0 0  1 0 0 0 0  0 0 0 1 0\"/></filter>" +
                 "<filter id=\"desaturate\"><feColorMatrix in=\"SourceGraphic\" type=\"saturate\" values=\"0\"/></filter>" +
                 "<filter id=\"hueRotate\"><feColorMatrix in=\"SourceGraphic\" type=\"hueRotate\" values=\"240\"/></filter>" +
                 "<filter id=\"lumaAlpha\"><feColorMatrix in=\"SourceGraphic\" type=\"luminanceToAlpha\"/></filter>" +
                 "<rect id=\"offsetBlurBlendRect\" x=\"2\" y=\"12\" width=\"8\" height=\"6\" fill=\"#d64545\" filter=\"url(#offsetBlurBlend)\"/>" +
+                "<rect id=\"offsetBlurCompositeRect\" x=\"2\" y=\"22\" width=\"8\" height=\"6\" fill=\"#3f7fd1\" filter=\"url(#offsetBlurComposite)\"/>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<g color=\"hsl(326deg 53% 50% / 100%)\"><use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" color=\"inherit\" fill=\"currentColor\"/></g>" +
@@ -595,6 +597,102 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "SVG normal feBlend chain did not preserve SourceGraphic with the filtered result.");
+                }
+            }
+
+            XmlNode offsetBlurCompositeRect =
+                FindSvgNodeById(
+                    document,
+                    "offsetBlurCompositeRect");
+
+            float compositeOffsetX;
+            float compositeOffsetY;
+            float compositeBlurX;
+            float compositeBlurY;
+            bool compositeSourceGraphic;
+
+            if (!TryReadSvgOffsetGaussianChain(
+                    offsetBlurCompositeRect,
+                    document,
+                    4f,
+                    4f,
+                    out compositeOffsetX,
+                    out compositeOffsetY,
+                    out compositeBlurX,
+                    out compositeBlurY,
+                    out compositeSourceGraphic) ||
+                !compositeSourceGraphic)
+            {
+                throw new InvalidOperationException(
+                    "SVG feOffset/feGaussianBlur/feComposite over chain was not parsed correctly.");
+            }
+
+            using (GraphicsPath compositePath =
+                BuildEnhancedSvgElementPath(
+                    offsetBlurCompositeRect,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        160f,
+                        140f),
+                    0f,
+                    0f,
+                    4f,
+                    4f))
+            using (Bitmap compositeBitmap =
+                new Bitmap(
+                    160,
+                    140,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics compositeGraphics =
+                Graphics.FromImage(
+                    compositeBitmap))
+            {
+                compositeGraphics.Clear(
+                    Color.White);
+
+                if (!DrawSvgOffsetGaussianChainApproximation(
+                        compositeGraphics,
+                        offsetBlurCompositeRect,
+                        document,
+                        compositePath,
+                        4f,
+                        4f))
+                {
+                    throw new InvalidOperationException(
+                        "SVG feComposite over chain was not rendered.");
+                }
+
+                Color originalCenter =
+                    compositeBitmap.GetPixel(
+                        24,
+                        100);
+                Color shiftedCenter =
+                    compositeBitmap.GetPixel(
+                        56,
+                        108);
+
+                bool originalVisible =
+                    originalCenter.B >
+                        originalCenter.R +
+                        25 &&
+                    originalCenter.B >
+                        originalCenter.G +
+                        5 &&
+                    originalCenter.B <
+                        250;
+                bool shiftedVisible =
+                    shiftedCenter.B >
+                        shiftedCenter.R +
+                        15 &&
+                    shiftedCenter.B <
+                        250;
+
+                if (!originalVisible ||
+                    !shiftedVisible)
+                {
+                    throw new InvalidOperationException(
+                        "SVG feComposite over chain did not preserve SourceGraphic with the filtered result.");
                 }
             }
 
