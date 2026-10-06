@@ -1415,6 +1415,21 @@ namespace PptxViewer
                         "Tab-stop rendering did not place later text runs across the line.");
                 }
 
+                int tabFarRight =
+                    CountNonWhiteDiagnosticPixels(
+                        bitmap,
+                        new Rectangle(
+                            430,
+                            20,
+                            240,
+                            100));
+
+                if (tabFarRight < 2)
+                {
+                    throw new InvalidOperationException(
+                        "Right/decimal tab alignment did not place content in the expected far-right region.");
+                }
+
                 bitmap.Save(
                     outputPath,
                     ImageFormat.Png);
@@ -1458,13 +1473,17 @@ namespace PptxViewer
             return LoadSyntheticTextShape(
                 "<a:bodyPr lIns=\"45720\" rIns=\"45720\" tIns=\"22860\" bIns=\"22860\" defTabSz=\"914400\"/>" +
                 "<a:p><a:pPr><a:tabLst>" +
-                "<a:tab pos=\"1371600\"/><a:tab pos=\"2743200\"/>" +
+                "<a:tab pos=\"1371600\" algn=\"ctr\"/>" +
+                "<a:tab pos=\"2743200\" algn=\"r\"/>" +
+                "<a:tab pos=\"3657600\" algn=\"dec\"/>" +
                 "</a:tabLst></a:pPr>" +
                 "<a:r><a:rPr sz=\"1800\" b=\"1\"/><a:t>Alpha</a:t></a:r>" +
                 "<a:tab/>" +
                 "<a:r><a:rPr sz=\"1800\"/><a:t>Beta</a:t></a:r>" +
                 "<a:tab/>" +
                 "<a:r><a:rPr sz=\"1800\"/><a:t>Gamma</a:t></a:r>" +
+                "<a:tab/>" +
+                "<a:r><a:rPr sz=\"1800\"/><a:t>123.45</a:t></a:r>" +
                 "</a:p>");
         }
 
