@@ -31,6 +31,11 @@ namespace PptxViewer
             public bool HasRotation;
             public float RotationFromDegrees;
             public float RotationToDegrees;
+            public bool HasColor;
+            public Color ColorFrom = Color.Empty;
+            public Color ColorTo = Color.Empty;
+            public float Acceleration;
+            public float Deceleration;
             public int DelayMs;
             public int DurationMs = 300;
             public int StartOffsetMs;
@@ -198,6 +203,12 @@ namespace PptxViewer
                 action.DurationMs = ReadAnimationDuration(timingNode);
                 action.RepeatCount = ReadAnimationRepeatCount(timingNode);
                 action.AutoReverse = IsTrueValue(GetAttr(timingNode, "autoRev"));
+                action.Acceleration = ReadAnimationPercentAttribute(
+                    timingNode,
+                    "accel");
+                action.Deceleration = ReadAnimationPercentAttribute(
+                    timingNode,
+                    "decel");
             }
 
             action.EffectClass = ClassifyAnimationEffect(
@@ -229,6 +240,13 @@ namespace PptxViewer
                 effect.LocalName == "animRot")
             {
                 ReadAnimationRotation(
+                    effect,
+                    action);
+            }
+            else if (effect != null &&
+                effect.LocalName == "animClr")
+            {
+                ReadAnimationColor(
                     effect,
                     action);
             }
@@ -495,6 +513,233 @@ namespace PptxViewer
                     Math.Min(
                         3600f,
                         parsed));
+            return true;
+        }
+
+        private static float ReadAnimationPercentAttribute(
+            XmlNode node,
+            string name)
+        {
+            if (node == null)
+                return 0f;
+
+            string raw =
+                GetAttr(
+                    node,
+                    name);
+
+            if (string.IsNullOrEmpty(raw))
+                return 0f;
+
+            float parsed;
+            if (!float.TryParse(
+                    raw,
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out parsed))
+            {
+                return 0f;
+            }
+
+            if (Math.Abs(parsed) > 1f)
+                parsed /= 100000f;
+
+            return Math.Max(
+                0f,
+                Math.Min(
+                    1f,
+                    parsed));
+        }
+
+        private static void ReadAnimationColor(
+            XmlNode effect,
+            AnimationActionSpec action)
+        {
+            if (effect == null ||
+                action == null)
+            {
+                return;
+            }
+
+            Color from;
+            Color to;
+            Color by;
+
+            bool hasFrom =
+                TryReadAnimationColorNode(
+                    DirectChild(
+                        effect,
+                        "from"),
+                    out from);
+
+            bool hasTo =
+                TryReadAnimationColorNode(
+                    DirectChild(
+                        effect,
+                        "to"),
+                    out to);
+
+            bool hasBy =
+                TryReadAnimationColorNode(
+                    DirectChild(
+                        effect,
+                        "by"),
+                    out by);
+
+            if (!hasTo && hasBy)
+            {
+                to = by;
+                hasTo = true;
+            }
+
+            if (!hasTo)
+                return;
+
+            action.HasColor = true;
+            action.ColorFrom =
+                hasFrom
+                    ? from
+                    : Color.Empty;
+            action.ColorTo = to;
+        }
+
+        private static bool TryReadAnimationColorNode(
+            XmlNode node,
+            out Color color)
+        {
+            color = Color.Empty;
+
+            if (node == null)
+                return false;
+
+            if (node.LocalName == "srgbClr")
+            {
+                Color? parsed =
+                    ParseHexColor(
+                        GetAttr(
+                            node,
+                            "val"));
+
+                if (parsed.HasValue)
+                {
+                    color =
+                        parsed.Value;
+                    return true;
+                }
+            }
+
+            if (node.LocalName == "sysClr")
+            {
+                string raw =
+                    GetAttr(
+                        node,
+                        "lastClr");
+
+                Color? parsed =
+                    ParseHexColor(raw);
+
+                if (parsed.HasValue)
+                {
+                    color =
+                        parsed.Value;
+                    return true;
+                }
+            }
+
+            if (node.LocalName == "prstClr")
+            {
+                string raw =
+                    GetAttr(
+                        node,
+                        "val");
+
+                if (!string.IsNullOrEmpty(raw))
+                {
+                    Color named =
+                        Color.FromName(raw);
+
+                    if (named.A > 0)
+                    {
+                        color = named;
+                        return true;
+                    }
+                }
+            }
+
+            if (node.LocalName == "rgb")
+            {
+                int r;
+                int g;
+                int b;
+
+                if (TryReadAnimationColorComponent(
+                        GetAttr(node, "r"),
+                        out r) &&
+                    TryReadAnimationColorComponent(
+                        GetAttr(node, "g"),
+                        out g) &&
+                    TryReadAnimationColorComponent(
+                        GetAttr(node, "b"),
+                        out b))
+                {
+                    color =
+                        Color.FromArgb(
+                            255,
+                            r,
+                            g,
+                            b);
+                    return true;
+                }
+            }
+
+            for (int i = 0;
+                 i < node.ChildNodes.Count;
+                 i++)
+            {
+                if (TryReadAnimationColorNode(
+                        node.ChildNodes[i],
+                        out color))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryReadAnimationColorComponent(
+            string raw,
+            out int value)
+        {
+            value = 0;
+
+            if (string.IsNullOrEmpty(raw))
+                return false;
+
+            float parsed;
+            if (!float.TryParse(
+                    raw,
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out parsed))
+            {
+                return false;
+            }
+
+            if (parsed > 255f)
+            {
+                parsed =
+                    parsed *
+                    255f /
+                    100000f;
+            }
+
+            value =
+                Math.Max(
+                    0,
+                    Math.Min(
+                        255,
+                        (int)Math.Round(parsed)));
             return true;
         }
 
@@ -1136,6 +1381,7 @@ namespace PptxViewer
                         DrawMotionAnimationProgress(
                             g,
                             before,
+                            clean,
                             rect,
                             action,
                             localProgress,
@@ -1148,6 +1394,7 @@ namespace PptxViewer
                         DrawEmphasisAnimationProgress(
                             g,
                             before,
+                            clean,
                             rect,
                             action,
                             localProgress);
@@ -1202,9 +1449,152 @@ namespace PptxViewer
                     : 2.0 - doubled;
             }
 
+            float normalized =
+                (float)Math.Max(
+                    0.0,
+                    Math.Min(
+                        1.0,
+                        value));
+
+            return ApplyAnimationEasing(
+                normalized,
+                action.Acceleration,
+                action.Deceleration);
+        }
+
+        private static float ApplyAnimationEasing(
+            float progress,
+            float acceleration,
+            float deceleration)
+        {
+            progress =
+                Math.Max(
+                    0f,
+                    Math.Min(
+                        1f,
+                        progress));
+
+            acceleration =
+                Math.Max(
+                    0f,
+                    Math.Min(
+                        1f,
+                        acceleration));
+
+            deceleration =
+                Math.Max(
+                    0f,
+                    Math.Min(
+                        1f,
+                        deceleration));
+
+            float sum =
+                acceleration +
+                deceleration;
+
+            if (sum > 0.98f)
+            {
+                float scale =
+                    0.98f /
+                    sum;
+
+                acceleration *= scale;
+                deceleration *= scale;
+            }
+
+            if (acceleration <= 0.0001f &&
+                deceleration <= 0.0001f)
+            {
+                return progress;
+            }
+
+            double constant =
+                1.0 -
+                acceleration -
+                deceleration;
+
+            double area =
+                constant +
+                acceleration *
+                    0.5 +
+                deceleration *
+                    0.5;
+
+            if (area <= 0.000001)
+                return progress;
+
+            double velocity =
+                1.0 /
+                area;
+
+            double t =
+                progress;
+
+            double value;
+
+            if (acceleration > 0f &&
+                t < acceleration)
+            {
+                value =
+                    0.5 *
+                    velocity /
+                    acceleration *
+                    t *
+                    t;
+            }
+            else if (t <=
+                acceleration +
+                constant)
+            {
+                value =
+                    0.5 *
+                    velocity *
+                    acceleration +
+                    velocity *
+                    (t -
+                     acceleration);
+            }
+            else
+            {
+                double before =
+                    0.5 *
+                    velocity *
+                    acceleration +
+                    velocity *
+                    constant;
+
+                double u =
+                    t -
+                    acceleration -
+                    constant;
+
+                if (deceleration <=
+                    0.0001f)
+                {
+                    value =
+                        before +
+                        velocity *
+                        u;
+                }
+                else
+                {
+                    value =
+                        before +
+                        velocity *
+                        u -
+                        0.5 *
+                        velocity /
+                        deceleration *
+                        u *
+                        u;
+                }
+            }
+
             return (float)Math.Max(
                 0.0,
-                Math.Min(1.0, value));
+                Math.Min(
+                    1.0,
+                    value));
         }
 
         private static Rectangle ClampAnimationRect(
@@ -1494,6 +1884,7 @@ namespace PptxViewer
         private static void DrawEmphasisAnimationProgress(
             Graphics g,
             Bitmap source,
+            Bitmap background,
             Rectangle rect,
             AnimationActionSpec action,
             float progress)
@@ -1599,12 +1990,38 @@ namespace PptxViewer
                         -cy);
                 }
 
-                DrawAnimationRegion(
-                    g,
-                    source,
-                    destination,
-                    rect,
-                    1f);
+                using (Bitmap objectLayer =
+                    CreateAnimationObjectLayer(
+                        source,
+                        background,
+                        rect,
+                        action.HasColor
+                            ? (Color?)action.ColorTo
+                            : null,
+                        action.ColorFrom,
+                        progress))
+                {
+                    if (objectLayer != null)
+                    {
+                        g.DrawImage(
+                            objectLayer,
+                            destination,
+                            0,
+                            0,
+                            objectLayer.Width,
+                            objectLayer.Height,
+                            GraphicsUnit.Pixel);
+                    }
+                    else
+                    {
+                        DrawAnimationRegion(
+                            g,
+                            source,
+                            destination,
+                            rect,
+                            1f);
+                    }
+                }
             }
             finally
             {
@@ -1613,6 +2030,7 @@ namespace PptxViewer
 
             if (!action.HasScale &&
                 !action.HasRotation &&
+                !action.HasColor &&
                 pulse > 0.01)
             {
                 int alpha =
@@ -1676,6 +2094,7 @@ namespace PptxViewer
         private static void DrawMotionAnimationProgress(
             Graphics g,
             Bitmap source,
+            Bitmap background,
             Rectangle rect,
             AnimationActionSpec action,
             float progress,
@@ -1744,12 +2163,177 @@ namespace PptxViewer
                     rect.Width,
                     rect.Height);
 
-            DrawAnimationRegion(
-                g,
-                source,
-                destination,
-                rect,
-                1f);
+            using (Bitmap objectLayer =
+                CreateAnimationObjectLayer(
+                    source,
+                    background,
+                    rect,
+                    null,
+                    Color.Empty,
+                    progress))
+            {
+                if (objectLayer != null)
+                {
+                    g.DrawImage(
+                        objectLayer,
+                        destination,
+                        0,
+                        0,
+                        objectLayer.Width,
+                        objectLayer.Height,
+                        GraphicsUnit.Pixel);
+                }
+                else
+                {
+                    DrawAnimationRegion(
+                        g,
+                        source,
+                        destination,
+                        rect,
+                        1f);
+                }
+            }
+        }
+
+        private static Bitmap CreateAnimationObjectLayer(
+            Bitmap source,
+            Bitmap background,
+            Rectangle rect,
+            Color? targetColor,
+            Color explicitFrom,
+            float progress)
+        {
+            if (source == null ||
+                background == null ||
+                rect.Width <= 0 ||
+                rect.Height <= 0)
+            {
+                return null;
+            }
+
+            Rectangle bounds =
+                Rectangle.Intersect(
+                    new Rectangle(
+                        0,
+                        0,
+                        source.Width,
+                        source.Height),
+                    rect);
+
+            if (bounds.Width <= 0 ||
+                bounds.Height <= 0)
+            {
+                return null;
+            }
+
+            Bitmap layer =
+                new Bitmap(
+                    bounds.Width,
+                    bounds.Height,
+                    PixelFormat.Format32bppArgb);
+
+            progress =
+                Math.Max(
+                    0f,
+                    Math.Min(
+                        1f,
+                        progress));
+
+            for (int y = 0;
+                 y < bounds.Height;
+                 y++)
+            {
+                for (int x = 0;
+                     x < bounds.Width;
+                     x++)
+                {
+                    Color sourceColor =
+                        source.GetPixel(
+                            bounds.Left + x,
+                            bounds.Top + y);
+
+                    Color backgroundColor =
+                        background.GetPixel(
+                            bounds.Left + x,
+                            bounds.Top + y);
+
+                    int difference =
+                        Math.Max(
+                            Math.Abs(
+                                sourceColor.R -
+                                backgroundColor.R),
+                            Math.Max(
+                                Math.Abs(
+                                    sourceColor.G -
+                                    backgroundColor.G),
+                                Math.Abs(
+                                    sourceColor.B -
+                                    backgroundColor.B)));
+
+                    if (difference < 3)
+                    {
+                        layer.SetPixel(
+                            x,
+                            y,
+                            Color.Transparent);
+                        continue;
+                    }
+
+                    int alpha =
+                        Math.Max(
+                            24,
+                            Math.Min(
+                                255,
+                                difference *
+                                10));
+
+                    Color resultColor =
+                        sourceColor;
+
+                    if (targetColor.HasValue)
+                    {
+                        Color from =
+                            explicitFrom.IsEmpty
+                                ? sourceColor
+                                : explicitFrom;
+
+                        Color to =
+                            targetColor.Value;
+
+                        resultColor =
+                            Color.FromArgb(
+                                sourceColor.A,
+                                (int)Math.Round(
+                                    from.R +
+                                    (to.R -
+                                     from.R) *
+                                    progress),
+                                (int)Math.Round(
+                                    from.G +
+                                    (to.G -
+                                     from.G) *
+                                    progress),
+                                (int)Math.Round(
+                                    from.B +
+                                    (to.B -
+                                     from.B) *
+                                    progress));
+                    }
+
+                    layer.SetPixel(
+                        x,
+                        y,
+                        Color.FromArgb(
+                            Math.Min(
+                                resultColor.A,
+                                alpha),
+                            resultColor.R,
+                            resultColor.G,
+                            resultColor.B));
+                }
+            }
+
+            return layer;
         }
 
         private static void TryReadMotionPathDelta(

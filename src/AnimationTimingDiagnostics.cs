@@ -112,9 +112,10 @@ namespace PptxViewer
                 "</p:animEffect></p:childTnLst></p:cTn></p:par>" +
 
                 // Same step: emphasis starts with previous after 80 ms.
-                "<p:par><p:cTn id=\"20\" dur=\"300\" nodeType=\"withEffect\" presetClass=\"emph\" presetID=\"3\">" +
+                "<p:par><p:cTn id=\"20\" dur=\"300\" accel=\"25000\" decel=\"15000\" nodeType=\"withEffect\" presetClass=\"emph\" presetID=\"3\">" +
                 "<p:stCondLst><p:cond evt=\"onBegin\" delay=\"80\"/></p:stCondLst>" +
                 "<p:childTnLst><p:animClr>" +
+                "<p:to><a:srgbClr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" val=\"FF6633\"/></p:to>" +
                 "<p:cBhvr><p:cTn id=\"21\" dur=\"300\"/><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cBhvr>" +
                 "</p:animClr></p:childTnLst></p:cTn></p:par>" +
 
@@ -175,6 +176,42 @@ namespace PptxViewer
             RequireActionClass(first, "emphasis");
             RequireActionClass(first, "exit");
             RequireActionClass(second, "motion");
+
+            bool foundColor = false;
+            bool foundEasing = false;
+
+            for (int i = 0;
+                 i < first.Actions.Count;
+                 i++)
+            {
+                InternalPptxRenderer.AnimationActionSpec action =
+                    first.Actions[i];
+
+                if (action.HasColor &&
+                    action.ColorTo.R == 0xFF &&
+                    action.ColorTo.G == 0x66 &&
+                    action.ColorTo.B == 0x33)
+                {
+                    foundColor = true;
+                }
+
+                if (Math.Abs(
+                        action.Acceleration -
+                        0.25f) < 0.001f &&
+                    Math.Abs(
+                        action.Deceleration -
+                        0.15f) < 0.001f)
+                {
+                    foundEasing = true;
+                }
+            }
+
+            if (!foundColor ||
+                !foundEasing)
+            {
+                throw new InvalidOperationException(
+                    "Color emphasis or acceleration/deceleration timing was not parsed.");
+            }
 
             if (!second.RequiresClick ||
                 second.Actions.Count != 3)

@@ -105,6 +105,8 @@ Microsoft PowerPoint (설치된 경우)
 - speed modifier
 - repeat count
 - auto reverse
+- acceleration / deceleration easing
+- animClr RGB color emphasis
 - slide `advTm`
 - slide `advClick`
 - slideshow `loop`
@@ -147,9 +149,9 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 - image artistic effects
 - 3D shape / bevel / material / lighting
 - complex custom geometry formula/adjust handle
-- animation easing / acceleration / deceleration curve
+- exact PowerPoint easing curve parity
 - exact motion-path interpolation
-- scale / rotation / color emphasis의 프레임 단위 변화
+- scheme/HSL color animation과 복합 color transform
 - trigger-on-specific-object, media bookmark 등 고급 trigger
 - nested sequence/parallel timing tree의 모든 PowerPoint edge case
 - Morph object matching
