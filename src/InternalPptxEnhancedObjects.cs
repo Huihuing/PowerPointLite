@@ -1642,6 +1642,20 @@ namespace PptxViewer
                     continue;
                 }
 
+                if (name == "use" &&
+                    TryDrawEnhancedSvgUseContainer(
+                        g,
+                        node,
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy))
+                {
+                    drew = true;
+                    continue;
+                }
+
                 using (GraphicsPath path =
                     BuildEnhancedSvgElementPath(
                         node,
@@ -1871,6 +1885,293 @@ namespace PptxViewer
             }
 
             return true;
+        }
+
+        private static bool TryDrawEnhancedSvgUseContainer(
+            Graphics g,
+            XmlNode useNode,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy)
+        {
+            if (g == null ||
+                useNode == null ||
+                useNode.LocalName != "use" ||
+                HasSvgUseExpansionMarker(
+                    useNode))
+            {
+                return false;
+            }
+
+            string referenceId =
+                ReadSvgUseReferenceId(
+                    useNode);
+
+            if (string.IsNullOrEmpty(
+                    referenceId))
+            {
+                return false;
+            }
+
+            XmlNode referenced =
+                FindSvgNodeById(
+                    useNode.OwnerDocument,
+                    referenceId);
+
+            if (referenced == null ||
+                referenced == useNode ||
+                (referenced.LocalName != "g" &&
+                 referenced.LocalName != "symbol" &&
+                 referenced.LocalName != "svg"))
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrEmpty(
+                    GetAttr(
+                        referenced,
+                        "viewBox")) ||
+                !string.IsNullOrEmpty(
+                    GetAttr(
+                        useNode,
+                        "width")) ||
+                !string.IsNullOrEmpty(
+                    GetAttr(
+                        useNode,
+                        "height")))
+            {
+                return false;
+            }
+
+            string[] unsupportedRootEffects =
+                new string[]
+                {
+                    "filter",
+                    "clip-path",
+                    "mask"
+                };
+
+            for (int i = 0;
+                 i < unsupportedRootEffects.Length;
+                 i++)
+            {
+                string key =
+                    unsupportedRootEffects[i];
+
+                if (!string.IsNullOrEmpty(
+                        GetSvgStyle(
+                            useNode,
+                            key)) ||
+                    !string.IsNullOrEmpty(
+                        GetSvgStyle(
+                            referenced,
+                            key)))
+                {
+                    return false;
+                }
+            }
+
+            XmlNode clone =
+                referenced.CloneNode(
+                    true);
+
+            XmlElement cloneElement =
+                clone as XmlElement;
+
+            if (cloneElement == null)
+            {
+                return false;
+            }
+
+            cloneElement.SetAttribute(
+                "data-ppl-use-expansion",
+                "1");
+
+            string[] inheritedKeys =
+                new string[]
+                {
+                    "color",
+                    "opacity",
+                    "fill",
+                    "fill-opacity",
+                    "fill-rule",
+                    "stroke",
+                    "stroke-opacity",
+                    "stroke-width",
+                    "stroke-linecap",
+                    "stroke-linejoin",
+                    "stroke-miterlimit",
+                    "stroke-dasharray",
+                    "stroke-dashoffset"
+                };
+
+            for (int i = 0;
+                 i < inheritedKeys.Length;
+                 i++)
+            {
+                string key =
+                    inheritedKeys[i];
+
+                string existing =
+                    GetSvgStyle(
+                        clone,
+                        key);
+
+                if (!string.IsNullOrEmpty(
+                        existing) &&
+                    !string.Equals(
+                        existing.Trim(),
+                        "inherit",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                string fallback =
+                    GetSvgUseInvocationStyle(
+                        useNode,
+                        key);
+
+                if (!string.IsNullOrEmpty(
+                        fallback))
+                {
+                    cloneElement.SetAttribute(
+                        key,
+                        fallback);
+                }
+            }
+
+            GraphicsState state =
+                g.Save();
+
+            try
+            {
+                ApplySimpleSvgTransform(
+                    g,
+                    useNode,
+                    target,
+                    minX,
+                    minY,
+                    sx,
+                    sy);
+
+                float useX =
+                    ParseSvgFloat(
+                        GetAttr(
+                            useNode,
+                            "x"),
+                        0f) *
+                    sx;
+                float useY =
+                    ParseSvgFloat(
+                        GetAttr(
+                            useNode,
+                            "y"),
+                        0f) *
+                    sy;
+
+                if (Math.Abs(useX) >
+                        0.001f ||
+                    Math.Abs(useY) >
+                        0.001f)
+                {
+                    g.TranslateTransform(
+                        useX,
+                        useY);
+                }
+
+                ApplySimpleSvgTransform(
+                    g,
+                    clone,
+                    target,
+                    minX,
+                    minY,
+                    sx,
+                    sy);
+
+                return DrawEnhancedSvgChildren(
+                    g,
+                    clone,
+                    target,
+                    minX,
+                    minY,
+                    sx,
+                    sy);
+            }
+            finally
+            {
+                g.Restore(
+                    state);
+            }
+        }
+
+        private static bool HasSvgUseExpansionMarker(
+            XmlNode node)
+        {
+            XmlNode current =
+                node;
+
+            while (current != null)
+            {
+                if (string.Equals(
+                        GetAttr(
+                            current,
+                            "data-ppl-use-expansion"),
+                        "1",
+                        StringComparison.Ordinal))
+                {
+                    return true;
+                }
+
+                current =
+                    current.ParentNode;
+            }
+
+            return false;
+        }
+
+        private static string GetSvgUseInvocationStyle(
+            XmlNode useNode,
+            string key)
+        {
+            XmlNode current =
+                useNode;
+
+            while (current != null)
+            {
+                string value =
+                    GetSvgStyle(
+                        current,
+                        key);
+
+                if (!string.IsNullOrEmpty(
+                        value))
+                {
+                    value =
+                        value.Trim();
+
+                    if (!string.Equals(
+                            value,
+                            "inherit",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        return value;
+                    }
+                }
+
+                if (current.LocalName ==
+                    "svg")
+                {
+                    break;
+                }
+
+                current =
+                    current.ParentNode;
+            }
+
+            return null;
         }
 
         private static GraphicsPath BuildEnhancedSvgElementPath(

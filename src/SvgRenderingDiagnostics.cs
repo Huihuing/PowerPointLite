@@ -33,6 +33,7 @@ namespace PptxViewer
                 "<symbol id=\"reuseSymbol\" viewBox=\"0 0 10 10\"><rect x=\"0\" y=\"0\" width=\"6\" height=\"6\"/><circle cx=\"8\" cy=\"3\" r=\"2\"/></symbol>" +
                 "<symbol id=\"styledSymbol\" fill=\"#6b4fd3\" stroke=\"#2b1c68\"><rect x=\"0\" y=\"0\" width=\"5\" height=\"5\"/></symbol>" +
                 "<g id=\"styledGroup\" fill=\"#cc6b32\" stroke-width=\"2.25\"><rect x=\"0\" y=\"0\" width=\"4\" height=\"4\"/></g>" +
+                "<g id=\"multiStyleGroup\"><rect x=\"0\" y=\"0\" width=\"6\" height=\"8\" fill=\"#d43c32\"/><rect x=\"7\" y=\"0\" width=\"6\" height=\"8\" fill=\"#2864c8\"/></g>" +
                 "<use id=\"nestedUseSource\" xlink:href=\"#reuseSymbol\" x=\"2\" y=\"1\" width=\"20\" height=\"10\" preserveAspectRatio=\"none\"/>" +
                 "<linearGradient id=\"g\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\" spreadMethod=\"reflect\" gradientTransform=\"rotate(22 .5 .5)\">" +
                 "<stop offset=\"0%\" stop-color=\"#e84b4b\"/>" +
@@ -56,6 +57,7 @@ namespace PptxViewer
                 "<use id=\"styledUse\" xlink:href=\"#styledReference\" x=\"118\" y=\"2\"/>" +
                 "<use id=\"styledSymbolUse\" xlink:href=\"#styledSymbol\" x=\"106\" y=\"2\"/>" +
                 "<use id=\"styledGroupUse\" xlink:href=\"#styledGroup\" x=\"98\" y=\"2\"/>" +
+                "<use id=\"multiStyleUse\" xlink:href=\"#multiStyleGroup\" x=\"2\" y=\"2\"/>" +
                 "<use id=\"useSymbol\" xlink:href=\"#nestedUseSource\" x=\"146\" y=\"4\" fill=\"#3a7bd5\"/>" +
                 "<circle cx=\"154\" cy=\"28\" r=\"18\" fill=\"url(#g)\" transform=\"skewX(8)\"/>" +
                 "<rect id=\"clipRuleTarget\" x=\"176\" y=\"2\" width=\"20\" height=\"20\" fill=\"#7b61ff\" clip-path=\"url(#evenoddClip)\"/>" +
@@ -141,6 +143,72 @@ namespace PptxViewer
             {
                 throw new InvalidOperationException(
                     "SVG use did not inherit container-level presentation styles from symbol or group references.");
+            }
+
+            XmlNode multiStyleUseNode =
+                FindSvgNodeById(
+                    document,
+                    "multiStyleUse");
+
+            using (Bitmap useStyleBitmap =
+                new Bitmap(
+                    80,
+                    48,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics useStyleGraphics =
+                Graphics.FromImage(
+                    useStyleBitmap))
+            {
+                useStyleGraphics.Clear(
+                    Color.White);
+                useStyleGraphics.SmoothingMode =
+                    SmoothingMode.None;
+
+                if (!TryDrawEnhancedSvgUseContainer(
+                        useStyleGraphics,
+                        multiStyleUseNode,
+                        new RectangleF(
+                            0f,
+                            0f,
+                            80f,
+                            48f),
+                        0f,
+                        0f,
+                        4f,
+                        4f))
+                {
+                    throw new InvalidOperationException(
+                        "SVG use container expansion did not render the referenced group.");
+                }
+
+                Color firstChild =
+                    useStyleBitmap.GetPixel(
+                        12,
+                        16);
+                Color secondChild =
+                    useStyleBitmap.GetPixel(
+                        40,
+                        16);
+
+                bool firstRed =
+                    firstChild.R >
+                        150 &&
+                    firstChild.G <
+                        110 &&
+                    firstChild.B <
+                        100;
+                bool secondBlue =
+                    secondChild.B >
+                        130 &&
+                    secondChild.R <
+                        100;
+
+                if (!firstRed ||
+                    !secondBlue)
+                {
+                    throw new InvalidOperationException(
+                        "SVG use container expansion did not preserve distinct child fill styles.");
+                }
             }
 
             XmlNode nestedUseNode =
