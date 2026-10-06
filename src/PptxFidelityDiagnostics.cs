@@ -2103,6 +2103,7 @@ namespace PptxViewer
 
             doughnut.LoadXml(
                 "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<c:spPr><a:solidFill><a:srgbClr val=\"F0F4FA\"/></a:solidFill></c:spPr>" +
                 "<c:chart><c:title><c:tx><c:rich><a:p><a:r><a:t>Doughnut</a:t></a:r></a:p></c:rich></c:tx></c:title>" +
                 "<c:plotArea><c:doughnutChart><c:firstSliceAng val=\"75\"/><c:holeSize val=\"66\"/>" +
                 "<c:dLbls><c:showCatName val=\"1\"/><c:showPercent val=\"1\"/><c:separator> </c:separator></c:dLbls>" +
@@ -2111,7 +2112,9 @@ namespace PptxViewer
                     "Mix",
                     new string[] { "A", "B", "C", "D" },
                     new double[] { 22.0, 31.0, 17.0, 30.0 }) +
-                "</c:doughnutChart></c:plotArea>" +
+                "</c:doughnutChart>" +
+                "<c:spPr><a:solidFill><a:srgbClr val=\"EFF7EE\"/></a:solidFill></c:spPr>" +
+                "</c:plotArea>" +
                 "<c:legend><c:legendPos val=\"b\"/></c:legend></c:chart></c:chartSpace>");
 
             XmlDocument area =
@@ -2195,6 +2198,38 @@ namespace PptxViewer
                         580f,
                         360f),
                     theme);
+
+                Color extendedChartBackground =
+                    bitmap.GetPixel(
+                        20,
+                        20);
+                Color extendedPlotBackground =
+                    bitmap.GetPixel(
+                        60,
+                        60);
+
+                if (Math.Abs(
+                        extendedChartBackground.R -
+                        0xF0) > 3 ||
+                    Math.Abs(
+                        extendedChartBackground.G -
+                        0xF4) > 3 ||
+                    Math.Abs(
+                        extendedChartBackground.B -
+                        0xFA) > 3 ||
+                    Math.Abs(
+                        extendedPlotBackground.R -
+                        0xEF) > 3 ||
+                    Math.Abs(
+                        extendedPlotBackground.G -
+                        0xF7) > 3 ||
+                    Math.Abs(
+                        extendedPlotBackground.B -
+                        0xEE) > 3)
+                {
+                    throw new InvalidOperationException(
+                        "Extended chart chartSpace or plotArea fill was not rendered.");
+                }
 
                 DrawAreaChart(
                     graphics,
