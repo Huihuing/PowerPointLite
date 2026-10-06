@@ -1711,6 +1711,14 @@ namespace PptxViewer
                                 CombineMode.Intersect);
                         }
 
+                        DrawSvgGaussianBlurApproximation(
+                            g,
+                            node,
+                            parent.OwnerDocument,
+                            path,
+                            sx,
+                            sy);
+
                         using (Brush fillBrush =
                             CreateSvgFillBrush(
                                 node,
@@ -3652,6 +3660,363 @@ namespace PptxViewer
             }
 
             return true;
+        }
+
+        private static bool TryReadSvgGaussianBlur(
+            XmlNode node,
+            XmlDocument document,
+            float sx,
+            float sy,
+            out float blurX,
+            out float blurY)
+        {
+            blurX = 0f;
+            blurY = 0f;
+
+            if (node == null ||
+                document == null)
+            {
+                return false;
+            }
+
+            string filterValue =
+                GetSvgStyleInherited(
+                    node,
+                    "filter");
+
+            string filterId =
+                ExtractSvgUrlId(
+                    filterValue);
+
+            if (string.IsNullOrEmpty(
+                    filterId))
+            {
+                return false;
+            }
+
+            XmlNode filter =
+                FindSvgNodeById(
+                    document,
+                    filterId);
+
+            if (filter == null ||
+                filter.LocalName !=
+                    "filter")
+            {
+                return false;
+            }
+
+            XmlNode gaussian =
+                null;
+
+            for (int i = 0;
+                 i < filter.ChildNodes.Count;
+                 i++)
+            {
+                XmlNode child =
+                    filter.ChildNodes[i];
+
+                if (child != null &&
+                    child.LocalName ==
+                        "feGaussianBlur")
+                {
+                    gaussian =
+                        child;
+                    break;
+                }
+            }
+
+            if (gaussian == null)
+            {
+                return false;
+            }
+
+            string input =
+                GetAttr(
+                    gaussian,
+                    "in");
+
+            if (!string.IsNullOrEmpty(
+                    input) &&
+                !string.Equals(
+                    input,
+                    "SourceGraphic",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            string raw =
+                GetAttr(
+                    gaussian,
+                    "stdDeviation");
+
+            if (string.IsNullOrEmpty(
+                    raw))
+            {
+                return false;
+            }
+
+            string[] parts =
+                raw.Replace(
+                    ',',
+                    ' ')
+                .Split(
+                    new char[]
+                    {
+                        ' ',
+                        '\t',
+                        '\r',
+                        '\n'
+                    },
+                    StringSplitOptions.RemoveEmptyEntries);
+
+            if (parts.Length == 0)
+            {
+                return false;
+            }
+
+            float stdX =
+                Math.Max(
+                    0f,
+                    ParseSvgFloat(
+                        parts[0],
+                        0f));
+
+            float stdY =
+                parts.Length > 1
+                    ? Math.Max(
+                        0f,
+                        ParseSvgFloat(
+                            parts[1],
+                            stdX))
+                    : stdX;
+
+            blurX =
+                Math.Min(
+                    48f,
+                    stdX *
+                    Math.Abs(sx));
+
+            blurY =
+                Math.Min(
+                    48f,
+                    stdY *
+                    Math.Abs(sy));
+
+            return blurX > 0.05f ||
+                blurY > 0.05f;
+        }
+
+        private static void DrawSvgGaussianBlurApproximation(
+            Graphics g,
+            XmlNode node,
+            XmlDocument document,
+            GraphicsPath path,
+            float sx,
+            float sy)
+        {
+            if (g == null ||
+                node == null ||
+                path == null ||
+                path.PointCount == 0)
+            {
+                return;
+            }
+
+            float blurX;
+            float blurY;
+
+            if (!TryReadSvgGaussianBlur(
+                    node,
+                    document,
+                    sx,
+                    sy,
+                    out blurX,
+                    out blurY))
+            {
+                return;
+            }
+
+            string fillValue =
+                GetSvgStyleInherited(
+                    node,
+                    "fill");
+
+            bool solidFill =
+                !string.Equals(
+                    fillValue,
+                    "none",
+                    StringComparison.OrdinalIgnoreCase) &&
+                string.IsNullOrEmpty(
+                    ExtractSvgUrlId(
+                        fillValue));
+
+            Color fill =
+                ReadSvgColorInherited(
+                    node,
+                    "fill",
+                    Color.Black);
+
+            float overallOpacity =
+                ReadSvgOpacity(
+                    GetSvgStyleInherited(
+                        node,
+                        "opacity"),
+                    1f);
+
+            float fillOpacity =
+                ReadSvgOpacity(
+                    GetSvgStyleInherited(
+                        node,
+                        "fill-opacity"),
+                    1f);
+
+            int fillAlpha =
+                Math.Max(
+                    0,
+                    Math.Min(
+                        255,
+                        (int)Math.Round(
+                            fill.A *
+                            overallOpacity *
+                            fillOpacity)));
+
+            Color stroke =
+                ReadSvgColorInherited(
+                    node,
+                    "stroke",
+                    Color.Transparent);
+
+            float strokeOpacity =
+                ReadSvgOpacity(
+                    GetSvgStyleInherited(
+                        node,
+                        "stroke-opacity"),
+                    1f);
+
+            int strokeAlpha =
+                Math.Max(
+                    0,
+                    Math.Min(
+                        255,
+                        (int)Math.Round(
+                            stroke.A *
+                            overallOpacity *
+                            strokeOpacity)));
+
+            float strokeWidth =
+                Math.Max(
+                    1f,
+                    ParseSvgFloat(
+                        GetSvgStyleInherited(
+                            node,
+                            "stroke-width"),
+                        1f) *
+                    Math.Min(
+                        Math.Abs(sx),
+                        Math.Abs(sy)));
+
+            const int rings = 4;
+            const int directions = 12;
+
+            for (int ring = rings;
+                 ring >= 1;
+                 ring--)
+            {
+                float ringRatio =
+                    ring /
+                    (float)rings;
+
+                float alphaRatio =
+                    (rings -
+                     ring +
+                     1) /
+                    (float)(rings *
+                            12);
+
+                for (int direction = 0;
+                     direction < directions;
+                     direction++)
+                {
+                    double angle =
+                        direction *
+                        Math.PI *
+                        2.0 /
+                        directions;
+
+                    float offsetX =
+                        (float)Math.Cos(
+                            angle) *
+                        blurX *
+                        ringRatio;
+                    float offsetY =
+                        (float)Math.Sin(
+                            angle) *
+                        blurY *
+                        ringRatio;
+
+                    using (GraphicsPath shifted =
+                        (GraphicsPath)path.Clone())
+                    using (Matrix translation =
+                        new Matrix())
+                    {
+                        translation.Translate(
+                            offsetX,
+                            offsetY);
+                        shifted.Transform(
+                            translation);
+
+                        if (solidFill &&
+                            fillAlpha > 0)
+                        {
+                            int alpha =
+                                Math.Max(
+                                    1,
+                                    Math.Min(
+                                        255,
+                                        (int)Math.Round(
+                                            fillAlpha *
+                                            alphaRatio)));
+
+                            using (Brush brush =
+                                new SolidBrush(
+                                    Color.FromArgb(
+                                        alpha,
+                                        fill)))
+                            {
+                                g.FillPath(
+                                    brush,
+                                    shifted);
+                            }
+                        }
+
+                        if (strokeAlpha > 0)
+                        {
+                            int alpha =
+                                Math.Max(
+                                    1,
+                                    Math.Min(
+                                        255,
+                                        (int)Math.Round(
+                                            strokeAlpha *
+                                            alphaRatio)));
+
+                            using (Pen pen =
+                                new Pen(
+                                    Color.FromArgb(
+                                        alpha,
+                                        stroke),
+                                    strokeWidth))
+                            {
+                                g.DrawPath(
+                                    pen,
+                                    shifted);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         private static XmlNode FindSvgNodeById(

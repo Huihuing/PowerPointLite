@@ -40,10 +40,12 @@ namespace PptxViewer
                 "<rect x=\"6\" y=\"0\" width=\"6\" height=\"12\" fill=\"#4c78d6\"/>" +
                 "</pattern>" +
                 "<mask id=\"mask\"><circle cx=\"158\" cy=\"88\" r=\"24\" fill=\"white\"/></mask>" +
+                "<filter id=\"softBlur\"><feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"3\"/></filter>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<circle cx=\"154\" cy=\"28\" r=\"18\" fill=\"url(#g)\" transform=\"skewX(8)\"/>" +
                 "<rect x=\"8\" y=\"6\" width=\"48\" height=\"22\" fill=\"#1677d2\" clip-path=\"url(#nestedClip)\"/>" +
+                "<rect id=\"blurRect\" x=\"88\" y=\"14\" width=\"24\" height=\"18\" fill=\"#d62728\" filter=\"url(#softBlur)\"/>" +
                 "<path d=\"M 12 52 C 30 38 42 68 60 52 S 90 38 108 52 Q 126 70 142 52 T 184 52\" fill=\"none\" stroke=\"#6f42a8\" stroke-width=\"2\"/>" +
                 "<rect x=\"18\" y=\"66\" width=\"60\" height=\"42\" fill=\"url(#pat)\"/>" +
                 "<rect x=\"124\" y=\"64\" width=\"68\" height=\"48\" fill=\"#29b36b\" mask=\"url(#mask)\"/>" +
@@ -91,6 +93,32 @@ namespace PptxViewer
                     throw new InvalidOperationException(
                         "SVG reflect spreadMethod was not applied.");
                 }
+            }
+
+            XmlNode blurRect =
+                FindSvgNodeById(
+                    document,
+                    "blurRect");
+
+            float parsedBlurX;
+            float parsedBlurY;
+
+            if (!TryReadSvgGaussianBlur(
+                    blurRect,
+                    document,
+                    4f,
+                    4f,
+                    out parsedBlurX,
+                    out parsedBlurY) ||
+                Math.Abs(
+                    parsedBlurX -
+                    12f) > 0.1f ||
+                Math.Abs(
+                    parsedBlurY -
+                    12f) > 0.1f)
+            {
+                throw new InvalidOperationException(
+                    "SVG feGaussianBlur stdDeviation was not parsed correctly.");
             }
 
             using (Bitmap bitmap =
@@ -189,6 +217,18 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Nested transformed SVG clipPath geometry was not positioned correctly.");
+                }
+
+                Color blurHalo =
+                    bitmap.GetPixel(
+                        340,
+                        92);
+
+                if (blurHalo.G > 247 &&
+                    blurHalo.B > 247)
+                {
+                    throw new InvalidOperationException(
+                        "SVG feGaussianBlur approximation did not render outside the source geometry.");
                 }
 
                 Color patternA =
