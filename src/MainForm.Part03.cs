@@ -932,20 +932,20 @@ public sealed partial class MainForm : Form
                 return;
 
             string hidden = currentIndex < hiddenSlides.Count && hiddenSlides[currentIndex]
-                ? " | Hidden"
+                ? "  •  Hidden"
                 : "";
 
             string notes = currentIndex < speakerNotes.Count &&
                            !string.IsNullOrWhiteSpace(speakerNotes[currentIndex])
-                ? " | Notes"
+                ? "  •  Notes"
                 : "";
 
             status.Text = string.Format(
-                "{0} | {1} / {2} | {3}%{4}{5}",
-                activeEngine,
+                "{0} / {1}    •    {2}%    •    {3}{4}{5}",
                 currentIndex + 1,
                 renderedSlides.Count,
                 (int)Math.Round(zoom * 100),
+                activeEngine,
                 hidden,
                 notes);
         }
@@ -968,13 +968,13 @@ public sealed partial class MainForm : Form
                 100,
                 Math.Min(
                     mainSplit.Panel2.ClientSize.Width,
-                    viewerPanel.ClientSize.Width) - 24);
+                    viewerPanel.ClientSize.Width) - 56);
 
             int viewportH = Math.Max(
                 100,
                 Math.Min(
                     mainSplit.Panel2.ClientSize.Height,
-                    viewerPanel.ClientSize.Height) - 24);
+                    viewerPanel.ClientSize.Height) - 56);
 
             float sx = (float)viewportW / viewer.Image.Width;
             float sy = (float)viewportH / viewer.Image.Height;
