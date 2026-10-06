@@ -345,7 +345,7 @@ namespace PptxViewer
                     DrawEnhancedShape(zip, g, child, rels, ctx, theme, placeholderRects, slideNumber);
                 }
                 else if (name == "pic")
-                    DrawEnhancedPicture(zip, g, child, rels, ctx);
+                    DrawEnhancedPicture(zip, g, child, rels, ctx, theme);
                 else if (name == "cxnSp")
                     DrawConnector(g, child, ctx, theme);
                 else if (name == "graphicFrame")

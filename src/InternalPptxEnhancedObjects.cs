@@ -299,7 +299,8 @@ namespace PptxViewer
             Graphics g,
             XmlNode pic,
             Dictionary<string, string> rels,
-            TransformContext ctx)
+            TransformContext ctx,
+            Dictionary<string, Color> theme)
         {
             RectangleF rect;
             if (!TryGetRect(pic, ctx, out rect))
@@ -331,7 +332,13 @@ namespace PptxViewer
                     try
                     {
                         ApplyRotation(g, pic, rect);
-                        DrawImageWithDrawingEffects(g, image, source, rect, blip);
+                        DrawImageWithDrawingEffects(
+                            g,
+                            image,
+                            source,
+                            rect,
+                            blip,
+                            theme);
                     }
                     finally
                     {
@@ -378,21 +385,120 @@ namespace PptxViewer
             Bitmap image,
             RectangleF source,
             RectangleF target,
-            XmlNode blip)
+            XmlNode blip,
+            Dictionary<string, Color> theme)
         {
             float alpha = 1f;
-            XmlNode alphaNode = blip == null ? null : FindFirst(blip, "alphaModFix");
+
+            XmlNode alphaNode =
+                blip == null
+                    ? null
+                    : FindFirst(
+                        blip,
+                        "alphaModFix");
+
             if (alphaNode != null)
-                alpha = Math.Max(0f, Math.Min(1f, GetLong(alphaNode, "amt", 100000) / 100000f));
+            {
+                alpha =
+                    Math.Max(
+                        0f,
+                        Math.Min(
+                            1f,
+                            GetLong(
+                                alphaNode,
+                                "amt",
+                                100000) /
+                            100000f));
+            }
 
-            bool grayscale = blip != null && FindFirst(blip, "grayscl") != null;
-            XmlNode biLevel = blip == null ? null : FindFirst(blip, "biLevel");
-            XmlNode lum = blip == null ? null : FindFirst(blip, "lum");
-            float brightness = lum == null ? 0f : Math.Max(-1f, Math.Min(1f, GetLong(lum, "bright", 0) / 100000f));
-            float contrast = lum == null ? 0f : Math.Max(-1f, Math.Min(1f, GetLong(lum, "contrast", 0) / 100000f));
+            bool grayscale =
+                blip != null &&
+                FindFirst(
+                    blip,
+                    "grayscl") != null;
 
-            bool needsAttributes = grayscale || biLevel != null || alpha < 0.999f ||
-                Math.Abs(brightness) > 0.001f || Math.Abs(contrast) > 0.001f;
+            XmlNode biLevel =
+                blip == null
+                    ? null
+                    : FindFirst(
+                        blip,
+                        "biLevel");
+
+            XmlNode lum =
+                blip == null
+                    ? null
+                    : FindFirst(
+                        blip,
+                        "lum");
+
+            XmlNode duotone =
+                blip == null
+                    ? null
+                    : FindFirst(
+                        blip,
+                        "duotone");
+
+            XmlNode colorChange =
+                blip == null
+                    ? null
+                    : FindFirst(
+                        blip,
+                        "clrChange");
+
+            float brightness =
+                lum == null
+                    ? 0f
+                    : Math.Max(
+                        -1f,
+                        Math.Min(
+                            1f,
+                            GetLong(
+                                lum,
+                                "bright",
+                                0) /
+                            100000f));
+
+            float contrast =
+                lum == null
+                    ? 0f
+                    : Math.Max(
+                        -1f,
+                        Math.Min(
+                            1f,
+                            GetLong(
+                                lum,
+                                "contrast",
+                                0) /
+                            100000f));
+
+            Color duoLow;
+            Color duoHigh;
+            bool hasDuotone =
+                TryReadDuotoneColors(
+                    duotone,
+                    theme,
+                    out duoLow,
+                    out duoHigh);
+
+            Color changeFrom;
+            Color changeTo;
+            bool hasColorChange =
+                TryReadColorChange(
+                    colorChange,
+                    theme,
+                    out changeFrom,
+                    out changeTo);
+
+            bool needsAttributes =
+                grayscale ||
+                biLevel != null ||
+                hasDuotone ||
+                hasColorChange ||
+                alpha < 0.999f ||
+                Math.Abs(brightness) >
+                    0.001f ||
+                Math.Abs(contrast) >
+                    0.001f;
 
             if (!needsAttributes)
             {
@@ -407,30 +513,207 @@ namespace PptxViewer
                 return;
             }
 
-            using (ImageAttributes attributes = new ImageAttributes())
+            using (ImageAttributes attributes =
+                new ImageAttributes())
             {
-                ColorMatrix matrix = grayscale
-                    ? new ColorMatrix(new float[][]
-                    {
-                        new float[] { 0.299f, 0.299f, 0.299f, 0f, 0f },
-                        new float[] { 0.587f, 0.587f, 0.587f, 0f, 0f },
-                        new float[] { 0.114f, 0.114f, 0.114f, 0f, 0f },
-                        new float[] { 0f, 0f, 0f, alpha, 0f },
-                        new float[] { brightness, brightness, brightness, 0f, 1f }
-                    })
-                    : new ColorMatrix();
+                ColorMatrix matrix;
 
-                if (!grayscale)
+                if (hasDuotone)
                 {
-                    float scale = Math.Max(0f, 1f + contrast);
-                    float offset = brightness + (1f - scale) * 0.5f;
-                    matrix.Matrix00 = scale;
-                    matrix.Matrix11 = scale;
-                    matrix.Matrix22 = scale;
-                    matrix.Matrix33 = alpha;
-                    matrix.Matrix40 = offset;
-                    matrix.Matrix41 = offset;
-                    matrix.Matrix42 = offset;
+                    float scale =
+                        Math.Max(
+                            0f,
+                            1f +
+                            contrast);
+                    float offset =
+                        brightness +
+                        (1f -
+                         scale) *
+                        0.5f;
+
+                    float lowR =
+                        duoLow.R /
+                        255f;
+                    float lowG =
+                        duoLow.G /
+                        255f;
+                    float lowB =
+                        duoLow.B /
+                        255f;
+
+                    float deltaR =
+                        (duoHigh.R -
+                         duoLow.R) /
+                        255f;
+                    float deltaG =
+                        (duoHigh.G -
+                         duoLow.G) /
+                        255f;
+                    float deltaB =
+                        (duoHigh.B -
+                         duoLow.B) /
+                        255f;
+
+                    matrix =
+                        new ColorMatrix(
+                            new float[][]
+                            {
+                                new float[]
+                                {
+                                    0.299f *
+                                        scale *
+                                        deltaR,
+                                    0.299f *
+                                        scale *
+                                        deltaG,
+                                    0.299f *
+                                        scale *
+                                        deltaB,
+                                    0f,
+                                    0f
+                                },
+                                new float[]
+                                {
+                                    0.587f *
+                                        scale *
+                                        deltaR,
+                                    0.587f *
+                                        scale *
+                                        deltaG,
+                                    0.587f *
+                                        scale *
+                                        deltaB,
+                                    0f,
+                                    0f
+                                },
+                                new float[]
+                                {
+                                    0.114f *
+                                        scale *
+                                        deltaR,
+                                    0.114f *
+                                        scale *
+                                        deltaG,
+                                    0.114f *
+                                        scale *
+                                        deltaB,
+                                    0f,
+                                    0f
+                                },
+                                new float[]
+                                {
+                                    0f,
+                                    0f,
+                                    0f,
+                                    alpha,
+                                    0f
+                                },
+                                new float[]
+                                {
+                                    Math.Max(
+                                        -1f,
+                                        Math.Min(
+                                            1f,
+                                            lowR +
+                                            offset *
+                                            deltaR)),
+                                    Math.Max(
+                                        -1f,
+                                        Math.Min(
+                                            1f,
+                                            lowG +
+                                            offset *
+                                            deltaG)),
+                                    Math.Max(
+                                        -1f,
+                                        Math.Min(
+                                            1f,
+                                            lowB +
+                                            offset *
+                                            deltaB)),
+                                    0f,
+                                    1f
+                                }
+                            });
+                }
+                else if (grayscale)
+                {
+                    matrix =
+                        new ColorMatrix(
+                            new float[][]
+                            {
+                                new float[]
+                                {
+                                    0.299f,
+                                    0.299f,
+                                    0.299f,
+                                    0f,
+                                    0f
+                                },
+                                new float[]
+                                {
+                                    0.587f,
+                                    0.587f,
+                                    0.587f,
+                                    0f,
+                                    0f
+                                },
+                                new float[]
+                                {
+                                    0.114f,
+                                    0.114f,
+                                    0.114f,
+                                    0f,
+                                    0f
+                                },
+                                new float[]
+                                {
+                                    0f,
+                                    0f,
+                                    0f,
+                                    alpha,
+                                    0f
+                                },
+                                new float[]
+                                {
+                                    brightness,
+                                    brightness,
+                                    brightness,
+                                    0f,
+                                    1f
+                                }
+                            });
+                }
+                else
+                {
+                    matrix =
+                        new ColorMatrix();
+
+                    float scale =
+                        Math.Max(
+                            0f,
+                            1f +
+                            contrast);
+                    float offset =
+                        brightness +
+                        (1f -
+                         scale) *
+                        0.5f;
+
+                    matrix.Matrix00 =
+                        scale;
+                    matrix.Matrix11 =
+                        scale;
+                    matrix.Matrix22 =
+                        scale;
+                    matrix.Matrix33 =
+                        alpha;
+                    matrix.Matrix40 =
+                        offset;
+                    matrix.Matrix41 =
+                        offset;
+                    matrix.Matrix42 =
+                        offset;
                 }
 
                 attributes.SetColorMatrix(
@@ -438,11 +721,40 @@ namespace PptxViewer
                     ColorMatrixFlag.Default,
                     ColorAdjustType.Bitmap);
 
+                if (hasColorChange)
+                {
+                    ColorMap map =
+                        new ColorMap();
+
+                    map.OldColor =
+                        changeFrom;
+                    map.NewColor =
+                        changeTo;
+
+                    attributes.SetRemapTable(
+                        new ColorMap[]
+                        {
+                            map
+                        },
+                        ColorAdjustType.Bitmap);
+                }
+
                 if (biLevel != null)
                 {
-                    float threshold = Math.Max(0f, Math.Min(1f,
-                        GetLong(biLevel, "thresh", 50000) / 100000f));
-                    attributes.SetThreshold(threshold, ColorAdjustType.Bitmap);
+                    float threshold =
+                        Math.Max(
+                            0f,
+                            Math.Min(
+                                1f,
+                                GetLong(
+                                    biLevel,
+                                    "thresh",
+                                    50000) /
+                                100000f));
+
+                    attributes.SetThreshold(
+                        threshold,
+                        ColorAdjustType.Bitmap);
                 }
 
                 g.DrawImage(
@@ -455,6 +767,153 @@ namespace PptxViewer
                     GraphicsUnit.Pixel,
                     attributes);
             }
+        }
+
+        private static bool TryReadDuotoneColors(
+            XmlNode duotone,
+            Dictionary<string, Color> theme,
+            out Color low,
+            out Color high)
+        {
+            low =
+                Color.Black;
+            high =
+                Color.White;
+
+            if (duotone == null)
+                return false;
+
+            List<Color> colors =
+                new List<Color>();
+
+            for (int i = 0;
+                 i < duotone.ChildNodes.Count;
+                 i++)
+            {
+                XmlNode child =
+                    duotone.ChildNodes[i];
+
+                if (!IsDrawingColorNode(
+                        child))
+                {
+                    continue;
+                }
+
+                Color? color =
+                    ReadDrawingEffectColorNode(
+                        child,
+                        theme);
+
+                if (color.HasValue)
+                {
+                    colors.Add(
+                        color.Value);
+                }
+            }
+
+            if (colors.Count < 2)
+                return false;
+
+            low =
+                colors[0];
+            high =
+                colors[1];
+            return true;
+        }
+
+        private static bool TryReadColorChange(
+            XmlNode colorChange,
+            Dictionary<string, Color> theme,
+            out Color from,
+            out Color to)
+        {
+            from =
+                Color.Empty;
+            to =
+                Color.Empty;
+
+            if (colorChange == null)
+                return false;
+
+            XmlNode fromNode =
+                DirectChild(
+                    colorChange,
+                    "clrFrom");
+            XmlNode toNode =
+                DirectChild(
+                    colorChange,
+                    "clrTo");
+
+            Color? fromColor =
+                ReadColorFromFill(
+                    fromNode,
+                    theme);
+            Color? toColor =
+                ReadColorFromFill(
+                    toNode,
+                    theme);
+
+            if (!fromColor.HasValue ||
+                !toColor.HasValue)
+            {
+                return false;
+            }
+
+            from =
+                Color.FromArgb(
+                    255,
+                    fromColor.Value.R,
+                    fromColor.Value.G,
+                    fromColor.Value.B);
+
+            to =
+                toColor.Value;
+            return true;
+        }
+
+        private static bool IsDrawingColorNode(
+            XmlNode node)
+        {
+            if (node == null)
+                return false;
+
+            string name =
+                node.LocalName;
+
+            return name == "srgbClr" ||
+                name == "schemeClr" ||
+                name == "sysClr" ||
+                name == "prstClr";
+        }
+
+        private static Color? ReadDrawingEffectColorNode(
+            XmlNode colorNode,
+            Dictionary<string, Color> theme)
+        {
+            if (!IsDrawingColorNode(
+                    colorNode))
+            {
+                return null;
+            }
+
+            XmlDocument document =
+                new XmlDocument();
+
+            XmlElement wrapper =
+                document.CreateElement(
+                    "wrapper");
+
+            document.AppendChild(
+                wrapper);
+
+            wrapper.AppendChild(
+                document.ImportNode(
+                    colorNode,
+                    true));
+
+            return ReadColorFromFill(
+                wrapper,
+                theme);
         }
 
         private static bool TryDrawEnhancedSvg(

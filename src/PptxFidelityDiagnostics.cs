@@ -26,6 +26,11 @@ namespace PptxViewer
                     Path.GetFullPath(outputDirectory),
                     "custom-geometry.png"));
 
+            ValidateSyntheticImageEffects(
+                Path.Combine(
+                    Path.GetFullPath(outputDirectory),
+                    "image-effects.png"));
+
             ValidateSyntheticTextInheritance();
         }
 
@@ -375,6 +380,161 @@ namespace PptxViewer
                 activeMasterOtherStyle =
                     previousOther;
             }
+        }
+
+        private static void ValidateSyntheticImageEffects(
+            string outputPath)
+        {
+            Dictionary<string, Color> theme =
+                new Dictionary<string, Color>(
+                    StringComparer.OrdinalIgnoreCase);
+
+            using (Bitmap source =
+                new Bitmap(
+                    3,
+                    1,
+                    PixelFormat.Format32bppArgb))
+            {
+                source.SetPixel(
+                    0,
+                    0,
+                    Color.Black);
+                source.SetPixel(
+                    1,
+                    0,
+                    Color.FromArgb(
+                        128,
+                        128,
+                        128));
+                source.SetPixel(
+                    2,
+                    0,
+                    Color.White);
+
+                XmlDocument duotone =
+                    new XmlDocument();
+
+                duotone.LoadXml(
+                    "<a:blip xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                    "<a:duotone>" +
+                    "<a:srgbClr val=\"102040\"/>" +
+                    "<a:srgbClr val=\"F0C040\"/>" +
+                    "</a:duotone>" +
+                    "</a:blip>");
+
+                using (Bitmap output =
+                    new Bitmap(
+                        640,
+                        220,
+                        PixelFormat.Format32bppArgb))
+                using (Graphics graphics =
+                    Graphics.FromImage(output))
+                {
+                    graphics.Clear(
+                        Color.White);
+                    graphics.InterpolationMode =
+                        InterpolationMode.NearestNeighbor;
+                    graphics.PixelOffsetMode =
+                        PixelOffsetMode.Half;
+
+                    DrawImageWithDrawingEffects(
+                        graphics,
+                        source,
+                        new RectangleF(
+                            0f,
+                            0f,
+                            3f,
+                            1f),
+                        new RectangleF(
+                            20f,
+                            20f,
+                            300f,
+                            80f),
+                        duotone.DocumentElement,
+                        theme);
+
+                    Color dark =
+                        output.GetPixel(
+                            55,
+                            55);
+                    Color light =
+                        output.GetPixel(
+                            285,
+                            55);
+
+                    if (dark.B < 35 ||
+                        light.R < 190 ||
+                        Math.Abs(
+                            dark.R -
+                            light.R) < 70)
+                    {
+                        throw new InvalidOperationException(
+                            "Duotone image effect did not map luminance to the configured colors.");
+                    }
+
+                    using (Bitmap replacementSource =
+                        new Bitmap(
+                            1,
+                            1,
+                            PixelFormat.Format32bppArgb))
+                    {
+                        replacementSource.SetPixel(
+                            0,
+                            0,
+                            Color.FromArgb(
+                                255,
+                                0,
+                                0));
+
+                        XmlDocument change =
+                            new XmlDocument();
+
+                        change.LoadXml(
+                            "<a:blip xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                            "<a:clrChange>" +
+                            "<a:clrFrom><a:srgbClr val=\"FF0000\"/></a:clrFrom>" +
+                            "<a:clrTo><a:srgbClr val=\"22AA66\"/></a:clrTo>" +
+                            "</a:clrChange>" +
+                            "</a:blip>");
+
+                        DrawImageWithDrawingEffects(
+                            graphics,
+                            replacementSource,
+                            new RectangleF(
+                                0f,
+                                0f,
+                                1f,
+                                1f),
+                            new RectangleF(
+                                350f,
+                                20f,
+                                220f,
+                                80f),
+                            change.DocumentElement,
+                            theme);
+                    }
+
+                    Color changed =
+                        output.GetPixel(
+                            460,
+                            55);
+
+                    if (changed.G < 130 ||
+                        changed.R > 90 ||
+                        changed.B < 60)
+                    {
+                        throw new InvalidOperationException(
+                            "clrChange image effect did not remap the configured source color.");
+                    }
+
+                    output.Save(
+                        outputPath,
+                        ImageFormat.Png);
+                }
+            }
+
+            RequireDiagnosticFile(
+                outputPath);
         }
 
         private static void ValidateSyntheticCustomGeometry(
