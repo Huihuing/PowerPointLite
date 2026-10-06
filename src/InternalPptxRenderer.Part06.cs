@@ -47,6 +47,7 @@ internal static partial class InternalPptxRenderer
             public bool ShowSeriesName;
             public bool ShowPercent;
             public string NumberFormat;
+            public string Position;
             public string Separator = ", ";
 
             public bool HasAny
@@ -763,14 +764,13 @@ internal static partial class InternalPptxRenderer
                                             i,
                                             false);
 
-                                    DrawChartValueLabel(
+                                    DrawChartPointDataLabel(
                                         g,
                                         valueFont,
                                         valueBrush,
                                         label,
-                                        point.X,
-                                        point.Y - 16f,
-                                        true);
+                                        point,
+                                        labelOptions.Position);
                                 }
                             }
                         }
@@ -886,11 +886,6 @@ internal static partial class InternalPptxRenderer
 
                             if (labelOptions.HasAny)
                             {
-                                float labelX =
-                                    value >= 0.0
-                                        ? valueX + 4f
-                                        : valueX - 4f;
-
                                 string label =
                                     BuildChartDataLabel(
                                         labelOptions,
@@ -898,19 +893,22 @@ internal static partial class InternalPptxRenderer
                                         ci,
                                         false);
 
-                                DrawChartValueLabel(
+                                DrawBarChartDataLabel(
                                     g,
                                     valueFont,
                                     valueBrush,
                                     label,
-                                    labelX,
-                                    y +
+                                    new RectangleF(
+                                        left,
+                                        y,
+                                        width,
                                         Math.Max(
-                                            0f,
-                                            (barH -
-                                             valueFont.Height) /
-                                            2f),
-                                    value < 0.0);
+                                            1f,
+                                            barH - 1f)),
+                                    startX,
+                                    valueX,
+                                    value,
+                                    labelOptions.Position);
                             }
                         }
                     }
@@ -1025,13 +1023,6 @@ internal static partial class InternalPptxRenderer
 
                             if (labelOptions.HasAny)
                             {
-                                float labelY =
-                                    value >= 0.0
-                                        ? valueY -
-                                            valueFont.Height -
-                                            2f
-                                        : valueY + 2f;
-
                                 string label =
                                     BuildChartDataLabel(
                                         labelOptions,
@@ -1039,18 +1030,22 @@ internal static partial class InternalPptxRenderer
                                         ci,
                                         false);
 
-                                DrawChartValueLabel(
+                                DrawColumnChartDataLabel(
                                     g,
                                     valueFont,
                                     valueBrush,
                                     label,
-                                    x +
+                                    new RectangleF(
+                                        x,
+                                        top,
                                         Math.Max(
                                             1f,
-                                            (barW - 1f) /
-                                            2f),
-                                    labelY,
-                                    true);
+                                            barW - 1f),
+                                        height),
+                                    startY,
+                                    valueY,
+                                    value,
+                                    labelOptions.Position);
                             }
                         }
                     }
@@ -1562,6 +1557,19 @@ internal static partial class InternalPptxRenderer
                     GetAttr(
                         numberFormat,
                         "formatCode");
+            }
+
+            XmlNode position =
+                DirectChild(
+                    labels,
+                    "dLblPos");
+
+            if (position != null)
+            {
+                result.Position =
+                    GetAttr(
+                        position,
+                        "val");
             }
 
             XmlNode separator =
@@ -2349,6 +2357,249 @@ internal static partial class InternalPptxRenderer
                 magnitude;
         }
 
+        private static string NormalizeChartDataLabelPosition(
+            string position)
+        {
+            return string.IsNullOrEmpty(
+                    position)
+                ? string.Empty
+                : position.Trim()
+                    .ToLowerInvariant();
+        }
+
+        private static void DrawChartPointDataLabel(
+            Graphics g,
+            Font font,
+            Brush brush,
+            string text,
+            PointF point,
+            string position)
+        {
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            string normalized =
+                NormalizeChartDataLabelPosition(
+                    position);
+
+            SizeF size =
+                g.MeasureString(
+                    text,
+                    font);
+
+            float x =
+                point.X -
+                size.Width /
+                2f;
+            float y =
+                point.Y -
+                size.Height -
+                4f;
+
+            if (normalized == "b")
+            {
+                y =
+                    point.Y +
+                    4f;
+            }
+            else if (normalized == "l")
+            {
+                x =
+                    point.X -
+                    size.Width -
+                    4f;
+                y =
+                    point.Y -
+                    size.Height /
+                    2f;
+            }
+            else if (normalized == "r")
+            {
+                x =
+                    point.X +
+                    4f;
+                y =
+                    point.Y -
+                    size.Height /
+                    2f;
+            }
+            else if (normalized == "ctr")
+            {
+                y =
+                    point.Y -
+                    size.Height /
+                    2f;
+            }
+
+            g.DrawString(
+                text,
+                font,
+                brush,
+                x,
+                y);
+        }
+
+        private static void DrawBarChartDataLabel(
+            Graphics g,
+            Font font,
+            Brush brush,
+            string text,
+            RectangleF bar,
+            float baseX,
+            float valueX,
+            double value,
+            string position)
+        {
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            string normalized =
+                NormalizeChartDataLabelPosition(
+                    position);
+
+            SizeF size =
+                g.MeasureString(
+                    text,
+                    font);
+            float centerY =
+                bar.Top +
+                (bar.Height -
+                 size.Height) /
+                2f;
+
+            float x;
+
+            if (normalized == "ctr")
+            {
+                x =
+                    bar.Left +
+                    (bar.Width -
+                     size.Width) /
+                    2f;
+            }
+            else if (normalized == "inbase")
+            {
+                x =
+                    value >= 0.0
+                        ? baseX + 4f
+                        : baseX -
+                          size.Width -
+                          4f;
+            }
+            else if (normalized == "inend")
+            {
+                x =
+                    value >= 0.0
+                        ? valueX -
+                          size.Width -
+                          4f
+                        : valueX + 4f;
+            }
+            else
+            {
+                x =
+                    value >= 0.0
+                        ? valueX + 4f
+                        : valueX -
+                          size.Width -
+                          4f;
+            }
+
+            g.DrawString(
+                text,
+                font,
+                brush,
+                x,
+                centerY);
+        }
+
+        private static void DrawColumnChartDataLabel(
+            Graphics g,
+            Font font,
+            Brush brush,
+            string text,
+            RectangleF bar,
+            float baseY,
+            float valueY,
+            double value,
+            string position)
+        {
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            string normalized =
+                NormalizeChartDataLabelPosition(
+                    position);
+
+            SizeF size =
+                g.MeasureString(
+                    text,
+                    font);
+
+            float x =
+                bar.Left +
+                (bar.Width -
+                 size.Width) /
+                2f;
+            float y;
+
+            if (normalized == "ctr")
+            {
+                y =
+                    bar.Top +
+                    (bar.Height -
+                     size.Height) /
+                    2f;
+            }
+            else if (normalized == "inbase")
+            {
+                y =
+                    value >= 0.0
+                        ? baseY -
+                          size.Height -
+                          2f
+                        : baseY + 2f;
+            }
+            else if (normalized == "inend")
+            {
+                y =
+                    value >= 0.0
+                        ? valueY + 2f
+                        : valueY -
+                          size.Height -
+                          2f;
+            }
+            else if (normalized == "b")
+            {
+                y =
+                    bar.Bottom +
+                    2f;
+            }
+            else if (normalized == "t")
+            {
+                y =
+                    bar.Top -
+                    size.Height -
+                    2f;
+            }
+            else
+            {
+                y =
+                    value >= 0.0
+                        ? valueY -
+                          size.Height -
+                          2f
+                        : valueY + 2f;
+            }
+
+            g.DrawString(
+                text,
+                font,
+                brush,
+                x,
+                y);
+        }
+
         private static void DrawChartValueLabel(
             Graphics g,
             Font font,
@@ -2444,9 +2695,24 @@ internal static partial class InternalPptxRenderer
                     plot.Height) *
                 0.82f;
 
+            string labelPosition =
+                NormalizeChartDataLabelPosition(
+                    options == null
+                        ? null
+                        : options.Position);
+
+            float radiusFactor =
+                labelPosition == "ctr"
+                    ? 0.18f
+                    : labelPosition == "outend"
+                        ? 0.48f
+                        : labelPosition == "inend"
+                            ? 0.31f
+                            : 0.34f;
+
             float radius =
                 diameter *
-                0.34f;
+                radiusFactor;
 
             float cx =
                 plot.Left +
