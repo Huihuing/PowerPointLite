@@ -362,9 +362,22 @@ namespace PptxViewer
             return document;
         }
 
-        private static void DeleteEntryIfPresent(ZipArchive archive, string partName)
+        private static void DeleteEntryIfPresent(
+            ZipArchive archive,
+            string partName)
         {
-            ZipArchiveEntry existing = archive.GetEntry(partName);
+            if (archive == null)
+                return;
+
+            // .NET Framework ZipArchive throws NotSupportedException when
+            // GetEntry/Entries is queried while the archive is in Create
+            // mode. Fresh package writers use Create mode and do not have an
+            // existing entry to remove, so skip lookup entirely.
+            if (archive.Mode == ZipArchiveMode.Create)
+                return;
+
+            ZipArchiveEntry existing =
+                archive.GetEntry(partName);
 
             if (existing != null)
                 existing.Delete();
