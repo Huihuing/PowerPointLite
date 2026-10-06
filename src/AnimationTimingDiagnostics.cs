@@ -131,6 +131,18 @@ namespace PptxViewer
                 "<p:childTnLst><p:animMotion path=\"M 0 0 L 0.2 0\">" +
                 "<p:cBhvr><p:cTn id=\"41\" dur=\"600\"/><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cBhvr>" +
                 "</p:animMotion></p:childTnLst></p:cTn></p:par>" +
+                "<p:par><p:cTn id=\"50\" dur=\"600\" nodeType=\"withEffect\" presetClass=\"emph\" presetID=\"6\">" +
+                "<p:stCondLst><p:cond evt=\"onBegin\" delay=\"0\"/></p:stCondLst>" +
+                "<p:childTnLst><p:animScale><p:by x=\"125000\" y=\"115000\"/>" +
+                "<p:cBhvr><p:cTn id=\"51\" dur=\"600\"/><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cBhvr>" +
+                "</p:animScale></p:childTnLst></p:cTn></p:par>" +
+
+                "<p:par><p:cTn id=\"60\" dur=\"600\" nodeType=\"withEffect\" presetClass=\"emph\" presetID=\"8\">" +
+                "<p:stCondLst><p:cond evt=\"onBegin\" delay=\"0\"/></p:stCondLst>" +
+                "<p:childTnLst><p:animRot by=\"10800000\">" +
+                "<p:cBhvr><p:cTn id=\"61\" dur=\"600\"/><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cBhvr>" +
+                "</p:animRot></p:childTnLst></p:cTn></p:par>" +
+
 
                 "</p:childTnLst></p:cTn></p:seq></p:childTnLst>" +
                 "</p:cTn></p:par></p:tnLst></p:timing>";
@@ -164,8 +176,43 @@ namespace PptxViewer
             RequireActionClass(first, "exit");
             RequireActionClass(second, "motion");
 
-            if (!second.RequiresClick || second.Actions.Count != 1)
-                throw new InvalidOperationException("The second animation step was not parsed correctly.");
+            if (!second.RequiresClick ||
+                second.Actions.Count != 3)
+            {
+                throw new InvalidOperationException(
+                    "The second animation step was not parsed correctly.");
+            }
+
+            bool foundScale = false;
+            bool foundRotation = false;
+
+            for (int i = 0;
+                 i < second.Actions.Count;
+                 i++)
+            {
+                if (second.Actions[i].HasScale)
+                {
+                    foundScale =
+                        Math.Abs(
+                            second.Actions[i].ScaleToX -
+                            1.25f) < 0.01f;
+                }
+
+                if (second.Actions[i].HasRotation)
+                {
+                    foundRotation =
+                        Math.Abs(
+                            second.Actions[i].RotationToDegrees -
+                            180f) < 0.1f;
+                }
+            }
+
+            if (!foundScale ||
+                !foundRotation)
+            {
+                throw new InvalidOperationException(
+                    "Scale/rotation animation properties were not parsed.");
+            }
 
             if (first.TotalDurationMs < 450)
                 throw new InvalidOperationException("Animation duration/after-previous timing was not retained.");
@@ -213,6 +260,40 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Animation progress frame " +
+                        i.ToString() +
+                        " is missing.");
+                }
+            }
+
+            List<string> transformedFrames =
+                InternalPptxRenderer.RenderAnimationTimelineStepFrames(
+                    packagePath,
+                    renderDirectory,
+                    0,
+                    1,
+                    8);
+
+            if (transformedFrames == null ||
+                transformedFrames.Count != 8)
+            {
+                throw new InvalidOperationException(
+                    "Motion/scale/rotation animation frames were not created.");
+            }
+
+            for (int i = 0;
+                 i < transformedFrames.Count;
+                 i++)
+            {
+                if (string.IsNullOrEmpty(
+                        transformedFrames[i]) ||
+                    !File.Exists(
+                        transformedFrames[i]) ||
+                    new FileInfo(
+                        transformedFrames[i])
+                        .Length <= 0)
+                {
+                    throw new InvalidOperationException(
+                        "Transformed animation frame " +
                         i.ToString() +
                         " is missing.");
                 }
