@@ -48,6 +48,39 @@ internal static partial class InternalPptxRenderer
             }
         }
 
+        private sealed class ChartBarOptions
+        {
+            public string Grouping = "clustered";
+            public float GapWidth = 150f;
+            public float Overlap;
+
+            public bool IsStacked
+            {
+                get
+                {
+                    return string.Equals(
+                        Grouping,
+                        "stacked",
+                        StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(
+                            Grouping,
+                            "percentStacked",
+                            StringComparison.OrdinalIgnoreCase);
+                }
+            }
+
+            public bool IsPercentStacked
+            {
+                get
+                {
+                    return string.Equals(
+                        Grouping,
+                        "percentStacked",
+                        StringComparison.OrdinalIgnoreCase);
+                }
+            }
+        }
+
         private static void DrawChart(
             Graphics g,
             XmlDocument chartDoc,
@@ -351,13 +384,22 @@ internal static partial class InternalPptxRenderer
                 ReadChartLabelOptions(
                     chartDoc);
 
+            ChartBarOptions barOptions =
+                ReadChartBarOptions(
+                    chartDoc);
+
             if (kind == "pie")
             {
+                float firstSliceAngle =
+                    ReadChartFirstSliceAngle(
+                        chartDoc);
+
                 DrawPieChart(
                     g,
                     plot,
                     series[0],
-                    palette);
+                    palette,
+                    firstSliceAngle);
 
                 if (labelOptions.HasAny)
                 {
@@ -365,7 +407,8 @@ internal static partial class InternalPptxRenderer
                         g,
                         plot,
                         series[0],
-                        labelOptions);
+                        labelOptions,
+                        firstSliceAngle);
                 }
 
                 DrawChartLegend(
@@ -412,6 +455,18 @@ internal static partial class InternalPptxRenderer
             if (categoryCount <= 0)
                 categoryCount = 1;
 
+            if ((kind == "bar" ||
+                 kind == "column") &&
+                barOptions.IsStacked)
+            {
+                CalculateStackedChartRange(
+                    series,
+                    categoryCount,
+                    barOptions.IsPercentStacked,
+                    out minValue,
+                    out maxValue);
+            }
+
             if (Math.Abs(
                     maxValue -
                     minValue) < 0.0000001)
@@ -425,6 +480,14 @@ internal static partial class InternalPptxRenderer
                     chartDoc,
                     minValue,
                     maxValue);
+
+            if (barOptions.IsPercentStacked &&
+                string.IsNullOrEmpty(
+                    axisScale.NumberFormat))
+            {
+                axisScale.NumberFormat =
+                    "0%";
+            }
 
             minValue =
                 axisScale.Minimum;
@@ -644,12 +707,19 @@ internal static partial class InternalPptxRenderer
                         plot.Height /
                         categoryCount;
 
-                    float barH =
-                        Math.Max(
-                            2f,
-                            groupH *
-                            0.75f /
-                            series.Count);
+                    float barH;
+                    float barStep;
+                    float barSpan;
+
+                    CalculateChartBarLayout(
+                        groupH,
+                        barOptions.IsStacked
+                            ? 1
+                            : series.Count,
+                        barOptions,
+                        out barH,
+                        out barStep,
+                        out barSpan);
 
                     for (int ci = 0;
                          ci < categoryCount;
@@ -668,17 +738,39 @@ internal static partial class InternalPptxRenderer
                             double value =
                                 series[si].Values[ci];
 
+                            double segmentStart = 0.0;
+                            double segmentEnd = value;
+
+                            if (barOptions.IsStacked)
+                            {
+                                GetStackedChartSegment(
+                                    series,
+                                    ci,
+                                    si,
+                                    barOptions.IsPercentStacked,
+                                    out segmentStart,
+                                    out segmentEnd);
+                            }
+
+                            float startX =
+                                plot.Left +
+                                (float)(
+                                    ChartAxisFraction(
+                                        segmentStart,
+                                        axisScale) *
+                                    plot.Width);
+
                             float valueX =
                                 plot.Left +
                                 (float)(
                                     ChartAxisFraction(
-                                        value,
+                                        segmentEnd,
                                         axisScale) *
                                     plot.Width);
 
                             float left =
                                 Math.Min(
-                                    zeroX,
+                                    startX,
                                     valueX);
 
                             float width =
@@ -686,13 +778,17 @@ internal static partial class InternalPptxRenderer
                                     1f,
                                     Math.Abs(
                                         valueX -
-                                        zeroX));
+                                        startX));
 
                             float y =
                                 plot.Top +
                                 ci * groupH +
-                                groupH * 0.12f +
-                                si * barH;
+                                (groupH -
+                                 barSpan) /
+                                2f +
+                                (barOptions.IsStacked
+                                    ? 0f
+                                    : si * barStep);
 
                             Color color =
                                 GetChartSeriesColor(
@@ -750,12 +846,19 @@ internal static partial class InternalPptxRenderer
                         plot.Width /
                         categoryCount;
 
-                    float barW =
-                        Math.Max(
-                            2f,
-                            groupW *
-                            0.75f /
-                            series.Count);
+                    float barW;
+                    float barStep;
+                    float barSpan;
+
+                    CalculateChartBarLayout(
+                        groupW,
+                        barOptions.IsStacked
+                            ? 1
+                            : series.Count,
+                        barOptions,
+                        out barW,
+                        out barStep,
+                        out barSpan);
 
                     for (int ci = 0;
                          ci < categoryCount;
@@ -774,17 +877,39 @@ internal static partial class InternalPptxRenderer
                             double value =
                                 series[si].Values[ci];
 
+                            double segmentStart = 0.0;
+                            double segmentEnd = value;
+
+                            if (barOptions.IsStacked)
+                            {
+                                GetStackedChartSegment(
+                                    series,
+                                    ci,
+                                    si,
+                                    barOptions.IsPercentStacked,
+                                    out segmentStart,
+                                    out segmentEnd);
+                            }
+
+                            float startY =
+                                plot.Bottom -
+                                (float)(
+                                    ChartAxisFraction(
+                                        segmentStart,
+                                        axisScale) *
+                                    plot.Height);
+
                             float valueY =
                                 plot.Bottom -
                                 (float)(
                                     ChartAxisFraction(
-                                        value,
+                                        segmentEnd,
                                         axisScale) *
                                     plot.Height);
 
                             float top =
                                 Math.Min(
-                                    zeroY,
+                                    startY,
                                     valueY);
 
                             float height =
@@ -792,18 +917,23 @@ internal static partial class InternalPptxRenderer
                                     1f,
                                     Math.Abs(
                                         valueY -
-                                        zeroY));
+                                        startY));
 
                             float x =
                                 plot.Left +
                                 ci * groupW +
-                                groupW * 0.12f +
-                                si * barW;
+                                (groupW -
+                                 barSpan) /
+                                2f +
+                                (barOptions.IsStacked
+                                    ? 0f
+                                    : si * barStep);
 
                             Color color =
-                                palette[
-                                    si %
-                                    palette.Length];
+                                GetChartSeriesColor(
+                                    series,
+                                    si,
+                                    palette);
 
                             using (Brush brush =
                                 new SolidBrush(color))
@@ -874,6 +1004,429 @@ internal static partial class InternalPptxRenderer
                 palette,
                 kind,
                 legendPosition);
+        }
+
+        private static ChartBarOptions ReadChartBarOptions(
+            XmlDocument chartDoc)
+        {
+            ChartBarOptions result =
+                new ChartBarOptions();
+
+            XmlNode barChart =
+                chartDoc == null
+                    ? null
+                    : FindFirst(
+                        chartDoc,
+                        "barChart");
+
+            if (barChart == null)
+                return result;
+
+            XmlNode grouping =
+                DirectChild(
+                    barChart,
+                    "grouping");
+
+            string groupingValue =
+                grouping != null
+                    ? GetAttr(
+                        grouping,
+                        "val")
+                    : null;
+
+            if (!string.IsNullOrEmpty(
+                    groupingValue))
+            {
+                result.Grouping =
+                    groupingValue;
+            }
+
+            float parsed;
+
+            XmlNode gapWidth =
+                DirectChild(
+                    barChart,
+                    "gapWidth");
+
+            if (gapWidth != null &&
+                float.TryParse(
+                    GetAttr(
+                        gapWidth,
+                        "val"),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out parsed))
+            {
+                result.GapWidth =
+                    Math.Max(
+                        0f,
+                        Math.Min(
+                            500f,
+                            parsed));
+            }
+
+            XmlNode overlap =
+                DirectChild(
+                    barChart,
+                    "overlap");
+
+            if (overlap != null &&
+                float.TryParse(
+                    GetAttr(
+                        overlap,
+                        "val"),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out parsed))
+            {
+                result.Overlap =
+                    Math.Max(
+                        -100f,
+                        Math.Min(
+                            100f,
+                            parsed));
+            }
+
+            return result;
+        }
+
+        private static void CalculateChartBarLayout(
+            float slotSize,
+            int seriesCount,
+            ChartBarOptions options,
+            out float barSize,
+            out float seriesStep,
+            out float groupSpan)
+        {
+            slotSize =
+                Math.Max(
+                    1f,
+                    slotSize);
+
+            seriesCount =
+                Math.Max(
+                    1,
+                    seriesCount);
+
+            float gapWidth =
+                options != null
+                    ? options.GapWidth
+                    : 150f;
+
+            float overlap =
+                options != null
+                    ? options.Overlap
+                    : 0f;
+
+            float overlapFactor =
+                Math.Max(
+                    0f,
+                    Math.Min(
+                        2f,
+                        1f -
+                        overlap /
+                        100f));
+
+            float denominator =
+                1f +
+                (seriesCount -
+                 1) *
+                overlapFactor +
+                gapWidth /
+                100f;
+
+            barSize =
+                Math.Max(
+                    1f,
+                    Math.Min(
+                        slotSize,
+                        slotSize /
+                        Math.Max(
+                            0.25f,
+                            denominator)));
+
+            seriesStep =
+                barSize *
+                overlapFactor;
+
+            groupSpan =
+                barSize +
+                Math.Max(
+                    0,
+                    seriesCount -
+                    1) *
+                seriesStep;
+
+            if (groupSpan >
+                slotSize *
+                0.98f)
+            {
+                float scale =
+                    slotSize *
+                    0.98f /
+                    Math.Max(
+                        1f,
+                        groupSpan);
+
+                barSize *= scale;
+                seriesStep *= scale;
+                groupSpan *= scale;
+            }
+        }
+
+        private static void CalculateStackedChartRange(
+            List<ChartSeriesData> series,
+            int categoryCount,
+            bool percent,
+            out double minimum,
+            out double maximum)
+        {
+            minimum = 0.0;
+            maximum = 0.0;
+
+            for (int ci = 0;
+                 ci < categoryCount;
+                 ci++)
+            {
+                double positive = 0.0;
+                double negative = 0.0;
+
+                for (int si = 0;
+                     si < series.Count;
+                     si++)
+                {
+                    if (ci >=
+                        series[si].Values.Count)
+                    {
+                        continue;
+                    }
+
+                    double value =
+                        series[si].Values[ci];
+
+                    if (value >= 0.0)
+                        positive += value;
+                    else
+                        negative += value;
+                }
+
+                if (percent)
+                {
+                    if (positive > 0.0)
+                        maximum = 1.0;
+
+                    if (negative < 0.0)
+                        minimum = -1.0;
+                }
+                else
+                {
+                    maximum =
+                        Math.Max(
+                            maximum,
+                            positive);
+                    minimum =
+                        Math.Min(
+                            minimum,
+                            negative);
+                }
+            }
+
+            if (Math.Abs(
+                    maximum -
+                    minimum) <
+                0.0000001)
+            {
+                maximum =
+                    minimum + 1.0;
+            }
+        }
+
+        private static void GetStackedChartSegment(
+            List<ChartSeriesData> series,
+            int categoryIndex,
+            int seriesIndex,
+            bool percent,
+            out double start,
+            out double end)
+        {
+            start = 0.0;
+            end = 0.0;
+
+            if (series == null ||
+                seriesIndex < 0 ||
+                seriesIndex >= series.Count ||
+                categoryIndex < 0 ||
+                categoryIndex >=
+                    series[seriesIndex].Values.Count)
+            {
+                return;
+            }
+
+            double raw =
+                series[seriesIndex]
+                    .Values[categoryIndex];
+
+            double positiveTotal = 0.0;
+            double negativeTotal = 0.0;
+
+            if (percent)
+            {
+                for (int si = 0;
+                     si < series.Count;
+                     si++)
+                {
+                    if (categoryIndex >=
+                        series[si].Values.Count)
+                    {
+                        continue;
+                    }
+
+                    double value =
+                        series[si]
+                            .Values[categoryIndex];
+
+                    if (value >= 0.0)
+                        positiveTotal += value;
+                    else
+                        negativeTotal +=
+                            Math.Abs(value);
+                }
+            }
+
+            for (int si = 0;
+                 si < seriesIndex;
+                 si++)
+            {
+                if (categoryIndex >=
+                    series[si].Values.Count)
+                {
+                    continue;
+                }
+
+                double previous =
+                    series[si]
+                        .Values[categoryIndex];
+
+                if ((raw >= 0.0 &&
+                     previous < 0.0) ||
+                    (raw < 0.0 &&
+                     previous >= 0.0))
+                {
+                    continue;
+                }
+
+                if (percent)
+                {
+                    double total =
+                        previous >= 0.0
+                            ? positiveTotal
+                            : negativeTotal;
+
+                    if (total >
+                        0.0000001)
+                    {
+                        start +=
+                            previous /
+                            total;
+                    }
+                }
+                else
+                {
+                    start += previous;
+                }
+            }
+
+            double displayValue =
+                raw;
+
+            if (percent)
+            {
+                double total =
+                    raw >= 0.0
+                        ? positiveTotal
+                        : negativeTotal;
+
+                displayValue =
+                    total >
+                    0.0000001
+                        ? raw /
+                          total
+                        : 0.0;
+            }
+
+            end =
+                start +
+                displayValue;
+        }
+
+        private static float ReadChartFirstSliceAngle(
+            XmlDocument chartDoc)
+        {
+            XmlNode angle =
+                chartDoc == null
+                    ? null
+                    : FindFirst(
+                        chartDoc,
+                        "firstSliceAng");
+
+            float value;
+
+            if (angle != null &&
+                float.TryParse(
+                    GetAttr(
+                        angle,
+                        "val"),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out value))
+            {
+                value =
+                    Math.Max(
+                        0f,
+                        Math.Min(
+                            360f,
+                            value));
+
+                return -90f +
+                    value;
+            }
+
+            return -90f;
+        }
+
+        private static float ReadDoughnutHoleRatio(
+            XmlDocument chartDoc)
+        {
+            XmlNode hole =
+                chartDoc == null
+                    ? null
+                    : FindFirst(
+                        chartDoc,
+                        "holeSize");
+
+            float value;
+
+            if (hole != null &&
+                float.TryParse(
+                    GetAttr(
+                        hole,
+                        "val"),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out value))
+            {
+                value =
+                    Math.Max(
+                        10f,
+                        Math.Min(
+                            90f,
+                            value));
+
+                return value /
+                    100f;
+            }
+
+            return 0.50f;
         }
 
         private static ChartLabelOptions ReadChartLabelOptions(
@@ -1570,7 +2123,8 @@ internal static partial class InternalPptxRenderer
             Graphics g,
             RectangleF plot,
             ChartSeriesData series,
-            ChartLabelOptions options)
+            ChartLabelOptions options,
+            float startAngle)
         {
             if (series == null ||
                 series.Values.Count == 0)
@@ -1612,7 +2166,7 @@ internal static partial class InternalPptxRenderer
                 2f;
 
             float start =
-                -90f;
+                startAngle;
 
             using (Font font = SafeFont(
                 "Arial",
@@ -2783,7 +3337,8 @@ internal static partial class InternalPptxRenderer
             Graphics g,
             RectangleF plot,
             ChartSeriesData series,
-            Color[] palette)
+            Color[] palette,
+            float startAngle)
         {
             double total = 0;
             for (int i = 0; i < series.Values.Count; i++)
@@ -2798,7 +3353,7 @@ internal static partial class InternalPptxRenderer
                 diameter,
                 diameter);
 
-            float start = -90f;
+            float start = startAngle;
 
             for (int i = 0; i < series.Values.Count; i++)
             {
