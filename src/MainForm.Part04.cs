@@ -516,19 +516,131 @@ public sealed partial class MainForm : Form
             for (int i = 0; i < speakerNotes.Count; i++)
                 if (!string.IsNullOrWhiteSpace(speakerNotes[i])) noteCount++;
 
-            string message =
-                "File: " + (string.IsNullOrEmpty(currentFile) ? "" : Path.GetFileName(currentFile)) + "\r\n" +
-                "Slides: " + renderedSlides.Count.ToString() + "\r\n" +
-                "Hidden slides: " + hiddenCount.ToString() + "\r\n" +
-                "Slides with notes: " + noteCount.ToString() + "\r\n" +
-                "Renderer: " + activeEngine;
+            string fileName =
+                string.IsNullOrEmpty(currentFile)
+                    ? "(No file)"
+                    : Path.GetFileName(currentFile);
 
-            MessageBox.Show(
-                this,
-                message,
-                "Presentation Info",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
+            using (Form info = new Form())
+            {
+                info.Text = "Presentation Info";
+                info.StartPosition = FormStartPosition.CenterParent;
+                info.FormBorderStyle = FormBorderStyle.FixedDialog;
+                info.MinimizeBox = false;
+                info.MaximizeBox = false;
+                info.ShowInTaskbar = false;
+                info.ShowIcon = false;
+                info.Width = 520;
+                info.Height = 330;
+                info.BackColor = ApplicationTheme.Window;
+                info.ForeColor = ApplicationTheme.PrimaryText;
+                info.Padding = new Padding(20);
+
+                Label heading = new Label();
+                heading.AutoSize = false;
+                heading.Left = 20;
+                heading.Top = 18;
+                heading.Width = 460;
+                heading.Height = 28;
+                heading.Text = "Presentation";
+                heading.Font = new Font(
+                    info.Font,
+                    FontStyle.Bold);
+                heading.ForeColor =
+                    ApplicationTheme.PrimaryText;
+                info.Controls.Add(heading);
+
+                Label file = new Label();
+                file.AutoSize = false;
+                file.Left = 20;
+                file.Top = 48;
+                file.Width = 460;
+                file.Height = 24;
+                file.Text = fileName;
+                file.AutoEllipsis = true;
+                file.ForeColor =
+                    ApplicationTheme.SecondaryText;
+                info.Controls.Add(file);
+
+                Panel card = new Panel();
+                card.Left = 20;
+                card.Top = 84;
+                card.Width = 460;
+                card.Height = 150;
+                card.BackColor =
+                    ApplicationTheme.Surface;
+                card.Padding = new Padding(16);
+                info.Controls.Add(card);
+
+                string[] names =
+                    new string[]
+                    {
+                        "Slides",
+                        "Hidden slides",
+                        "Slides with notes",
+                        "Renderer"
+                    };
+
+                string[] values =
+                    new string[]
+                    {
+                        renderedSlides.Count.ToString(),
+                        hiddenCount.ToString(),
+                        noteCount.ToString(),
+                        activeEngine
+                    };
+
+                for (int i = 0;
+                     i < names.Length;
+                     i++)
+                {
+                    int y =
+                        14 +
+                        i * 32;
+
+                    Label name = new Label();
+                    name.Left = 16;
+                    name.Top = y;
+                    name.Width = 180;
+                    name.Height = 22;
+                    name.Text = names[i];
+                    name.ForeColor =
+                        ApplicationTheme.SecondaryText;
+                    card.Controls.Add(name);
+
+                    Label value = new Label();
+                    value.Left = 210;
+                    value.Top = y;
+                    value.Width = 230;
+                    value.Height = 22;
+                    value.Text = values[i] ?? "";
+                    value.TextAlign =
+                        ContentAlignment.MiddleRight;
+                    value.AutoEllipsis = true;
+                    value.ForeColor =
+                        ApplicationTheme.PrimaryText;
+                    card.Controls.Add(value);
+                }
+
+                Button close = new Button();
+                close.Text = "Close";
+                close.Tag = "PresentationInfoClose";
+                close.Width = 92;
+                close.Height = 32;
+                close.Left = 388;
+                close.Top = 250;
+                close.Anchor =
+                    AnchorStyles.Bottom |
+                    AnchorStyles.Right;
+                close.DialogResult = DialogResult.OK;
+                ApplicationTheme.ApplyButton(close);
+                info.Controls.Add(close);
+
+                info.AcceptButton = close;
+                info.CancelButton = close;
+
+                info.ShowDialog(this);
+            }
         }
 
         private void TogglePresenterView()
