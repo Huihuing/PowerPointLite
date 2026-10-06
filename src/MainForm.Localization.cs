@@ -98,17 +98,28 @@ namespace PptxViewer
             if (toolbar == null)
                 return;
 
-            int buttonHeight = 30;
-            Control documentStrip = toolbar.Controls["DocumentWorkspaceStrip"];
-            int reservedBottom = documentStrip != null && documentStrip.Visible
-                ? documentStrip.Height
-                : 0;
+            int buttonHeight = 32;
+            Control documentStrip =
+                toolbar.Controls["DocumentWorkspaceStrip"];
+            int reservedBottom =
+                documentStrip != null &&
+                documentStrip.Visible
+                    ? documentStrip.Height
+                    : 0;
             int topBandHeight = Math.Max(
                 buttonHeight,
-                toolbar.ClientSize.Height - reservedBottom);
-            int top = Math.Max(0, (topBandHeight - buttonHeight) / 2);
-            int x = 8;
-            int gap = 6;
+                toolbar.ClientSize.Height -
+                reservedBottom);
+            int top = Math.Max(
+                0,
+                (topBandHeight -
+                 buttonHeight) /
+                2);
+            int x = 10;
+            int gap = 4;
+            int separatorIndex = 0;
+
+            HideToolbarSeparators();
 
             string[] order = new string[]
             {
@@ -119,43 +130,63 @@ namespace PptxViewer
                 "100%",
                 "Full",
                 "F5 Show",
-                "TOC",
-                "Print",
-                "Recent",
-                "View",
                 "Presenter",
+                "TOC",
+                "View",
+                "Recent",
+                "Print",
                 "Workspace",
                 "Auto TOC"
             };
 
-            bool hasWorkspace = FindToolbarButton("Workspace") != null;
+            bool hasWorkspace =
+                FindToolbarButton(
+                    "Workspace") != null;
 
-            for (int i = 0; i < order.Length; i++)
+            for (int i = 0;
+                 i < order.Length;
+                 i++)
             {
-                Button button = FindToolbarButton(order[i]);
+                string key =
+                    order[i];
+                Button button =
+                    FindToolbarButton(
+                        key);
+
                 if (button == null)
                     continue;
 
-                if (order[i] == "Auto TOC" && hasWorkspace)
+                if (key == "Auto TOC" &&
+                    hasWorkspace)
                 {
                     button.Visible = false;
                     continue;
                 }
 
                 button.Visible = true;
-                NormalizeToolbarButton(button);
+                NormalizeToolbarButton(
+                    button);
 
-                int minimumWidth = GetToolbarButtonMinimumWidth(order[i]);
-                Size measured = TextRenderer.MeasureText(
-                    button.Text ?? "",
-                    button.Font,
-                    new Size(500, buttonHeight),
-                    TextFormatFlags.SingleLine |
-                    TextFormatFlags.NoPadding);
+                int minimumWidth =
+                    GetToolbarButtonMinimumWidth(
+                        key);
+                Size measured =
+                    TextRenderer.MeasureText(
+                        button.Text ?? "",
+                        button.Font,
+                        new Size(
+                            500,
+                            buttonHeight),
+                        TextFormatFlags.SingleLine |
+                        TextFormatFlags.NoPadding);
 
-                int desiredWidth = Math.Max(
-                    minimumWidth,
-                    Math.Min(118, measured.Width + 20));
+                int desiredWidth =
+                    Math.Max(
+                        minimumWidth,
+                        Math.Min(
+                            122,
+                            measured.Width +
+                            24));
 
                 button.SetBounds(
                     x,
@@ -163,46 +194,156 @@ namespace PptxViewer
                     desiredWidth,
                     buttonHeight);
 
-                x += desiredWidth + gap;
+                x +=
+                    desiredWidth +
+                    gap;
+
+                if (IsToolbarGroupBreakAfter(
+                        key))
+                {
+                    Panel separator =
+                        GetToolbarSeparator(
+                            separatorIndex++);
+
+                    separator.SetBounds(
+                        x + 3,
+                        top + 5,
+                        1,
+                        Math.Max(
+                            12,
+                            buttonHeight - 10));
+                    separator.Visible = true;
+                    separator.BringToFront();
+
+                    x += 12;
+                }
             }
 
             if (zoomTrack != null)
             {
-                zoomTrack.Left = x + 8;
-                zoomTrack.Top = Math.Max(
-                    0,
-                    (topBandHeight - zoomTrack.Height) / 2);
-                x = zoomTrack.Right + 14;
+                int preferredZoomWidth =
+                    toolbar.ClientSize.Width <
+                        1180
+                        ? 96
+                        : 128;
+
+                zoomTrack.Width =
+                    preferredZoomWidth;
+                zoomTrack.Left =
+                    x + 4;
+                zoomTrack.Top =
+                    Math.Max(
+                        0,
+                        (topBandHeight -
+                         zoomTrack.Height) /
+                        2);
+                x =
+                    zoomTrack.Right +
+                    12;
             }
 
             if (languageButton != null)
             {
-                NormalizeToolbarButton(languageButton);
-                languageButton.Width = 82;
-                languageButton.Height = buttonHeight;
+                NormalizeToolbarButton(
+                    languageButton);
+                languageButton.Width = 84;
+                languageButton.Height =
+                    buttonHeight;
                 languageButton.Top = top;
-                languageButton.Left = Math.Max(
-                    8,
-                    toolbar.ClientSize.Width - languageButton.Width - 8);
+                languageButton.Left =
+                    Math.Max(
+                        10,
+                        toolbar.ClientSize.Width -
+                        languageButton.Width -
+                        10);
                 languageButton.BringToFront();
             }
 
             if (engineLabel != null)
             {
-                int rightLimit = languageButton != null
-                    ? languageButton.Left - 12
-                    : toolbar.ClientSize.Width - 8;
+                int rightLimit =
+                    languageButton != null
+                        ? languageButton.Left - 12
+                        : toolbar.ClientSize.Width - 10;
 
-                int available = Math.Max(0, rightLimit - x);
+                int available =
+                    Math.Max(
+                        0,
+                        rightLimit - x);
 
                 engineLabel.Left = x;
-                engineLabel.Top = Math.Max(
-                    0,
-                    (topBandHeight - 22) / 2);
-                engineLabel.Height = 22;
-                engineLabel.Width = Math.Max(0, available);
-                engineLabel.Visible = available >= 70;
+                engineLabel.Top =
+                    Math.Max(
+                        0,
+                        (topBandHeight - 20) /
+                        2);
+                engineLabel.Height = 20;
+                engineLabel.Width =
+                    Math.Max(
+                        0,
+                        available);
+                engineLabel.Visible =
+                    available >= 84;
             }
+        }
+
+        private void HideToolbarSeparators()
+        {
+            if (toolbar == null)
+                return;
+
+            for (int i = 0;
+                 i < toolbar.Controls.Count;
+                 i++)
+            {
+                Control control =
+                    toolbar.Controls[i];
+
+                if (control != null &&
+                    control.Name != null &&
+                    control.Name.StartsWith(
+                        "ToolbarGroupSeparator",
+                        StringComparison.Ordinal))
+                {
+                    control.Visible = false;
+                }
+            }
+        }
+
+        private Panel GetToolbarSeparator(
+            int index)
+        {
+            string name =
+                "ToolbarGroupSeparator" +
+                index.ToString();
+
+            Panel separator =
+                toolbar.Controls[name]
+                as Panel;
+
+            if (separator == null)
+            {
+                separator =
+                    new Panel();
+                separator.Name = name;
+                separator.BackColor =
+                    ApplicationTheme.Divider;
+                separator.TabStop = false;
+                toolbar.Controls.Add(
+                    separator);
+            }
+
+            return separator;
+        }
+
+        private static bool IsToolbarGroupBreakAfter(
+            string key)
+        {
+            return
+                key == "Open" ||
+                key == ">" ||
+                key == "Full" ||
+                key == "Presenter";
         }
 
         private Button FindToolbarButton(string key)
@@ -229,24 +370,25 @@ namespace PptxViewer
             if (button == null)
                 return;
 
+            ApplicationTheme.ApplyButton(button);
             button.TextAlign = ContentAlignment.MiddleCenter;
             button.UseCompatibleTextRendering = true;
-            button.Padding = new Padding(0, 1, 0, 0);
+            button.Padding = new Padding(8, 0, 8, 1);
             button.AutoSize = false;
             button.AutoEllipsis = true;
         }
 
         private static int GetToolbarButtonMinimumWidth(string key)
         {
-            if (key == "<" || key == ">") return 44;
-            if (key == "Open") return 72;
-            if (key == "F5 Show") return 90;
-            if (key == "Print") return 68;
-            if (key == "Recent") return 72;
-            if (key == "Presenter") return 82;
-            if (key == "Workspace") return 84;
-            if (key == "Auto TOC") return 82;
-            return 62;
+            if (key == "<" || key == ">") return 40;
+            if (key == "Open") return 76;
+            if (key == "F5 Show") return 96;
+            if (key == "Print") return 70;
+            if (key == "Recent") return 76;
+            if (key == "Presenter") return 90;
+            if (key == "Workspace") return 88;
+            if (key == "Auto TOC") return 86;
+            return 64;
         }
 
         private void OnUiLanguageChanged(object sender, EventArgs e)

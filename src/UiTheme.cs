@@ -6,58 +6,67 @@ namespace PptxViewer
 {
     internal static class ApplicationTheme
     {
-        public static readonly Color Window = Color.FromArgb(24, 26, 31);
-        public static readonly Color Toolbar = Color.FromArgb(31, 34, 40);
-        public static readonly Color Sidebar = Color.FromArgb(27, 30, 35);
-        public static readonly Color Surface = Color.FromArgb(38, 42, 49);
-        public static readonly Color SurfaceHover = Color.FromArgb(49, 54, 63);
-        public static readonly Color SurfacePressed = Color.FromArgb(58, 64, 74);
-        public static readonly Color Canvas = Color.FromArgb(15, 17, 20);
-        public static readonly Color Divider = Color.FromArgb(52, 57, 66);
-        public static readonly Color PrimaryText = Color.FromArgb(242, 244, 247);
-        public static readonly Color SecondaryText = Color.FromArgb(172, 179, 189);
-        public static readonly Color Accent = Color.FromArgb(91, 140, 255);
-        public static readonly Color AccentSoft = Color.FromArgb(54, 78, 126);
+        public static readonly Color Window = Color.FromArgb(23, 25, 29);
+        public static readonly Color Toolbar = Color.FromArgb(29, 32, 37);
+        public static readonly Color Sidebar = Color.FromArgb(26, 29, 34);
+        public static readonly Color Surface = Color.FromArgb(37, 41, 47);
+        public static readonly Color SurfaceHover = Color.FromArgb(47, 52, 60);
+        public static readonly Color SurfacePressed = Color.FromArgb(55, 61, 71);
+        public static readonly Color Canvas = Color.FromArgb(14, 16, 19);
+        public static readonly Color Divider = Color.FromArgb(57, 62, 72);
+        public static readonly Color PrimaryText = Color.FromArgb(243, 245, 248);
+        public static readonly Color SecondaryText = Color.FromArgb(166, 173, 184);
+        public static readonly Color Accent = Color.FromArgb(76, 125, 255);
+        public static readonly Color AccentHover = Color.FromArgb(92, 139, 255);
+        public static readonly Color AccentPressed = Color.FromArgb(61, 108, 228);
+        public static readonly Color AccentSoft = Color.FromArgb(48, 68, 107);
+        public static readonly Color AccentSoftHover = Color.FromArgb(60, 84, 132);
+        public static readonly Color AccentSoftPressed = Color.FromArgb(43, 61, 96);
 
         public static void ApplyButton(Button button)
         {
             if (button == null)
                 return;
 
+            Color baseColor = Surface;
+            Color hoverColor = SurfaceHover;
+            Color pressedColor = SurfacePressed;
+
+            string role =
+                button.Tag as string ??
+                string.Empty;
+
+            if (string.Equals(
+                    role,
+                    "Open",
+                    StringComparison.Ordinal))
+            {
+                baseColor = Accent;
+                hoverColor = AccentHover;
+                pressedColor = AccentPressed;
+            }
+            else if (string.Equals(
+                         role,
+                         "F5 Show",
+                         StringComparison.Ordinal))
+            {
+                baseColor = AccentSoft;
+                hoverColor = AccentSoftHover;
+                pressedColor = AccentSoftPressed;
+            }
+
             button.FlatStyle = FlatStyle.Flat;
             button.FlatAppearance.BorderSize = 0;
-            button.BackColor = Surface;
+            button.FlatAppearance.MouseOverBackColor = hoverColor;
+            button.FlatAppearance.MouseDownBackColor = pressedColor;
+            button.BackColor = baseColor;
             button.ForeColor = PrimaryText;
             button.Cursor = Cursors.Hand;
             button.UseVisualStyleBackColor = false;
             button.TextAlign = ContentAlignment.MiddleCenter;
             button.UseCompatibleTextRendering = true;
-            button.Padding = new Padding(0, 1, 0, 0);
+            button.Padding = new Padding(8, 0, 8, 1);
             button.AutoEllipsis = true;
-
-            button.MouseEnter += delegate
-            {
-                if (button.Enabled)
-                    button.BackColor = SurfaceHover;
-            };
-
-            button.MouseLeave += delegate
-            {
-                if (button.Enabled)
-                    button.BackColor = Surface;
-            };
-
-            button.MouseDown += delegate(object sender, MouseEventArgs e)
-            {
-                if (button.Enabled && e.Button == MouseButtons.Left)
-                    button.BackColor = SurfacePressed;
-            };
-
-            button.MouseUp += delegate
-            {
-                if (button.Enabled)
-                    button.BackColor = SurfaceHover;
-            };
         }
 
         public static void ApplyContextMenu(ContextMenuStrip menu)
@@ -127,14 +136,14 @@ namespace PptxViewer
 
             try
             {
-                Font = new Font("Segoe UI", 9f, FontStyle.Regular, GraphicsUnit.Point);
+                Font = new Font("Segoe UI", 9.25f, FontStyle.Regular, GraphicsUnit.Point);
             }
             catch
             {
                 Font = SystemFonts.MessageBoxFont;
             }
 
-            toolbar.Height = 84;
+            toolbar.Height = 82;
             toolbar.BackColor = ApplicationTheme.Toolbar;
 
             mainSplit.BackColor = ApplicationTheme.Divider;
@@ -142,11 +151,23 @@ namespace PptxViewer
             viewerPanel.BackColor = ApplicationTheme.Canvas;
             viewer.BackColor = Color.Black;
 
-            status.Height = 28;
+            status.Height = 27;
             status.BackColor = ApplicationTheme.Toolbar;
             status.ForeColor = ApplicationTheme.SecondaryText;
             status.TextAlign = ContentAlignment.MiddleLeft;
-            status.Padding = new Padding(12, 0, 8, 0);
+            status.Padding = new Padding(12, 0, 10, 0);
+            status.Paint += delegate(object sender, PaintEventArgs e)
+            {
+                using (Pen divider = new Pen(ApplicationTheme.Divider))
+                {
+                    e.Graphics.DrawLine(
+                        divider,
+                        0,
+                        0,
+                        Math.Max(0, status.ClientSize.Width - 1),
+                        0);
+                }
+            };
 
             engineLabel.ForeColor = ApplicationTheme.SecondaryText;
 
@@ -180,14 +201,26 @@ namespace PptxViewer
             Panel strip = new Panel();
             strip.Name = "DocumentWorkspaceStrip";
             strip.Dock = DockStyle.Bottom;
-            strip.Height = 34;
-            strip.BackColor = Color.FromArgb(26, 29, 34);
-            strip.Padding = new Padding(8, 2, 8, 2);
+            strip.Height = 32;
+            strip.BackColor = Color.FromArgb(25, 28, 33);
+            strip.Padding = new Padding(10, 2, 10, 2);
+            strip.Paint += delegate(object sender, PaintEventArgs e)
+            {
+                using (Pen divider = new Pen(ApplicationTheme.Divider))
+                {
+                    e.Graphics.DrawLine(
+                        divider,
+                        0,
+                        0,
+                        Math.Max(0, strip.ClientSize.Width - 1),
+                        0);
+                }
+            };
 
             Label section = new Label();
             section.AutoSize = false;
             section.Left = 10;
-            section.Top = 7;
+            section.Top = 6;
             section.Width = 82;
             section.Height = 20;
             section.Font = new Font(Font, FontStyle.Bold);
@@ -197,16 +230,16 @@ namespace PptxViewer
             Button workspace = new Button();
             workspace.Left = 96;
             workspace.Top = 3;
-            workspace.Width = 106;
-            workspace.Height = 28;
+            workspace.Width = 112;
+            workspace.Height = 26;
             workspace.TabStop = true;
             ApplicationTheme.ApplyButton(workspace);
             workspace.Click += delegate { ShowOfficeWorkspace(); };
             strip.Controls.Add(workspace);
 
             Label formats = new Label();
-            formats.Left = 216;
-            formats.Top = 7;
+            formats.Left = 220;
+            formats.Top = 6;
             formats.Width = 520;
             formats.Height = 20;
             formats.ForeColor = ApplicationTheme.SecondaryText;
@@ -214,7 +247,7 @@ namespace PptxViewer
 
             Label shortcut = new Label();
             shortcut.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            shortcut.Top = 7;
+            shortcut.Top = 6;
             shortcut.Width = 210;
             shortcut.Height = 20;
             shortcut.Left = Math.Max(746, toolbar.ClientSize.Width - shortcut.Width - 12);
