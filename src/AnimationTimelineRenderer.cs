@@ -2108,51 +2108,92 @@ namespace PptxViewer
                         1f,
                         progress));
 
-            float dx;
-            float dy;
+            float dx = 0f;
+            float dy = 0f;
 
-            TryReadMotionPathDelta(
-                action.MotionPath,
-                out dx,
-                out dy);
+            float pathX;
+            float pathY;
+
+            bool hasPathPoint =
+                TryEvaluateMotionPath(
+                    action.MotionPath,
+                    progress,
+                    out pathX,
+                    out pathY);
+
+            if (hasPathPoint)
+            {
+                float startX;
+                float startY;
+
+                if (!TryEvaluateMotionPath(
+                        action.MotionPath,
+                        0f,
+                        out startX,
+                        out startY))
+                {
+                    startX = 0f;
+                    startY = 0f;
+                }
+
+                dx =
+                    pathX -
+                    startX;
+                dy =
+                    pathY -
+                    startY;
+            }
+            else
+            {
+                TryReadMotionPathDelta(
+                    action.MotionPath,
+                    out dx,
+                    out dy);
+
+                dx *= progress;
+                dy *= progress;
+            }
 
             if (Math.Abs(dx) <
                     0.0001f &&
                 Math.Abs(dy) <
-                    0.0001f)
+                    0.0001f &&
+                progress > 0f)
             {
+                float fallback =
+                    0.18f *
+                    progress;
+
                 if (action.VisualDirection ==
                     "fromRight")
                 {
-                    dx = 0.18f;
+                    dx = fallback;
                 }
                 else if (action.VisualDirection ==
                     "fromTop")
                 {
-                    dy = -0.18f;
+                    dy = -fallback;
                 }
                 else if (action.VisualDirection ==
                     "fromBottom")
                 {
-                    dy = 0.18f;
+                    dy = fallback;
                 }
                 else
                 {
-                    dx = -0.18f;
+                    dx = -fallback;
                 }
             }
 
             int offsetX =
                 (int)Math.Round(
                     dx *
-                    width *
-                    progress);
+                    width);
 
             int offsetY =
                 (int)Math.Round(
                     dy *
-                    height *
-                    progress);
+                    height);
 
             Rectangle destination =
                 new Rectangle(
@@ -2334,6 +2375,173 @@ namespace PptxViewer
             }
 
             return layer;
+        }
+
+        internal static bool TryEvaluateMotionPath(
+            string pathData,
+            float progress,
+            out float x,
+            out float y)
+        {
+            x = 0f;
+            y = 0f;
+
+            if (string.IsNullOrEmpty(
+                    pathData))
+            {
+                return false;
+            }
+
+            progress =
+                Math.Max(
+                    0f,
+                    Math.Min(
+                        1f,
+                        progress));
+
+            using (GraphicsPath path =
+                BuildSvgPath(
+                    pathData,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        1f,
+                        1f),
+                    0f,
+                    0f,
+                    1f,
+                    1f))
+            {
+                if (path == null ||
+                    path.PointCount < 2)
+                {
+                    return false;
+                }
+
+                path.Flatten();
+
+                PointF[] points =
+                    path.PathPoints;
+
+                byte[] types =
+                    path.PathTypes;
+
+                if (points == null ||
+                    points.Length < 2)
+                {
+                    return false;
+                }
+
+                double total = 0.0;
+
+                for (int i = 1;
+                     i < points.Length;
+                     i++)
+                {
+                    if ((types[i] &
+                         (byte)PathPointType.PathTypeMask) ==
+                        (byte)PathPointType.Start)
+                    {
+                        continue;
+                    }
+
+                    double dx =
+                        points[i].X -
+                        points[i - 1].X;
+                    double dy =
+                        points[i].Y -
+                        points[i - 1].Y;
+
+                    total +=
+                        Math.Sqrt(
+                            dx * dx +
+                            dy * dy);
+                }
+
+                if (total <= 0.0000001)
+                    return false;
+
+                double target =
+                    total *
+                    progress;
+
+                double traversed = 0.0;
+
+                PointF first =
+                    points[0];
+
+                if (progress <= 0f)
+                {
+                    x = first.X;
+                    y = first.Y;
+                    return true;
+                }
+
+                for (int i = 1;
+                     i < points.Length;
+                     i++)
+                {
+                    if ((types[i] &
+                         (byte)PathPointType.PathTypeMask) ==
+                        (byte)PathPointType.Start)
+                    {
+                        continue;
+                    }
+
+                    PointF from =
+                        points[i - 1];
+                    PointF to =
+                        points[i];
+
+                    double segX =
+                        to.X -
+                        from.X;
+                    double segY =
+                        to.Y -
+                        from.Y;
+
+                    double length =
+                        Math.Sqrt(
+                            segX * segX +
+                            segY * segY);
+
+                    if (length <= 0.0000001)
+                        continue;
+
+                    if (traversed +
+                        length >=
+                        target)
+                    {
+                        double local =
+                            (target -
+                             traversed) /
+                            length;
+
+                        x =
+                            (float)(
+                                from.X +
+                                segX *
+                                local);
+                        y =
+                            (float)(
+                                from.Y +
+                                segY *
+                                local);
+                        return true;
+                    }
+
+                    traversed += length;
+                }
+
+                PointF last =
+                    points[
+                        points.Length -
+                        1];
+
+                x = last.X;
+                y = last.Y;
+                return true;
+            }
         }
 
         private static void TryReadMotionPathDelta(

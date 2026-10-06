@@ -122,7 +122,8 @@ slide load
 → after-previous는 앞 action 종료 시점 뒤에 배치
 → delay/duration을 내부 timer에 반영
 → entrance/exit는 단계별 render state에 반영
-→ emphasis/motion은 현재 상태를 보존하면서 시각 근사
+→ emphasis/motion은 현재 상태를 보존하면서 개체 레이어 단위로 시각 근사
+→ motion path는 M/L/H/V/C/S/Q/T/A path를 flatten하여 경로 길이 기준으로 보간
 → slide advTm은 animation click을 소비하지 않고 실제 다음 slide로 이동
 ```
 
@@ -150,7 +151,7 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 - 3D shape / bevel / material / lighting
 - complex custom geometry formula/adjust handle
 - exact PowerPoint easing curve parity
-- exact motion-path interpolation
+- PowerPoint의 origin/pathEditMode 등 세부 motion-path 좌표계 semantics
 - scheme/HSL color animation과 복합 color transform
 - trigger-on-specific-object, media bookmark 등 고급 trigger
 - nested sequence/parallel timing tree의 모든 PowerPoint edge case

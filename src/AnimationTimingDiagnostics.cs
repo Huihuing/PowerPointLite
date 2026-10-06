@@ -129,7 +129,7 @@ namespace PptxViewer
                 // Step 2: another click starts a motion-path approximation.
                 "<p:par><p:cTn id=\"40\" dur=\"600\" nodeType=\"clickEffect\" presetClass=\"path\" presetID=\"1\" autoRev=\"1\">" +
                 "<p:stCondLst><p:cond evt=\"onClick\" delay=\"40\"/></p:stCondLst>" +
-                "<p:childTnLst><p:animMotion path=\"M 0 0 L 0.2 0\">" +
+                "<p:childTnLst><p:animMotion path=\"M 0 0 C 0.04 -0.14 0.16 0.14 0.2 0\">" +
                 "<p:cBhvr><p:cTn id=\"41\" dur=\"600\"/><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cBhvr>" +
                 "</p:animMotion></p:childTnLst></p:cTn></p:par>" +
                 "<p:par><p:cTn id=\"50\" dur=\"600\" nodeType=\"withEffect\" presetClass=\"emph\" presetID=\"6\">" +
@@ -256,6 +256,21 @@ namespace PptxViewer
 
             if (second.AutoStartDelayMs != 40)
                 throw new InvalidOperationException("Animation start delay was not retained.");
+
+            float motionMidX;
+            float motionMidY;
+
+            if (!InternalPptxRenderer.TryEvaluateMotionPath(
+                    "M 0 0 C 0.04 -0.14 0.16 0.14 0.2 0",
+                    0.35f,
+                    out motionMidX,
+                    out motionMidY) ||
+                motionMidX <= 0.01f ||
+                Math.Abs(motionMidY) <= 0.002f)
+            {
+                throw new InvalidOperationException(
+                    "Curved motion-path interpolation was not retained.");
+            }
 
             for (int state = 0; state <= 2; state++)
             {
