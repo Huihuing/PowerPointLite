@@ -32,35 +32,61 @@ internal static class ViewerDialogs
                 form.MinimizeBox = false;
                 form.MaximizeBox = false;
                 form.ShowInTaskbar = false;
-                form.Width = 430;
-                form.Height = 160;
+                form.ShowIcon = false;
+                form.Width = 460;
+                form.Height = 190;
+                form.MinimumSize = new Size(420, 190);
+                form.BackColor = ApplicationTheme.Window;
+                form.ForeColor = ApplicationTheme.PrimaryText;
+                form.Padding = new Padding(18);
 
                 Label label = new Label();
-                label.Left = 12;
-                label.Top = 14;
-                label.Width = 390;
+                label.Left = 18;
+                label.Top = 18;
+                label.Width = 406;
+                label.Height = 22;
                 label.Text = labelText;
+                label.ForeColor = ApplicationTheme.SecondaryText;
+                label.AutoEllipsis = true;
 
                 TextBox text = new TextBox();
-                text.Left = 12;
-                text.Top = 40;
-                text.Width = 390;
+                text.Left = 18;
+                text.Top = 48;
+                text.Width = 406;
+                text.Height = 28;
                 text.Text = initialValue ?? "";
+                text.BackColor = ApplicationTheme.Surface;
+                text.ForeColor = ApplicationTheme.PrimaryText;
+                text.BorderStyle = BorderStyle.FixedSingle;
+                text.Anchor =
+                    AnchorStyles.Top |
+                    AnchorStyles.Left |
+                    AnchorStyles.Right;
                 text.SelectAll();
 
                 Button ok = new Button();
                 ok.Text = "OK";
-                ok.Left = 246;
-                ok.Top = 76;
-                ok.Width = 75;
+                ok.Left = 252;
+                ok.Top = 96;
+                ok.Width = 82;
+                ok.Height = 32;
+                ok.Anchor =
+                    AnchorStyles.Bottom |
+                    AnchorStyles.Right;
                 ok.DialogResult = DialogResult.OK;
+                ApplicationTheme.ApplyButton(ok);
 
                 Button cancel = new Button();
                 cancel.Text = "Cancel";
-                cancel.Left = 327;
-                cancel.Top = 76;
-                cancel.Width = 75;
+                cancel.Left = 342;
+                cancel.Top = 96;
+                cancel.Width = 82;
+                cancel.Height = 32;
+                cancel.Anchor =
+                    AnchorStyles.Bottom |
+                    AnchorStyles.Right;
                 cancel.DialogResult = DialogResult.Cancel;
+                ApplicationTheme.ApplyButton(cancel);
 
                 form.Controls.Add(label);
                 form.Controls.Add(text);
