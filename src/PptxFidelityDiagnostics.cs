@@ -36,6 +36,8 @@ namespace PptxViewer
                     Path.GetFullPath(outputDirectory),
                     "shape-effects.png"));
 
+            ValidateSyntheticColorTransforms();
+
             ValidateSyntheticTextInheritance();
         }
 
@@ -384,6 +386,100 @@ namespace PptxViewer
                     previousBody;
                 activeMasterOtherStyle =
                     previousOther;
+            }
+        }
+
+        private static void ValidateSyntheticColorTransforms()
+        {
+            XmlDocument document =
+                new XmlDocument();
+
+            document.LoadXml(
+                "<a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<a:srgbClr val=\"CC6633\">" +
+                "<a:hueOff val=\"7200000\"/>" +
+                "<a:satMod val=\"55000\"/>" +
+                "<a:lumOff val=\"8000\"/>" +
+                "</a:srgbClr>" +
+                "</a:solidFill>");
+
+            Color? transformed =
+                ReadColorFromFill(
+                    document.DocumentElement,
+                    new Dictionary<string, Color>(
+                        StringComparer.OrdinalIgnoreCase));
+
+            if (!transformed.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "DrawingML HSL color transform did not produce a color.");
+            }
+
+            Color original =
+                Color.FromArgb(
+                    0xCC,
+                    0x66,
+                    0x33);
+
+            if (Math.Abs(
+                    transformed.Value.R -
+                    original.R) < 8 &&
+                Math.Abs(
+                    transformed.Value.G -
+                    original.G) < 8 &&
+                Math.Abs(
+                    transformed.Value.B -
+                    original.B) < 8)
+            {
+                throw new InvalidOperationException(
+                    "DrawingML hue/saturation/luminance transforms were not applied.");
+            }
+
+            XmlDocument grayDocument =
+                new XmlDocument();
+
+            grayDocument.LoadXml(
+                "<a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<a:srgbClr val=\"2080E0\"><a:gray/></a:srgbClr>" +
+                "</a:solidFill>");
+
+            Color? gray =
+                ReadColorFromFill(
+                    grayDocument.DocumentElement,
+                    null);
+
+            if (!gray.HasValue ||
+                Math.Abs(
+                    gray.Value.R -
+                    gray.Value.G) > 1 ||
+                Math.Abs(
+                    gray.Value.G -
+                    gray.Value.B) > 1)
+            {
+                throw new InvalidOperationException(
+                    "DrawingML gray transform was not applied.");
+            }
+
+            XmlDocument inverseDocument =
+                new XmlDocument();
+
+            inverseDocument.LoadXml(
+                "<a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<a:srgbClr val=\"102030\"><a:inv/></a:srgbClr>" +
+                "</a:solidFill>");
+
+            Color? inverse =
+                ReadColorFromFill(
+                    inverseDocument.DocumentElement,
+                    null);
+
+            if (!inverse.HasValue ||
+                inverse.Value.R != 0xEF ||
+                inverse.Value.G != 0xDF ||
+                inverse.Value.B != 0xCF)
+            {
+                throw new InvalidOperationException(
+                    "DrawingML inverse color transform was not applied.");
             }
         }
 

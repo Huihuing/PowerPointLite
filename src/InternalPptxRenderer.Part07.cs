@@ -420,48 +420,653 @@ internal static partial class InternalPptxRenderer
             return Color.FromArgb(alpha, transformed.R, transformed.G, transformed.B);
         }
 
-        private static Color ApplyColorTransforms(Color color, XmlNode colorNode)
+        private static Color ApplyColorTransforms(
+            Color color,
+            XmlNode colorNode)
         {
-            if (colorNode == null) return color;
+            if (colorNode == null)
+                return color;
 
-            double r = color.R;
-            double g = color.G;
-            double b = color.B;
+            Color current =
+                color;
 
-            XmlNode tint = DirectChild(colorNode, "tint");
-            if (tint != null)
+            for (int i = 0;
+                 i < colorNode.ChildNodes.Count;
+                 i++)
             {
-                double f = Math.Max(0, Math.Min(1, GetLong(tint, "val", 0) / 100000.0));
-                r = r + (255 - r) * f;
-                g = g + (255 - g) * f;
-                b = b + (255 - b) * f;
+                XmlNode transform =
+                    colorNode.ChildNodes[i];
+
+                string name =
+                    transform.LocalName;
+
+                if (name == "alpha" ||
+                    name == "alphaMod" ||
+                    name == "alphaOff")
+                {
+                    continue;
+                }
+
+                if (name == "tint")
+                {
+                    double factor =
+                        Math.Max(
+                            0.0,
+                            Math.Min(
+                                1.0,
+                                GetLong(
+                                    transform,
+                                    "val",
+                                    0) /
+                                100000.0));
+
+                    current =
+                        Color.FromArgb(
+                            BlendColorChannel(
+                                current.R,
+                                255,
+                                factor),
+                            BlendColorChannel(
+                                current.G,
+                                255,
+                                factor),
+                            BlendColorChannel(
+                                current.B,
+                                255,
+                                factor));
+                    continue;
+                }
+
+                if (name == "shade")
+                {
+                    double factor =
+                        Math.Max(
+                            0.0,
+                            Math.Min(
+                                1.0,
+                                GetLong(
+                                    transform,
+                                    "val",
+                                    100000) /
+                                100000.0));
+
+                    current =
+                        Color.FromArgb(
+                            ClampColorByte(
+                                current.R *
+                                factor),
+                            ClampColorByte(
+                                current.G *
+                                factor),
+                            ClampColorByte(
+                                current.B *
+                                factor));
+                    continue;
+                }
+
+                if (name == "inv")
+                {
+                    current =
+                        Color.FromArgb(
+                            255 -
+                                current.R,
+                            255 -
+                                current.G,
+                            255 -
+                                current.B);
+                    continue;
+                }
+
+                if (name == "gray")
+                {
+                    int gray =
+                        ClampColorByte(
+                            current.R *
+                                0.299 +
+                            current.G *
+                                0.587 +
+                            current.B *
+                                0.114);
+
+                    current =
+                        Color.FromArgb(
+                            gray,
+                            gray,
+                            gray);
+                    continue;
+                }
+
+                double hue;
+                double saturation;
+                double lightness;
+
+                RgbToHsl(
+                    current,
+                    out hue,
+                    out saturation,
+                    out lightness);
+
+                if (name == "comp")
+                {
+                    hue =
+                        NormalizeHue(
+                            hue +
+                            180.0);
+
+                    current =
+                        HslToRgb(
+                            hue,
+                            saturation,
+                            lightness);
+                    continue;
+                }
+
+                if (name == "hue")
+                {
+                    hue =
+                        NormalizeHue(
+                            GetLong(
+                                transform,
+                                "val",
+                                0) /
+                            60000.0);
+
+                    current =
+                        HslToRgb(
+                            hue,
+                            saturation,
+                            lightness);
+                    continue;
+                }
+
+                if (name == "hueOff")
+                {
+                    hue =
+                        NormalizeHue(
+                            hue +
+                            GetLong(
+                                transform,
+                                "val",
+                                0) /
+                            60000.0);
+
+                    current =
+                        HslToRgb(
+                            hue,
+                            saturation,
+                            lightness);
+                    continue;
+                }
+
+                if (name == "hueMod")
+                {
+                    hue =
+                        NormalizeHue(
+                            hue *
+                            GetLong(
+                                transform,
+                                "val",
+                                100000) /
+                            100000.0);
+
+                    current =
+                        HslToRgb(
+                            hue,
+                            saturation,
+                            lightness);
+                    continue;
+                }
+
+                if (name == "sat")
+                {
+                    saturation =
+                        ClampUnit(
+                            GetLong(
+                                transform,
+                                "val",
+                                0) /
+                            100000.0);
+
+                    current =
+                        HslToRgb(
+                            hue,
+                            saturation,
+                            lightness);
+                    continue;
+                }
+
+                if (name == "satOff")
+                {
+                    saturation =
+                        ClampUnit(
+                            saturation +
+                            GetLong(
+                                transform,
+                                "val",
+                                0) /
+                            100000.0);
+
+                    current =
+                        HslToRgb(
+                            hue,
+                            saturation,
+                            lightness);
+                    continue;
+                }
+
+                if (name == "satMod")
+                {
+                    saturation =
+                        ClampUnit(
+                            saturation *
+                            GetLong(
+                                transform,
+                                "val",
+                                100000) /
+                            100000.0);
+
+                    current =
+                        HslToRgb(
+                            hue,
+                            saturation,
+                            lightness);
+                    continue;
+                }
+
+                if (name == "lum")
+                {
+                    lightness =
+                        ClampUnit(
+                            GetLong(
+                                transform,
+                                "val",
+                                0) /
+                            100000.0);
+
+                    current =
+                        HslToRgb(
+                            hue,
+                            saturation,
+                            lightness);
+                    continue;
+                }
+
+                if (name == "lumOff")
+                {
+                    lightness =
+                        ClampUnit(
+                            lightness +
+                            GetLong(
+                                transform,
+                                "val",
+                                0) /
+                            100000.0);
+
+                    current =
+                        HslToRgb(
+                            hue,
+                            saturation,
+                            lightness);
+                    continue;
+                }
+
+                if (name == "lumMod")
+                {
+                    lightness =
+                        ClampUnit(
+                            lightness *
+                            GetLong(
+                                transform,
+                                "val",
+                                100000) /
+                            100000.0);
+
+                    current =
+                        HslToRgb(
+                            hue,
+                            saturation,
+                            lightness);
+                    continue;
+                }
+
+                if (name == "gamma")
+                {
+                    current =
+                        ApplyGammaColor(
+                            current,
+                            false);
+                    continue;
+                }
+
+                if (name == "invGamma")
+                {
+                    current =
+                        ApplyGammaColor(
+                            current,
+                            true);
+                }
             }
 
-            XmlNode shade = DirectChild(colorNode, "shade");
-            if (shade != null)
+            return current;
+        }
+
+        private static int BlendColorChannel(
+            int from,
+            int to,
+            double fraction)
+        {
+            return ClampColorByte(
+                from +
+                (to -
+                 from) *
+                fraction);
+        }
+
+        private static int ClampColorByte(
+            double value)
+        {
+            return Math.Max(
+                0,
+                Math.Min(
+                    255,
+                    (int)Math.Round(
+                        value)));
+        }
+
+        private static double ClampUnit(
+            double value)
+        {
+            return Math.Max(
+                0.0,
+                Math.Min(
+                    1.0,
+                    value));
+        }
+
+        private static double NormalizeHue(
+            double degrees)
+        {
+            degrees %=
+                360.0;
+
+            if (degrees < 0.0)
+                degrees += 360.0;
+
+            return degrees;
+        }
+
+        private static void RgbToHsl(
+            Color color,
+            out double hue,
+            out double saturation,
+            out double lightness)
+        {
+            double r =
+                color.R /
+                255.0;
+            double g =
+                color.G /
+                255.0;
+            double b =
+                color.B /
+                255.0;
+
+            double max =
+                Math.Max(
+                    r,
+                    Math.Max(
+                        g,
+                        b));
+            double min =
+                Math.Min(
+                    r,
+                    Math.Min(
+                        g,
+                        b));
+
+            lightness =
+                (max +
+                 min) /
+                2.0;
+
+            double delta =
+                max -
+                min;
+
+            if (delta <
+                0.0000001)
             {
-                double f = Math.Max(0, Math.Min(1, GetLong(shade, "val", 100000) / 100000.0));
-                r *= f; g *= f; b *= f;
+                hue = 0.0;
+                saturation = 0.0;
+                return;
             }
 
-            XmlNode lumMod = DirectChild(colorNode, "lumMod");
-            if (lumMod != null)
+            saturation =
+                lightness > 0.5
+                    ? delta /
+                        (2.0 -
+                         max -
+                         min)
+                    : delta /
+                        (max +
+                         min);
+
+            double h;
+
+            if (Math.Abs(
+                    max -
+                    r) <
+                0.0000001)
             {
-                double f = GetLong(lumMod, "val", 100000) / 100000.0;
-                r *= f; g *= f; b *= f;
+                h =
+                    (g -
+                     b) /
+                    delta +
+                    (g < b
+                        ? 6.0
+                        : 0.0);
+            }
+            else if (Math.Abs(
+                         max -
+                         g) <
+                     0.0000001)
+            {
+                h =
+                    (b -
+                     r) /
+                    delta +
+                    2.0;
+            }
+            else
+            {
+                h =
+                    (r -
+                     g) /
+                    delta +
+                    4.0;
             }
 
-            XmlNode lumOff = DirectChild(colorNode, "lumOff");
-            if (lumOff != null)
+            hue =
+                NormalizeHue(
+                    h *
+                    60.0);
+        }
+
+        private static Color HslToRgb(
+            double hue,
+            double saturation,
+            double lightness)
+        {
+            hue =
+                NormalizeHue(
+                    hue) /
+                360.0;
+            saturation =
+                ClampUnit(
+                    saturation);
+            lightness =
+                ClampUnit(
+                    lightness);
+
+            if (saturation <
+                0.0000001)
             {
-                double f = GetLong(lumOff, "val", 0) / 100000.0 * 255.0;
-                r += f; g += f; b += f;
+                int gray =
+                    ClampColorByte(
+                        lightness *
+                        255.0);
+
+                return Color.FromArgb(
+                    gray,
+                    gray,
+                    gray);
             }
+
+            double q =
+                lightness < 0.5
+                    ? lightness *
+                        (1.0 +
+                         saturation)
+                    : lightness +
+                        saturation -
+                        lightness *
+                        saturation;
+
+            double p =
+                2.0 *
+                lightness -
+                q;
+
+            double r =
+                HueToRgbChannel(
+                    p,
+                    q,
+                    hue +
+                    1.0 /
+                    3.0);
+            double g =
+                HueToRgbChannel(
+                    p,
+                    q,
+                    hue);
+            double b =
+                HueToRgbChannel(
+                    p,
+                    q,
+                    hue -
+                    1.0 /
+                    3.0);
 
             return Color.FromArgb(
-                Math.Max(0, Math.Min(255, (int)Math.Round(r))),
-                Math.Max(0, Math.Min(255, (int)Math.Round(g))),
-                Math.Max(0, Math.Min(255, (int)Math.Round(b))));
+                ClampColorByte(
+                    r *
+                    255.0),
+                ClampColorByte(
+                    g *
+                    255.0),
+                ClampColorByte(
+                    b *
+                    255.0));
+        }
+
+        private static double HueToRgbChannel(
+            double p,
+            double q,
+            double t)
+        {
+            if (t < 0.0)
+                t += 1.0;
+            if (t > 1.0)
+                t -= 1.0;
+
+            if (t <
+                1.0 /
+                6.0)
+            {
+                return p +
+                    (q -
+                     p) *
+                    6.0 *
+                    t;
+            }
+
+            if (t < 0.5)
+                return q;
+
+            if (t <
+                2.0 /
+                3.0)
+            {
+                return p +
+                    (q -
+                     p) *
+                    (2.0 /
+                     3.0 -
+                     t) *
+                    6.0;
+            }
+
+            return p;
+        }
+
+        private static Color ApplyGammaColor(
+            Color color,
+            bool inverse)
+        {
+            return Color.FromArgb(
+                ApplyGammaChannel(
+                    color.R,
+                    inverse),
+                ApplyGammaChannel(
+                    color.G,
+                    inverse),
+                ApplyGammaChannel(
+                    color.B,
+                    inverse));
+        }
+
+        private static int ApplyGammaChannel(
+            int channel,
+            bool inverse)
+        {
+            double value =
+                channel /
+                255.0;
+
+            double result;
+
+            if (inverse)
+            {
+                result =
+                    value <=
+                        0.04045
+                        ? value /
+                            12.92
+                        : Math.Pow(
+                            (value +
+                             0.055) /
+                            1.055,
+                            2.4);
+            }
+            else
+            {
+                result =
+                    value <=
+                        0.0031308
+                        ? value *
+                            12.92
+                        : 1.055 *
+                            Math.Pow(
+                                value,
+                                1.0 /
+                                2.4) -
+                            0.055;
+            }
+
+            return ClampColorByte(
+                ClampUnit(
+                    result) *
+                255.0);
         }
 
         private static void DrawShapeVisualEffects(

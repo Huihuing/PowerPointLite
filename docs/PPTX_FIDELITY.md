@@ -16,6 +16,12 @@ Microsoft PowerPoint (설치된 경우)
 
 - slide / layout / master 시각 레이어
 - theme color 및 major/minor font
+  - tint/shade
+  - hue/hueOff/hueMod
+  - sat/satOff/satMod
+  - lum/lumOff/lumMod
+  - comp/inv/gray
+  - gamma/invGamma 기본 변환
 - placeholder 위치와 text-style 상속
 - rich text run / paragraph
   - font family / size
