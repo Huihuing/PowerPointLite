@@ -101,7 +101,7 @@ namespace PptxViewer
                     nestedUsePath.GetBounds();
 
                 if (nestedBounds.Width < 65f ||
-                    nestedBounds.Height < 25f)
+                    nestedBounds.Height < 20f)
                 {
                     throw new InvalidOperationException(
                         "SVG symbol viewBox was not scaled by use width and height.");
