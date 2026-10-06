@@ -121,8 +121,14 @@ namespace PptxViewer
 
         public DocumentParagraph AddParagraph(string text)
         {
-            DocumentParagraph paragraph = new DocumentParagraph();
-            paragraph.AddRun(text ?? string.Empty);
+            DocumentParagraph paragraph =
+                new DocumentParagraph();
+
+            if (!string.IsNullOrEmpty(text))
+            {
+                paragraph.AddRun(text);
+            }
+
             paragraphs.Add(paragraph);
             return paragraph;
         }
