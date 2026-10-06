@@ -1589,7 +1589,8 @@ namespace PptxViewer
                     name == "clipPath" ||
                     name == "pattern" ||
                     name == "mask" ||
-                    name == "filter")
+                    name == "filter" ||
+                    name == "symbol")
                 {
                     continue;
                 }
@@ -1903,23 +1904,28 @@ namespace PptxViewer
                         referenceId);
 
                 if (referenced == null ||
-                    referenced == node ||
-                    referenced.LocalName == "use" ||
-                    referenced.LocalName == "g" ||
-                    referenced.LocalName == "symbol" ||
-                    referenced.LocalName == "svg")
+                    referenced == node)
                 {
                     return null;
                 }
 
+                HashSet<string> activeReferences =
+                    new HashSet<string>(
+                        StringComparer.Ordinal);
+
+                activeReferences.Add(
+                    referenceId);
+
                 GraphicsPath referencedPath =
-                    BuildEnhancedSvgElementPath(
+                    BuildEnhancedSvgReferencePath(
                         referenced,
                         target,
                         minX,
                         minY,
                         sx,
-                        sy);
+                        sy,
+                        activeReferences,
+                        0);
 
                 if (referencedPath == null ||
                     referencedPath.PointCount == 0)
@@ -1928,32 +1934,6 @@ namespace PptxViewer
                         referencedPath.Dispose();
 
                     return null;
-                }
-
-                string referencedTransform =
-                    GetAttr(
-                        referenced,
-                        "transform");
-
-                if (!string.IsNullOrEmpty(
-                        referencedTransform))
-                {
-                    using (Matrix referenceMatrix =
-                        BuildSvgGeometryTransformMatrix(
-                            referencedTransform,
-                            target,
-                            minX,
-                            minY,
-                            sx,
-                            sy))
-                    {
-                        if (referenceMatrix != null &&
-                            !referenceMatrix.IsIdentity)
-                        {
-                            referencedPath.Transform(
-                                referenceMatrix);
-                        }
-                    }
                 }
 
                 float useX =
@@ -1990,6 +1970,277 @@ namespace PptxViewer
 
                 return referencedPath;
             }
+
+        private static GraphicsPath BuildEnhancedSvgReferencePath(
+            XmlNode node,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy,
+            HashSet<string> activeReferences,
+            int depth)
+        {
+            if (node == null ||
+                depth > 12)
+            {
+                return null;
+            }
+
+            string name =
+                node.LocalName;
+
+            GraphicsPath result = null;
+
+            if (name == "use")
+            {
+                string referenceId =
+                    ReadSvgUseReferenceId(
+                        node);
+
+                if (string.IsNullOrEmpty(
+                        referenceId) ||
+                    activeReferences == null ||
+                    activeReferences.Contains(
+                        referenceId))
+                {
+                    return null;
+                }
+
+                XmlNode referenced =
+                    FindSvgNodeById(
+                        node.OwnerDocument,
+                        referenceId);
+
+                if (referenced == null ||
+                    referenced == node)
+                {
+                    return null;
+                }
+
+                activeReferences.Add(
+                    referenceId);
+
+                try
+                {
+                    result =
+                        BuildEnhancedSvgReferencePath(
+                            referenced,
+                            target,
+                            minX,
+                            minY,
+                            sx,
+                            sy,
+                            activeReferences,
+                            depth + 1);
+                }
+                finally
+                {
+                    activeReferences.Remove(
+                        referenceId);
+                }
+
+                if (result == null ||
+                    result.PointCount == 0)
+                {
+                    if (result != null)
+                        result.Dispose();
+
+                    return null;
+                }
+
+                float useX =
+                    ParseSvgFloat(
+                        GetAttr(
+                            node,
+                            "x"),
+                        0f) *
+                    sx;
+                float useY =
+                    ParseSvgFloat(
+                        GetAttr(
+                            node,
+                            "y"),
+                        0f) *
+                    sy;
+
+                if (Math.Abs(useX) >
+                        0.001f ||
+                    Math.Abs(useY) >
+                        0.001f)
+                {
+                    using (Matrix translation =
+                        new Matrix())
+                    {
+                        translation.Translate(
+                            useX,
+                            useY);
+                        result.Transform(
+                            translation);
+                    }
+                }
+            }
+            else if (name == "g" ||
+                     name == "symbol" ||
+                     name == "svg")
+            {
+                result =
+                    new GraphicsPath();
+
+                for (int i = 0;
+                     i < node.ChildNodes.Count;
+                     i++)
+                {
+                    XmlNode child =
+                        node.ChildNodes[i];
+
+                    string childName =
+                        child.LocalName;
+
+                    if (childName == "defs" ||
+                        childName == "linearGradient" ||
+                        childName == "radialGradient" ||
+                        childName == "clipPath" ||
+                        childName == "pattern" ||
+                        childName == "mask" ||
+                        childName == "filter" ||
+                        childName == "text")
+                    {
+                        continue;
+                    }
+
+                    GraphicsPath childPath = null;
+
+                    try
+                    {
+                        if (childName == "g" ||
+                            childName == "symbol" ||
+                            childName == "svg" ||
+                            childName == "use")
+                        {
+                            childPath =
+                                BuildEnhancedSvgReferencePath(
+                                    child,
+                                    target,
+                                    minX,
+                                    minY,
+                                    sx,
+                                    sy,
+                                    activeReferences,
+                                    depth + 1);
+                        }
+                        else
+                        {
+                            childPath =
+                                BuildEnhancedSvgElementPath(
+                                    child,
+                                    target,
+                                    minX,
+                                    minY,
+                                    sx,
+                                    sy);
+
+                            if (childPath != null &&
+                                childPath.PointCount > 0)
+                            {
+                                string childTransform =
+                                    GetAttr(
+                                        child,
+                                        "transform");
+
+                                if (!string.IsNullOrEmpty(
+                                        childTransform))
+                                {
+                                    using (Matrix childMatrix =
+                                        BuildSvgGeometryTransformMatrix(
+                                            childTransform,
+                                            target,
+                                            minX,
+                                            minY,
+                                            sx,
+                                            sy))
+                                    {
+                                        if (childMatrix != null &&
+                                            !childMatrix.IsIdentity)
+                                        {
+                                            childPath.Transform(
+                                                childMatrix);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (childPath != null &&
+                            childPath.PointCount > 0)
+                        {
+                            result.AddPath(
+                                childPath,
+                                false);
+                        }
+                    }
+                    finally
+                    {
+                        if (childPath != null)
+                            childPath.Dispose();
+                    }
+                }
+
+                if (result.PointCount == 0)
+                {
+                    result.Dispose();
+                    return null;
+                }
+            }
+            else
+            {
+                result =
+                    BuildEnhancedSvgElementPath(
+                        node,
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy);
+
+                if (result == null ||
+                    result.PointCount == 0)
+                {
+                    if (result != null)
+                        result.Dispose();
+
+                    return null;
+                }
+            }
+
+            string transform =
+                GetAttr(
+                    node,
+                    "transform");
+
+            if (!string.IsNullOrEmpty(
+                    transform))
+            {
+                using (Matrix matrix =
+                    BuildSvgGeometryTransformMatrix(
+                        transform,
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy))
+                {
+                    if (matrix != null &&
+                        !matrix.IsIdentity)
+                    {
+                        result.Transform(
+                            matrix);
+                    }
+                }
+            }
+
+            return result;
+        }
 
             if (name == "path")
             {

@@ -29,6 +29,8 @@ namespace PptxViewer
                 "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 200 120\">" +
                 "<defs>" +
                 "<path id=\"reuseTriangle\" d=\"M 0 0 L 8 0 L 4 8 Z\"/>" +
+                "<symbol id=\"reuseSymbol\"><rect x=\"0\" y=\"0\" width=\"6\" height=\"6\"/><circle cx=\"8\" cy=\"3\" r=\"3\"/></symbol>" +
+                "<use id=\"nestedUseSource\" xlink:href=\"#reuseSymbol\" x=\"2\" y=\"1\"/>" +
                 "<linearGradient id=\"g\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\" spreadMethod=\"reflect\" gradientTransform=\"rotate(22 .5 .5)\">" +
                 "<stop offset=\"0%\" stop-color=\"#e84b4b\"/>" +
                 "<stop offset=\"50%\" stop-color=\"#f2c94c\"/>" +
@@ -48,6 +50,7 @@ namespace PptxViewer
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<g color=\"hsl(326deg 53% 50% / 100%)\"><use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" color=\"inherit\" fill=\"currentColor\"/></g>" +
+                "<use id=\"useSymbol\" xlink:href=\"#nestedUseSource\" x=\"146\" y=\"4\" fill=\"#3a7bd5\"/>" +
                 "<circle cx=\"154\" cy=\"28\" r=\"18\" fill=\"url(#g)\" transform=\"skewX(8)\"/>" +
                 "<rect id=\"clipRuleTarget\" x=\"176\" y=\"2\" width=\"20\" height=\"20\" fill=\"#7b61ff\" clip-path=\"url(#evenoddClip)\"/>" +
                 "<rect x=\"8\" y=\"6\" width=\"48\" height=\"22\" fill=\"#1677d2\" clip-path=\"url(#nestedClip)\"/>" +
@@ -68,6 +71,32 @@ namespace PptxViewer
             XmlDocument document =
                 new XmlDocument();
             document.LoadXml(svgText);
+
+            XmlNode nestedUseNode =
+                FindSvgNodeById(
+                    document,
+                    "useSymbol");
+
+            using (GraphicsPath nestedUsePath =
+                BuildEnhancedSvgElementPath(
+                    nestedUseNode,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        800f,
+                        480f),
+                    0f,
+                    0f,
+                    4f,
+                    4f))
+            {
+                if (nestedUsePath == null ||
+                    nestedUsePath.PointCount == 0)
+                {
+                    throw new InvalidOperationException(
+                        "SVG symbol or nested use reference did not produce geometry.");
+                }
+            }
 
             XmlNode reflectedGradient =
                 FindSvgNodeById(
