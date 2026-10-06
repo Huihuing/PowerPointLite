@@ -525,7 +525,10 @@ namespace PptxViewer
                 if (name == "defs" ||
                     name == "linearGradient" ||
                     name == "radialGradient" ||
-                    name == "clipPath")
+                    name == "clipPath" ||
+                    name == "pattern" ||
+                    name == "mask" ||
+                    name == "filter")
                 {
                     continue;
                 }
@@ -594,6 +597,7 @@ namespace PptxViewer
 
                     GraphicsState state = g.Save();
                     GraphicsPath clip = null;
+                    GraphicsPath mask = null;
 
                     try
                     {
@@ -606,10 +610,14 @@ namespace PptxViewer
                             sx,
                             sy);
 
+                        RectangleF elementBounds =
+                            path.GetBounds();
+
                         clip =
                             BuildSvgClipPath(
                                 node,
                                 parent.OwnerDocument,
+                                elementBounds,
                                 target,
                                 minX,
                                 minY,
@@ -621,6 +629,25 @@ namespace PptxViewer
                         {
                             g.SetClip(
                                 clip,
+                                CombineMode.Intersect);
+                        }
+
+                        mask =
+                            BuildSvgMaskPath(
+                                node,
+                                parent.OwnerDocument,
+                                elementBounds,
+                                target,
+                                minX,
+                                minY,
+                                sx,
+                                sy);
+
+                        if (mask != null &&
+                            mask.PointCount > 0)
+                        {
+                            g.SetClip(
+                                mask,
                                 CombineMode.Intersect);
                         }
 
@@ -716,6 +743,9 @@ namespace PptxViewer
                     {
                         if (clip != null)
                             clip.Dispose();
+
+                        if (mask != null)
+                            mask.Dispose();
 
                         g.Restore(state);
                     }
@@ -1122,20 +1152,41 @@ namespace PptxViewer
 
                 if (gradient != null)
                 {
-                    Brush gradientBrush =
-                        CreateSvgGradientBrush(
-                            gradient,
-                            document,
-                            bounds,
-                            target,
-                            minX,
-                            minY,
-                            sx,
-                            sy,
-                            opacity);
+                    if (gradient.LocalName ==
+                        "pattern")
+                    {
+                        Brush patternBrush =
+                            CreateSvgPatternBrush(
+                                gradient,
+                                document,
+                                bounds,
+                                target,
+                                minX,
+                                minY,
+                                sx,
+                                sy,
+                                opacity);
 
-                    if (gradientBrush != null)
-                        return gradientBrush;
+                        if (patternBrush != null)
+                            return patternBrush;
+                    }
+                    else
+                    {
+                        Brush gradientBrush =
+                            CreateSvgGradientBrush(
+                                gradient,
+                                document,
+                                bounds,
+                                target,
+                                minX,
+                                minY,
+                                sx,
+                                sy,
+                                opacity);
+
+                        if (gradientBrush != null)
+                            return gradientBrush;
+                    }
                 }
             }
 
@@ -1160,6 +1211,417 @@ namespace PptxViewer
                 ? (Brush)new SolidBrush(
                     color)
                 : null;
+        }
+
+        private static Brush CreateSvgPatternBrush(
+            XmlNode pattern,
+            XmlDocument document,
+            RectangleF bounds,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy,
+            float opacity)
+        {
+            if (pattern == null)
+                return null;
+
+            bool userSpace =
+                string.Equals(
+                    GetAttr(
+                        pattern,
+                        "patternUnits"),
+                    "userSpaceOnUse",
+                    StringComparison.OrdinalIgnoreCase);
+
+            float logicalWidth =
+                ReadSvgPatternLogicalLength(
+                    GetAttr(
+                        pattern,
+                        "width"),
+                    userSpace
+                        ? 16f
+                        : 0.125f);
+
+            float logicalHeight =
+                ReadSvgPatternLogicalLength(
+                    GetAttr(
+                        pattern,
+                        "height"),
+                    userSpace
+                        ? 16f
+                        : 0.125f);
+
+            float tileWidth =
+                ResolveSvgPatternPixelLength(
+                    GetAttr(
+                        pattern,
+                        "width"),
+                    bounds.Width,
+                    sx,
+                    userSpace,
+                    Math.Max(
+                        2f,
+                        bounds.Width /
+                        8f));
+
+            float tileHeight =
+                ResolveSvgPatternPixelLength(
+                    GetAttr(
+                        pattern,
+                        "height"),
+                    bounds.Height,
+                    sy,
+                    userSpace,
+                    Math.Max(
+                        2f,
+                        bounds.Height /
+                        8f));
+
+            int bitmapWidth =
+                Math.Max(
+                    2,
+                    Math.Min(
+                        512,
+                        (int)Math.Ceiling(
+                            tileWidth)));
+
+            int bitmapHeight =
+                Math.Max(
+                    2,
+                    Math.Min(
+                        512,
+                        (int)Math.Ceiling(
+                            tileHeight)));
+
+            using (Bitmap tile =
+                new Bitmap(
+                    bitmapWidth,
+                    bitmapHeight,
+                    PixelFormat.Format32bppArgb))
+            {
+                using (Graphics tileGraphics =
+                    Graphics.FromImage(tile))
+                {
+                    tileGraphics.Clear(
+                        Color.Transparent);
+                    tileGraphics.SmoothingMode =
+                        SmoothingMode.AntiAlias;
+                    tileGraphics.InterpolationMode =
+                        InterpolationMode.HighQualityBicubic;
+
+                    RectangleF tileTarget =
+                        new RectangleF(
+                            0f,
+                            0f,
+                            bitmapWidth,
+                            bitmapHeight);
+
+                    float patternMinX = 0f;
+                    float patternMinY = 0f;
+                    float patternSx;
+                    float patternSy;
+
+                    List<float> viewBox =
+                        ParseSvgNumberList(
+                            GetAttr(
+                                pattern,
+                                "viewBox"));
+
+                    if (viewBox.Count >= 4 &&
+                        Math.Abs(
+                            viewBox[2]) >
+                        0.0001f &&
+                        Math.Abs(
+                            viewBox[3]) >
+                        0.0001f)
+                    {
+                        patternMinX =
+                            viewBox[0];
+                        patternMinY =
+                            viewBox[1];
+                        patternSx =
+                            bitmapWidth /
+                            viewBox[2];
+                        patternSy =
+                            bitmapHeight /
+                            viewBox[3];
+                    }
+                    else
+                    {
+                        bool contentObjectBox =
+                            string.Equals(
+                                GetAttr(
+                                    pattern,
+                                    "patternContentUnits"),
+                                "objectBoundingBox",
+                                StringComparison.OrdinalIgnoreCase);
+
+                        if (contentObjectBox)
+                        {
+                            patternSx =
+                                bitmapWidth;
+                            patternSy =
+                                bitmapHeight;
+                        }
+                        else
+                        {
+                            patternSx =
+                                bitmapWidth /
+                                Math.Max(
+                                    0.0001f,
+                                    logicalWidth);
+                            patternSy =
+                                bitmapHeight /
+                                Math.Max(
+                                    0.0001f,
+                                    logicalHeight);
+                        }
+                    }
+
+                    DrawEnhancedSvgChildren(
+                        tileGraphics,
+                        pattern,
+                        tileTarget,
+                        patternMinX,
+                        patternMinY,
+                        patternSx,
+                        patternSy);
+                }
+
+                if (opacity < 0.999f)
+                {
+                    MultiplyBitmapAlpha(
+                        tile,
+                        opacity);
+                }
+
+                TextureBrush brush =
+                    new TextureBrush(
+                        tile,
+                        WrapMode.Tile);
+
+                float offsetX =
+                    ResolveSvgPatternOffset(
+                        GetAttr(
+                            pattern,
+                            "x"),
+                        bounds.Left,
+                        bounds.Width,
+                        target.Left,
+                        minX,
+                        sx,
+                        userSpace);
+
+                float offsetY =
+                    ResolveSvgPatternOffset(
+                        GetAttr(
+                            pattern,
+                            "y"),
+                        bounds.Top,
+                        bounds.Height,
+                        target.Top,
+                        minY,
+                        sy,
+                        userSpace);
+
+                brush.TranslateTransform(
+                    offsetX,
+                    offsetY,
+                    MatrixOrder.Append);
+
+                string transform =
+                    GetAttr(
+                        pattern,
+                        "patternTransform");
+
+                if (!string.IsNullOrEmpty(
+                        transform))
+                {
+                    using (Matrix matrix =
+                        BuildSvgBrushTransformMatrix(
+                            transform,
+                            bounds,
+                            target,
+                            minX,
+                            minY,
+                            sx,
+                            sy,
+                            userSpace))
+                    {
+                        if (matrix != null)
+                        {
+                            brush.MultiplyTransform(
+                                matrix,
+                                MatrixOrder.Append);
+                        }
+                    }
+                }
+
+                return brush;
+            }
+        }
+
+        private static float ReadSvgPatternLogicalLength(
+            string raw,
+            float fallback)
+        {
+            if (string.IsNullOrEmpty(raw))
+                return fallback;
+
+            raw = raw.Trim();
+
+            if (raw.EndsWith("%"))
+            {
+                return Math.Max(
+                    0.0001f,
+                    ParseSvgFloat(
+                        raw.Substring(
+                            0,
+                            raw.Length - 1),
+                        fallback *
+                        100f) /
+                    100f);
+            }
+
+            return Math.Max(
+                0.0001f,
+                ParseSvgFloat(
+                    raw,
+                    fallback));
+        }
+
+        private static float ResolveSvgPatternPixelLength(
+            string raw,
+            float reference,
+            float scale,
+            bool userSpace,
+            float fallback)
+        {
+            if (string.IsNullOrEmpty(raw))
+                return fallback;
+
+            raw = raw.Trim();
+
+            if (raw.EndsWith("%"))
+            {
+                return Math.Max(
+                    2f,
+                    reference *
+                    ParseSvgFloat(
+                        raw.Substring(
+                            0,
+                            raw.Length - 1),
+                        12.5f) /
+                    100f);
+            }
+
+            float value =
+                ParseSvgFloat(
+                    raw,
+                    userSpace
+                        ? 16f
+                        : 0.125f);
+
+            return Math.Max(
+                2f,
+                userSpace
+                    ? Math.Abs(
+                        value *
+                        scale)
+                    : Math.Abs(
+                        value *
+                        reference));
+        }
+
+        private static float ResolveSvgPatternOffset(
+            string raw,
+            float boundsStart,
+            float boundsLength,
+            float targetStart,
+            float viewMin,
+            float scale,
+            bool userSpace)
+        {
+            if (string.IsNullOrEmpty(raw))
+                return 0f;
+
+            raw = raw.Trim();
+
+            if (raw.EndsWith("%"))
+            {
+                return boundsStart +
+                    boundsLength *
+                    ParseSvgFloat(
+                        raw.Substring(
+                            0,
+                            raw.Length - 1),
+                        0f) /
+                    100f;
+            }
+
+            float value =
+                ParseSvgFloat(
+                    raw,
+                    0f);
+
+            if (userSpace)
+            {
+                return targetStart +
+                    (value -
+                     viewMin) *
+                    scale;
+            }
+
+            return boundsStart +
+                value *
+                boundsLength;
+        }
+
+        private static void MultiplyBitmapAlpha(
+            Bitmap bitmap,
+            float opacity)
+        {
+            if (bitmap == null)
+                return;
+
+            opacity =
+                Math.Max(
+                    0f,
+                    Math.Min(
+                        1f,
+                        opacity));
+
+            for (int y = 0;
+                 y < bitmap.Height;
+                 y++)
+            {
+                for (int x = 0;
+                     x < bitmap.Width;
+                     x++)
+                {
+                    Color color =
+                        bitmap.GetPixel(
+                            x,
+                            y);
+
+                    bitmap.SetPixel(
+                        x,
+                        y,
+                        Color.FromArgb(
+                            Math.Max(
+                                0,
+                                Math.Min(
+                                    255,
+                                    (int)Math.Round(
+                                        color.A *
+                                        opacity))),
+                            color.R,
+                            color.G,
+                            color.B));
+                }
+            }
         }
 
         private static Brush CreateSvgGradientBrush(
@@ -1564,6 +2026,7 @@ namespace PptxViewer
         private static GraphicsPath BuildSvgClipPath(
             XmlNode node,
             XmlDocument document,
+            RectangleF bounds,
             RectangleF target,
             float minX,
             float minY,
@@ -1592,15 +2055,185 @@ namespace PptxViewer
                 return null;
             }
 
+            bool objectBox =
+                string.Equals(
+                    GetAttr(
+                        clipNode,
+                        "clipPathUnits"),
+                    "objectBoundingBox",
+                    StringComparison.OrdinalIgnoreCase);
+
+            RectangleF pathTarget =
+                objectBox
+                    ? bounds
+                    : target;
+
+            float pathMinX =
+                objectBox
+                    ? 0f
+                    : minX;
+            float pathMinY =
+                objectBox
+                    ? 0f
+                    : minY;
+            float pathSx =
+                objectBox
+                    ? bounds.Width
+                    : sx;
+            float pathSy =
+                objectBox
+                    ? bounds.Height
+                    : sy;
+
             GraphicsPath result =
                 new GraphicsPath();
 
+            AppendSvgGeometryChildren(
+                result,
+                clipNode,
+                pathTarget,
+                pathMinX,
+                pathMinY,
+                pathSx,
+                pathSy,
+                false);
+
+            if (result.PointCount == 0)
+            {
+                result.Dispose();
+                return null;
+            }
+
+            return result;
+        }
+
+        private static GraphicsPath BuildSvgMaskPath(
+            XmlNode node,
+            XmlDocument document,
+            RectangleF bounds,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy)
+        {
+            string raw =
+                GetSvgStyleInherited(
+                    node,
+                    "mask");
+
+            string id =
+                ExtractSvgUrlId(raw);
+
+            if (string.IsNullOrEmpty(id))
+                return null;
+
+            XmlNode maskNode =
+                FindSvgNodeById(
+                    document,
+                    id);
+
+            if (maskNode == null ||
+                maskNode.LocalName != "mask")
+            {
+                return null;
+            }
+
+            bool objectBox =
+                string.Equals(
+                    GetAttr(
+                        maskNode,
+                        "maskContentUnits"),
+                    "objectBoundingBox",
+                    StringComparison.OrdinalIgnoreCase);
+
+            RectangleF pathTarget =
+                objectBox
+                    ? bounds
+                    : target;
+
+            float pathMinX =
+                objectBox
+                    ? 0f
+                    : minX;
+            float pathMinY =
+                objectBox
+                    ? 0f
+                    : minY;
+            float pathSx =
+                objectBox
+                    ? bounds.Width
+                    : sx;
+            float pathSy =
+                objectBox
+                    ? bounds.Height
+                    : sy;
+
+            GraphicsPath result =
+                new GraphicsPath();
+
+            AppendSvgGeometryChildren(
+                result,
+                maskNode,
+                pathTarget,
+                pathMinX,
+                pathMinY,
+                pathSx,
+                pathSy,
+                true);
+
+            if (result.PointCount == 0)
+            {
+                result.Dispose();
+                return null;
+            }
+
+            return result;
+        }
+
+        private static void AppendSvgGeometryChildren(
+            GraphicsPath destination,
+            XmlNode parent,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy,
+            bool maskMode)
+        {
+            if (destination == null ||
+                parent == null)
+            {
+                return;
+            }
+
             for (int i = 0;
-                 i < clipNode.ChildNodes.Count;
+                 i < parent.ChildNodes.Count;
                  i++)
             {
                 XmlNode child =
-                    clipNode.ChildNodes[i];
+                    parent.ChildNodes[i];
+
+                if (child.LocalName == "g")
+                {
+                    AppendSvgGeometryChildren(
+                        destination,
+                        child,
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy,
+                        maskMode);
+                    continue;
+                }
+
+                if (maskMode &&
+                    !SvgMaskNodeIsVisible(
+                        child))
+                {
+                    continue;
+                }
 
                 using (GraphicsPath childPath =
                     BuildEnhancedSvgElementPath(
@@ -1614,20 +2247,69 @@ namespace PptxViewer
                     if (childPath != null &&
                         childPath.PointCount > 0)
                     {
-                        result.AddPath(
+                        destination.AddPath(
                             childPath,
                             false);
                     }
                 }
             }
+        }
 
-            if (result.PointCount == 0)
+        private static bool SvgMaskNodeIsVisible(
+            XmlNode node)
+        {
+            if (node == null)
+                return false;
+
+            string fill =
+                GetSvgStyleInherited(
+                    node,
+                    "fill");
+
+            if (string.Equals(
+                    fill,
+                    "none",
+                    StringComparison.OrdinalIgnoreCase))
             {
-                result.Dispose();
-                return null;
+                return false;
             }
 
-            return result;
+            float opacity =
+                ReadSvgOpacity(
+                    GetSvgStyleInherited(
+                        node,
+                        "opacity"),
+                    1f) *
+                ReadSvgOpacity(
+                    GetSvgStyleInherited(
+                        node,
+                        "fill-opacity"),
+                    1f);
+
+            if (opacity <= 0.01f)
+                return false;
+
+            if (!string.IsNullOrEmpty(fill))
+            {
+                Color color =
+                    ReadSvgColorInherited(
+                        node,
+                        "fill",
+                        Color.White);
+
+                int luminance =
+                    color.R +
+                    color.G +
+                    color.B;
+
+                if (color.A <= 5 ||
+                    luminance <= 12)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private static XmlNode FindSvgNodeById(

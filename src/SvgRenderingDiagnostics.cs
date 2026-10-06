@@ -33,10 +33,17 @@ namespace PptxViewer
                 "<stop offset=\"100%\" stop-color=\"#4b72e8\"/>" +
                 "</linearGradient>" +
                 "<clipPath id=\"clip\"><circle cx=\"100\" cy=\"78\" r=\"40\"/></clipPath>" +
+                "<pattern id=\"pat\" patternUnits=\"userSpaceOnUse\" width=\"12\" height=\"12\">" +
+                "<rect x=\"0\" y=\"0\" width=\"6\" height=\"12\" fill=\"#e85d75\"/>" +
+                "<rect x=\"6\" y=\"0\" width=\"6\" height=\"12\" fill=\"#4c78d6\"/>" +
+                "</pattern>" +
+                "<mask id=\"mask\"><circle cx=\"158\" cy=\"88\" r=\"24\" fill=\"white\"/></mask>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<circle cx=\"154\" cy=\"28\" r=\"18\" fill=\"url(#g)\" transform=\"skewX(8)\"/>" +
                 "<path d=\"M 12 52 C 30 38 42 68 60 52 S 90 38 108 52 Q 126 70 142 52 T 184 52\" fill=\"none\" stroke=\"#6f42a8\" stroke-width=\"2\"/>" +
+                "<rect x=\"18\" y=\"66\" width=\"60\" height=\"42\" fill=\"url(#pat)\"/>" +
+                "<rect x=\"124\" y=\"64\" width=\"68\" height=\"48\" fill=\"#29b36b\" mask=\"url(#mask)\"/>" +
                 "<path d=\"M 18 88 A 82 48 0 0 1 182 88 L 182 116 L 18 116 Z\" " +
                 "fill=\"url(#g)\" clip-path=\"url(#clip)\" stroke=\"#243447\" stroke-width=\"1.5\"/>" +
                 "<text x=\"100\" y=\"63\" font-size=\"14\" fill=\"#20252b\">SVG</text>" +
@@ -123,6 +130,46 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Synthetic SVG gradient/mixed-color rendering was not preserved.");
+                }
+
+                Color patternA =
+                    bitmap.GetPixel(
+                        90,
+                        300);
+                Color patternB =
+                    bitmap.GetPixel(
+                        114,
+                        300);
+
+                if (Math.Abs(
+                        patternA.R -
+                        patternB.R) < 20 &&
+                    Math.Abs(
+                        patternA.B -
+                        patternB.B) < 20)
+                {
+                    throw new InvalidOperationException(
+                        "SVG pattern fill did not repeat distinct tile colors.");
+                }
+
+                Color maskCenter =
+                    bitmap.GetPixel(
+                        632,
+                        352);
+                Color maskCorner =
+                    bitmap.GetPixel(
+                        504,
+                        264);
+
+                if ((maskCenter.R > 245 &&
+                     maskCenter.G > 245 &&
+                     maskCenter.B > 245) ||
+                    maskCorner.R < 245 ||
+                    maskCorner.G < 245 ||
+                    maskCorner.B < 245)
+                {
+                    throw new InvalidOperationException(
+                        "SVG mask clipping did not preserve the expected center/outside pixels.");
                 }
 
                 bitmap.Save(
