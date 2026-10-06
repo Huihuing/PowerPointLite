@@ -515,11 +515,16 @@ internal static partial class InternalPptxRenderer
                     0.0000001,
                     maxValue - minValue);
 
+            double categoryAxisCrossValue =
+                ReadChartCategoryAxisCrossValue(
+                    chartDoc,
+                    axisScale);
+
             float zeroY =
                 plot.Bottom -
                 (float)(
                     ChartAxisFraction(
-                        0.0,
+                        categoryAxisCrossValue,
                         axisScale) *
                     plot.Height);
 
@@ -527,7 +532,7 @@ internal static partial class InternalPptxRenderer
                 plot.Left +
                 (float)(
                     ChartAxisFraction(
-                        0.0,
+                        categoryAxisCrossValue,
                         axisScale) *
                     plot.Width);
 
@@ -2801,6 +2806,76 @@ internal static partial class InternalPptxRenderer
                         markerRect);
                 }
             }
+        }
+
+        private static double ReadChartCategoryAxisCrossValue(
+            XmlDocument chartDoc,
+            ChartAxisScale scale)
+        {
+            if (scale == null)
+                return 0.0;
+
+            XmlNode categoryAxis =
+                chartDoc == null
+                    ? null
+                    : FindFirst(
+                        chartDoc,
+                        "catAx");
+
+            if (categoryAxis == null)
+                return 0.0;
+
+            XmlNode crossesAt =
+                DirectChild(
+                    categoryAxis,
+                    "crossesAt");
+
+            double parsed;
+
+            if (crossesAt != null &&
+                double.TryParse(
+                    GetAttr(
+                        crossesAt,
+                        "val"),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out parsed) &&
+                !double.IsNaN(parsed) &&
+                !double.IsInfinity(parsed))
+            {
+                return parsed;
+            }
+
+            XmlNode crosses =
+                DirectChild(
+                    categoryAxis,
+                    "crosses");
+
+            string value =
+                crosses == null
+                    ? string.Empty
+                    : GetAttr(
+                        crosses,
+                        "val") ??
+                      string.Empty;
+
+            if (string.Equals(
+                    value,
+                    "max",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return scale.Maximum;
+            }
+
+            if (string.Equals(
+                    value,
+                    "min",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return scale.Minimum;
+            }
+
+            return 0.0;
         }
 
         private static string ReadChartAxisTickLabelPosition(
