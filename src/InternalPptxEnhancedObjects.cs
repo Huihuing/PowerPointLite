@@ -11513,11 +11513,16 @@ namespace PptxViewer
                     chartDoc,
                     theme));
 
+            double categoryAxisCrossValue =
+                ReadChartCategoryAxisCrossValue(
+                    chartDoc,
+                    axisScale);
+
             float zeroY =
                 plot.Bottom -
                 (float)(
                     ChartAxisFraction(
-                        0.0,
+                        categoryAxisCrossValue,
                         axisScale) *
                     plot.Height);
 
@@ -11528,23 +11533,40 @@ namespace PptxViewer
                         plot.Bottom,
                         zeroY));
 
-            using (Pen axis =
+            ChartLineStyle categoryAxisStyle =
+                ReadChartAxisLineStyle(
+                    chartDoc,
+                    "catAx",
+                    theme);
+            ChartLineStyle valueAxisStyle =
+                ReadChartAxisLineStyle(
+                    chartDoc,
+                    "valAx",
+                    theme);
+
+            using (Pen categoryAxis =
                 new Pen(
-                    Color.FromArgb(
-                        100,
-                        100,
-                        100),
-                    1.2f))
+                    categoryAxisStyle.Color,
+                    categoryAxisStyle.Width))
+            using (Pen valueAxis =
+                new Pen(
+                    valueAxisStyle.Color,
+                    valueAxisStyle.Width))
             {
+                categoryAxis.DashStyle =
+                    categoryAxisStyle.DashStyle;
+                valueAxis.DashStyle =
+                    valueAxisStyle.DashStyle;
+
                 g.DrawLine(
-                    axis,
+                    categoryAxis,
                     plot.Left,
                     zeroY,
                     plot.Right,
                     zeroY);
 
                 g.DrawLine(
-                    axis,
+                    valueAxis,
                     plot.Left,
                     plot.Top,
                     plot.Left,
