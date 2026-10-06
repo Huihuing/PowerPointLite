@@ -803,7 +803,7 @@ internal static partial class InternalPptxRenderer
                                             valueBrush,
                                             label,
                                             point,
-                                            pointLabels.Position);
+                                            pointLabels);
                                     }
                                 }
                             }
@@ -1091,7 +1091,7 @@ internal static partial class InternalPptxRenderer
                                     startY,
                                     valueY,
                                     value,
-                                    pointLabels.Position);
+                                    pointLabels);
                             }
                         }
                     }
