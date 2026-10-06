@@ -10958,7 +10958,8 @@ namespace PptxViewer
 
                 ReadChartSeriesLabelOverrides(
                     nodes[i],
-                    item);
+                    item,
+                    theme);
 
                 if (item.Values.Count > 0)
                     series.Add(item);
@@ -11237,7 +11238,8 @@ namespace PptxViewer
 
             ChartLabelOptions labels =
                 ReadChartLabelOptions(
-                    chartDoc);
+                    chartDoc,
+                    theme);
 
             if (HasAnyChartSeriesDataLabel(
                     labels,
@@ -11476,12 +11478,14 @@ namespace PptxViewer
                                 }
                             }
 
-                            g.DrawString(
+                            DrawChartLabelText(
+                                g,
                                 label,
                                 font,
                                 brush,
                                 x,
-                                y);
+                                y,
+                                pointLabels);
                         }
                     }
 
@@ -11708,7 +11712,8 @@ namespace PptxViewer
 
             ChartLabelOptions labels =
                 ReadChartLabelOptions(
-                    chartDoc);
+                    chartDoc,
+                    theme);
 
             using (Font labelFont =
                 SafeFont(
@@ -11911,7 +11916,7 @@ namespace PptxViewer
                                 labelBrush,
                                 label,
                                 topPoints[i],
-                                pointLabels.Position);
+                                pointLabels);
                         }
                     }
                 }
