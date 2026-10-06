@@ -20,6 +20,12 @@ namespace PptxViewer
             public int Depth;
         }
 
+        private sealed class SvgGradientStop
+        {
+            public float Offset;
+            public Color Color;
+        }
+
         private static void DrawEnhancedShape(
             ZipArchive zip,
             Graphics g,
@@ -514,50 +520,1633 @@ namespace PptxViewer
             for (int i = 0; i < parent.ChildNodes.Count; i++)
             {
                 XmlNode node = parent.ChildNodes[i];
-                if (node.LocalName == "g" || node.LocalName == "svg")
+                string name = node.LocalName;
+
+                if (name == "defs" ||
+                    name == "linearGradient" ||
+                    name == "radialGradient" ||
+                    name == "clipPath")
                 {
-                    drew = DrawEnhancedSvgChildren(g, node, target, minX, minY, sx, sy) || drew;
                     continue;
                 }
 
-                if (node.LocalName != "path")
-                    continue;
-
-                string data = GetAttr(node, "d");
-                GraphicsPath path = BuildSvgPath(data, target, minX, minY, sx, sy);
-                if (path == null || path.PointCount == 0)
+                if (name == "g" ||
+                    name == "svg")
                 {
-                    if (path != null) path.Dispose();
+                    GraphicsState groupState = g.Save();
+                    try
+                    {
+                        ApplySimpleSvgTransform(
+                            g,
+                            node,
+                            target,
+                            minX,
+                            minY,
+                            sx,
+                            sy);
+
+                        drew =
+                            DrawEnhancedSvgChildren(
+                                g,
+                                node,
+                                target,
+                                minX,
+                                minY,
+                                sx,
+                                sy) ||
+                            drew;
+                    }
+                    finally
+                    {
+                        g.Restore(groupState);
+                    }
                     continue;
                 }
 
-                using (path)
+                if (name == "text")
                 {
-                    Color fill = ReadSvgColor(node, "fill", Color.Black);
-                    Color stroke = ReadSvgColor(node, "stroke", Color.Transparent);
-                    float strokeWidth = Math.Max(
-                        1f,
-                        ParseSvgFloat(GetSvgStyle(node, "stroke-width"), 1f) * Math.Min(sx, sy));
-
-                    if (fill.A > 0)
-                    {
-                        using (Brush brush = new SolidBrush(fill))
-                            g.FillPath(brush, path);
-                    }
-
-                    if (stroke.A > 0)
-                    {
-                        using (Pen pen = new Pen(stroke, strokeWidth))
-                            g.DrawPath(pen, path);
-                    }
+                    DrawEnhancedSvgText(
+                        g,
+                        node,
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy);
                     drew = true;
+                    continue;
+                }
+
+                using (GraphicsPath path =
+                    BuildEnhancedSvgElementPath(
+                        node,
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy))
+                {
+                    if (path == null ||
+                        path.PointCount == 0)
+                    {
+                        continue;
+                    }
+
+                    GraphicsState state = g.Save();
+                    GraphicsPath clip = null;
+
+                    try
+                    {
+                        ApplySimpleSvgTransform(
+                            g,
+                            node,
+                            target,
+                            minX,
+                            minY,
+                            sx,
+                            sy);
+
+                        clip =
+                            BuildSvgClipPath(
+                                node,
+                                parent.OwnerDocument,
+                                target,
+                                minX,
+                                minY,
+                                sx,
+                                sy);
+
+                        if (clip != null &&
+                            clip.PointCount > 0)
+                        {
+                            g.SetClip(
+                                clip,
+                                CombineMode.Intersect);
+                        }
+
+                        using (Brush fillBrush =
+                            CreateSvgFillBrush(
+                                node,
+                                parent.OwnerDocument,
+                                path.GetBounds(),
+                                target,
+                                minX,
+                                minY,
+                                sx,
+                                sy))
+                        {
+                            if (fillBrush != null)
+                                g.FillPath(
+                                    fillBrush,
+                                    path);
+                        }
+
+                        Color stroke =
+                            ReadSvgColorInherited(
+                                node,
+                                "stroke",
+                                Color.Transparent);
+
+                        float strokeOpacity =
+                            ReadSvgOpacity(
+                                GetSvgStyleInherited(
+                                    node,
+                                    "stroke-opacity"),
+                                1f);
+
+                        stroke =
+                            Color.FromArgb(
+                                Math.Max(
+                                    0,
+                                    Math.Min(
+                                        255,
+                                        (int)Math.Round(
+                                            stroke.A *
+                                            strokeOpacity))),
+                                stroke);
+
+                        float strokeWidth =
+                            Math.Max(
+                                1f,
+                                ParseSvgFloat(
+                                    GetSvgStyleInherited(
+                                        node,
+                                        "stroke-width"),
+                                    1f) *
+                                Math.Min(
+                                    sx,
+                                    sy));
+
+                        if (stroke.A > 0)
+                        {
+                            using (Pen pen =
+                                new Pen(
+                                    stroke,
+                                    strokeWidth))
+                            {
+                                string lineCap =
+                                    GetSvgStyleInherited(
+                                        node,
+                                        "stroke-linecap");
+
+                                if (lineCap == "round")
+                                    pen.StartCap = pen.EndCap = LineCap.Round;
+                                else if (lineCap == "square")
+                                    pen.StartCap = pen.EndCap = LineCap.Square;
+
+                                string lineJoin =
+                                    GetSvgStyleInherited(
+                                        node,
+                                        "stroke-linejoin");
+
+                                if (lineJoin == "round")
+                                    pen.LineJoin = LineJoin.Round;
+                                else if (lineJoin == "bevel")
+                                    pen.LineJoin = LineJoin.Bevel;
+
+                                g.DrawPath(
+                                    pen,
+                                    path);
+                            }
+                        }
+
+                        drew = true;
+                    }
+                    finally
+                    {
+                        if (clip != null)
+                            clip.Dispose();
+
+                        g.Restore(state);
+                    }
                 }
             }
 
             if (!drew)
-                return TryDrawSimpleSvgFromDocument(g, parent.OwnerDocument, target);
+            {
+                return TryDrawSimpleSvgFromDocument(
+                    g,
+                    parent.OwnerDocument,
+                    target);
+            }
 
             return true;
+        }
+
+        private static GraphicsPath BuildEnhancedSvgElementPath(
+            XmlNode node,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy)
+        {
+            if (node == null)
+                return null;
+
+            string name = node.LocalName;
+
+            if (name == "path")
+            {
+                return BuildSvgPath(
+                    GetAttr(node, "d"),
+                    target,
+                    minX,
+                    minY,
+                    sx,
+                    sy);
+            }
+
+            GraphicsPath path =
+                new GraphicsPath();
+
+            if (name == "rect")
+            {
+                float x =
+                    SvgX(
+                        target,
+                        minX,
+                        sx,
+                        ParseSvgFloat(
+                            GetAttr(node, "x"),
+                            0f));
+
+                float y =
+                    SvgY(
+                        target,
+                        minY,
+                        sy,
+                        ParseSvgFloat(
+                            GetAttr(node, "y"),
+                            0f));
+
+                float width =
+                    Math.Max(
+                        0f,
+                        ParseSvgFloat(
+                            GetAttr(node, "width"),
+                            0f) *
+                        sx);
+
+                float height =
+                    Math.Max(
+                        0f,
+                        ParseSvgFloat(
+                            GetAttr(node, "height"),
+                            0f) *
+                        sy);
+
+                float rx =
+                    Math.Max(
+                        0f,
+                        ParseSvgFloat(
+                            GetAttr(node, "rx"),
+                            0f) *
+                        sx);
+
+                float ry =
+                    Math.Max(
+                        0f,
+                        ParseSvgFloat(
+                            GetAttr(node, "ry"),
+                            0f) *
+                        sy);
+
+                RectangleF rect =
+                    new RectangleF(
+                        x,
+                        y,
+                        width,
+                        height);
+
+                if (rx > 0f || ry > 0f)
+                {
+                    float radius =
+                        Math.Min(
+                            Math.Max(
+                                rx,
+                                ry),
+                            Math.Min(
+                                width,
+                                height) /
+                            2f);
+
+                    using (GraphicsPath rounded =
+                        RoundedRectanglePath(
+                            rect,
+                            radius))
+                    {
+                        path.AddPath(
+                            rounded,
+                            false);
+                    }
+                }
+                else
+                {
+                    path.AddRectangle(rect);
+                }
+
+                return path;
+            }
+
+            if (name == "circle" ||
+                name == "ellipse")
+            {
+                float cx =
+                    SvgX(
+                        target,
+                        minX,
+                        sx,
+                        ParseSvgFloat(
+                            GetAttr(node, "cx"),
+                            0f));
+
+                float cy =
+                    SvgY(
+                        target,
+                        minY,
+                        sy,
+                        ParseSvgFloat(
+                            GetAttr(node, "cy"),
+                            0f));
+
+                float rx =
+                    name == "circle"
+                        ? ParseSvgFloat(
+                            GetAttr(node, "r"),
+                            0f) *
+                            Math.Min(
+                                sx,
+                                sy)
+                        : ParseSvgFloat(
+                            GetAttr(node, "rx"),
+                            0f) *
+                            sx;
+
+                float ry =
+                    name == "circle"
+                        ? rx
+                        : ParseSvgFloat(
+                            GetAttr(node, "ry"),
+                            0f) *
+                            sy;
+
+                path.AddEllipse(
+                    new RectangleF(
+                        cx - rx,
+                        cy - ry,
+                        rx * 2f,
+                        ry * 2f));
+
+                return path;
+            }
+
+            if (name == "line")
+            {
+                path.AddLine(
+                    SvgX(
+                        target,
+                        minX,
+                        sx,
+                        ParseSvgFloat(
+                            GetAttr(node, "x1"),
+                            0f)),
+                    SvgY(
+                        target,
+                        minY,
+                        sy,
+                        ParseSvgFloat(
+                            GetAttr(node, "y1"),
+                            0f)),
+                    SvgX(
+                        target,
+                        minX,
+                        sx,
+                        ParseSvgFloat(
+                            GetAttr(node, "x2"),
+                            0f)),
+                    SvgY(
+                        target,
+                        minY,
+                        sy,
+                        ParseSvgFloat(
+                            GetAttr(node, "y2"),
+                            0f)));
+
+                return path;
+            }
+
+            if (name == "polygon" ||
+                name == "polyline")
+            {
+                List<PointF> points =
+                    ParseSvgPoints(
+                        GetAttr(
+                            node,
+                            "points"),
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy);
+
+                if (points.Count >= 2)
+                {
+                    if (name == "polygon" &&
+                        points.Count >= 3)
+                    {
+                        path.AddPolygon(
+                            points.ToArray());
+                    }
+                    else
+                    {
+                        path.AddLines(
+                            points.ToArray());
+                    }
+                }
+
+                return path;
+            }
+
+            path.Dispose();
+            return null;
+        }
+
+        private static void DrawEnhancedSvgText(
+            Graphics g,
+            XmlNode node,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy)
+        {
+            float x =
+                SvgX(
+                    target,
+                    minX,
+                    sx,
+                    ParseSvgFloat(
+                        GetAttr(node, "x"),
+                        0f));
+
+            float y =
+                SvgY(
+                    target,
+                    minY,
+                    sy,
+                    ParseSvgFloat(
+                        GetAttr(node, "y"),
+                        0f));
+
+            float fontSize =
+                Math.Max(
+                    6f,
+                    ParseSvgFloat(
+                        GetSvgStyleInherited(
+                            node,
+                            "font-size"),
+                        12f) *
+                    sy);
+
+            string family =
+                GetSvgStyleInherited(
+                    node,
+                    "font-family");
+
+            if (string.IsNullOrEmpty(family))
+                family = "Arial";
+
+            family =
+                family
+                    .Trim()
+                    .Trim(
+                        '"',
+                        '\'');
+
+            Color fill =
+                ReadSvgColorInherited(
+                    node,
+                    "fill",
+                    Color.Black);
+
+            float opacity =
+                ReadSvgOpacity(
+                    GetSvgStyleInherited(
+                        node,
+                        "opacity"),
+                    1f) *
+                ReadSvgOpacity(
+                    GetSvgStyleInherited(
+                        node,
+                        "fill-opacity"),
+                    1f);
+
+            fill =
+                Color.FromArgb(
+                    Math.Max(
+                        0,
+                        Math.Min(
+                            255,
+                            (int)Math.Round(
+                                fill.A *
+                                opacity))),
+                    fill);
+
+            using (Font font =
+                SafeFont(
+                    family,
+                    fontSize))
+            using (Brush brush =
+                new SolidBrush(fill))
+            {
+                g.DrawString(
+                    node.InnerText,
+                    font,
+                    brush,
+                    x,
+                    y - font.Height);
+            }
+        }
+
+        private static Brush CreateSvgFillBrush(
+            XmlNode node,
+            XmlDocument document,
+            RectangleF bounds,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy)
+        {
+            string raw =
+                GetSvgStyleInherited(
+                    node,
+                    "fill");
+
+            if (string.IsNullOrEmpty(raw))
+                raw = "black";
+
+            raw = raw.Trim();
+
+            if (string.Equals(
+                    raw,
+                    "none",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            float opacity =
+                ReadSvgOpacity(
+                    GetSvgStyleInherited(
+                        node,
+                        "opacity"),
+                    1f) *
+                ReadSvgOpacity(
+                    GetSvgStyleInherited(
+                        node,
+                        "fill-opacity"),
+                    1f);
+
+            string gradientId =
+                ExtractSvgUrlId(raw);
+
+            if (!string.IsNullOrEmpty(
+                    gradientId))
+            {
+                XmlNode gradient =
+                    FindSvgNodeById(
+                        document,
+                        gradientId);
+
+                if (gradient != null)
+                {
+                    Brush gradientBrush =
+                        CreateSvgGradientBrush(
+                            gradient,
+                            document,
+                            bounds,
+                            target,
+                            minX,
+                            minY,
+                            sx,
+                            sy,
+                            opacity);
+
+                    if (gradientBrush != null)
+                        return gradientBrush;
+                }
+            }
+
+            Color color =
+                ReadSvgColorInherited(
+                    node,
+                    "fill",
+                    Color.Black);
+
+            color =
+                Color.FromArgb(
+                    Math.Max(
+                        0,
+                        Math.Min(
+                            255,
+                            (int)Math.Round(
+                                color.A *
+                                opacity))),
+                    color);
+
+            return color.A > 0
+                ? (Brush)new SolidBrush(
+                    color)
+                : null;
+        }
+
+        private static Brush CreateSvgGradientBrush(
+            XmlNode gradient,
+            XmlDocument document,
+            RectangleF bounds,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy,
+            float opacity)
+        {
+            List<SvgGradientStop> stops =
+                ReadSvgGradientStops(
+                    gradient,
+                    document,
+                    opacity);
+
+            if (stops.Count == 0)
+                return null;
+
+            if (stops.Count == 1)
+            {
+                return new SolidBrush(
+                    stops[0].Color);
+            }
+
+            ColorBlend blend =
+                BuildSvgColorBlend(
+                    stops);
+
+            bool userSpace =
+                string.Equals(
+                    GetAttr(
+                        gradient,
+                        "gradientUnits"),
+                    "userSpaceOnUse",
+                    StringComparison.OrdinalIgnoreCase);
+
+            if (gradient.LocalName ==
+                "radialGradient")
+            {
+                float cx =
+                    ResolveSvgGradientCoordinate(
+                        GetAttr(
+                            gradient,
+                            "cx"),
+                        bounds.Left,
+                        bounds.Width,
+                        target.Left,
+                        minX,
+                        sx,
+                        0.5f,
+                        userSpace);
+
+                float cy =
+                    ResolveSvgGradientCoordinate(
+                        GetAttr(
+                            gradient,
+                            "cy"),
+                        bounds.Top,
+                        bounds.Height,
+                        target.Top,
+                        minY,
+                        sy,
+                        0.5f,
+                        userSpace);
+
+                float radius =
+                    ResolveSvgGradientRadius(
+                        GetAttr(
+                            gradient,
+                            "r"),
+                        bounds,
+                        Math.Min(
+                            sx,
+                            sy),
+                        0.5f,
+                        userSpace);
+
+                radius =
+                    Math.Max(
+                        1f,
+                        radius);
+
+                using (GraphicsPath ellipse =
+                    new GraphicsPath())
+                {
+                    ellipse.AddEllipse(
+                        new RectangleF(
+                            cx - radius,
+                            cy - radius,
+                            radius * 2f,
+                            radius * 2f));
+
+                    PathGradientBrush brush =
+                        new PathGradientBrush(
+                            ellipse);
+
+                    brush.CenterPoint =
+                        new PointF(
+                            cx,
+                            cy);
+                    brush.InterpolationColors =
+                        blend;
+                    return brush;
+                }
+            }
+
+            float x1 =
+                ResolveSvgGradientCoordinate(
+                    GetAttr(
+                        gradient,
+                        "x1"),
+                    bounds.Left,
+                    bounds.Width,
+                    target.Left,
+                    minX,
+                    sx,
+                    0f,
+                    userSpace);
+
+            float y1 =
+                ResolveSvgGradientCoordinate(
+                    GetAttr(
+                        gradient,
+                        "y1"),
+                    bounds.Top,
+                    bounds.Height,
+                    target.Top,
+                    minY,
+                    sy,
+                    0f,
+                    userSpace);
+
+            float x2 =
+                ResolveSvgGradientCoordinate(
+                    GetAttr(
+                        gradient,
+                        "x2"),
+                    bounds.Left,
+                    bounds.Width,
+                    target.Left,
+                    minX,
+                    sx,
+                    1f,
+                    userSpace);
+
+            float y2 =
+                ResolveSvgGradientCoordinate(
+                    GetAttr(
+                        gradient,
+                        "y2"),
+                    bounds.Top,
+                    bounds.Height,
+                    target.Top,
+                    minY,
+                    sy,
+                    0f,
+                    userSpace);
+
+            if (Math.Abs(x2 - x1) < 0.01f &&
+                Math.Abs(y2 - y1) < 0.01f)
+            {
+                x2 = x1 + 1f;
+            }
+
+            LinearGradientBrush linear =
+                new LinearGradientBrush(
+                    new PointF(
+                        x1,
+                        y1),
+                    new PointF(
+                        x2,
+                        y2),
+                    stops[0].Color,
+                    stops[
+                        stops.Count - 1]
+                        .Color);
+
+            linear.InterpolationColors =
+                blend;
+            return linear;
+        }
+
+        private static List<SvgGradientStop>
+            ReadSvgGradientStops(
+                XmlNode gradient,
+                XmlDocument document,
+                float opacity)
+        {
+            List<SvgGradientStop> result =
+                new List<SvgGradientStop>();
+
+            if (gradient == null)
+                return result;
+
+            for (int i = 0;
+                 i < gradient.ChildNodes.Count;
+                 i++)
+            {
+                XmlNode stop =
+                    gradient.ChildNodes[i];
+
+                if (stop.LocalName != "stop")
+                    continue;
+
+                float offset =
+                    ReadSvgGradientOffset(
+                        GetAttr(
+                            stop,
+                            "offset"));
+
+                Color color =
+                    ReadSvgColor(
+                        stop,
+                        "stop-color",
+                        Color.Black);
+
+                float stopOpacity =
+                    ReadSvgOpacity(
+                        GetSvgStyle(
+                            stop,
+                            "stop-opacity"),
+                        1f) *
+                    opacity;
+
+                color =
+                    Color.FromArgb(
+                        Math.Max(
+                            0,
+                            Math.Min(
+                                255,
+                                (int)Math.Round(
+                                    color.A *
+                                    stopOpacity))),
+                        color);
+
+                SvgGradientStop item =
+                    new SvgGradientStop();
+                item.Offset = offset;
+                item.Color = color;
+                result.Add(item);
+            }
+
+            if (result.Count == 0)
+            {
+                string href = null;
+
+                if (gradient.Attributes != null)
+                {
+                    for (int i = 0;
+                         i < gradient.Attributes.Count;
+                         i++)
+                    {
+                        XmlAttribute attribute =
+                            gradient.Attributes[i];
+
+                        if (attribute.LocalName ==
+                            "href")
+                        {
+                            href =
+                                attribute.Value;
+                            break;
+                        }
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(href) &&
+                    href.StartsWith("#"))
+                {
+                    XmlNode inherited =
+                        FindSvgNodeById(
+                            document,
+                            href.Substring(1));
+
+                    if (inherited != null &&
+                        !object.ReferenceEquals(
+                            inherited,
+                            gradient))
+                    {
+                        return ReadSvgGradientStops(
+                            inherited,
+                            document,
+                            opacity);
+                    }
+                }
+            }
+
+            result.Sort(
+                delegate(
+                    SvgGradientStop left,
+                    SvgGradientStop right)
+                {
+                    return left.Offset
+                        .CompareTo(
+                            right.Offset);
+                });
+
+            if (result.Count > 0 &&
+                result[0].Offset > 0f)
+            {
+                SvgGradientStop first =
+                    new SvgGradientStop();
+                first.Offset = 0f;
+                first.Color =
+                    result[0].Color;
+                result.Insert(
+                    0,
+                    first);
+            }
+
+            if (result.Count > 0 &&
+                result[
+                    result.Count - 1]
+                    .Offset < 1f)
+            {
+                SvgGradientStop last =
+                    new SvgGradientStop();
+                last.Offset = 1f;
+                last.Color =
+                    result[
+                        result.Count - 1]
+                        .Color;
+                result.Add(last);
+            }
+
+            return result;
+        }
+
+        private static ColorBlend BuildSvgColorBlend(
+            List<SvgGradientStop> stops)
+        {
+            ColorBlend blend =
+                new ColorBlend(
+                    stops.Count);
+
+            Color[] colors =
+                new Color[
+                    stops.Count];
+            float[] positions =
+                new float[
+                    stops.Count];
+
+            float previous = 0f;
+
+            for (int i = 0;
+                 i < stops.Count;
+                 i++)
+            {
+                float offset =
+                    Math.Max(
+                        previous,
+                        Math.Min(
+                            1f,
+                            stops[i].Offset));
+
+                colors[i] =
+                    stops[i].Color;
+                positions[i] =
+                    offset;
+                previous = offset;
+            }
+
+            positions[0] = 0f;
+            positions[
+                positions.Length - 1] =
+                1f;
+
+            blend.Colors =
+                colors;
+            blend.Positions =
+                positions;
+            return blend;
+        }
+
+        private static GraphicsPath BuildSvgClipPath(
+            XmlNode node,
+            XmlDocument document,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy)
+        {
+            string raw =
+                GetSvgStyleInherited(
+                    node,
+                    "clip-path");
+
+            string id =
+                ExtractSvgUrlId(raw);
+
+            if (string.IsNullOrEmpty(id))
+                return null;
+
+            XmlNode clipNode =
+                FindSvgNodeById(
+                    document,
+                    id);
+
+            if (clipNode == null ||
+                clipNode.LocalName != "clipPath")
+            {
+                return null;
+            }
+
+            GraphicsPath result =
+                new GraphicsPath();
+
+            for (int i = 0;
+                 i < clipNode.ChildNodes.Count;
+                 i++)
+            {
+                XmlNode child =
+                    clipNode.ChildNodes[i];
+
+                using (GraphicsPath childPath =
+                    BuildEnhancedSvgElementPath(
+                        child,
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy))
+                {
+                    if (childPath != null &&
+                        childPath.PointCount > 0)
+                    {
+                        result.AddPath(
+                            childPath,
+                            false);
+                    }
+                }
+            }
+
+            if (result.PointCount == 0)
+            {
+                result.Dispose();
+                return null;
+            }
+
+            return result;
+        }
+
+        private static XmlNode FindSvgNodeById(
+            XmlDocument document,
+            string id)
+        {
+            if (document == null ||
+                document.DocumentElement == null ||
+                string.IsNullOrEmpty(id))
+            {
+                return null;
+            }
+
+            return FindSvgNodeById(
+                document.DocumentElement,
+                id);
+        }
+
+        private static XmlNode FindSvgNodeById(
+            XmlNode node,
+            string id)
+        {
+            if (node == null)
+                return null;
+
+            if (string.Equals(
+                    GetAttr(
+                        node,
+                        "id"),
+                    id,
+                    StringComparison.Ordinal))
+            {
+                return node;
+            }
+
+            for (int i = 0;
+                 i < node.ChildNodes.Count;
+                 i++)
+            {
+                XmlNode found =
+                    FindSvgNodeById(
+                        node.ChildNodes[i],
+                        id);
+
+                if (found != null)
+                    return found;
+            }
+
+            return null;
+        }
+
+        private static string ExtractSvgUrlId(
+            string raw)
+        {
+            if (string.IsNullOrEmpty(raw))
+                return null;
+
+            raw = raw.Trim();
+
+            if (!raw.StartsWith(
+                    "url(",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            int hash =
+                raw.IndexOf('#');
+            int close =
+                raw.IndexOf(
+                    ')',
+                    Math.Max(
+                        0,
+                        hash));
+
+            if (hash < 0 ||
+                close <= hash + 1)
+            {
+                return null;
+            }
+
+            return raw
+                .Substring(
+                    hash + 1,
+                    close -
+                    hash -
+                    1)
+                .Trim(
+                    ' ',
+                    '\'',
+                    '"');
+        }
+
+        private static string GetSvgStyleInherited(
+            XmlNode node,
+            string key)
+        {
+            XmlNode current =
+                node;
+
+            while (current != null)
+            {
+                string value =
+                    GetSvgStyle(
+                        current,
+                        key);
+
+                if (!string.IsNullOrEmpty(
+                        value))
+                {
+                    return value;
+                }
+
+                if (current.LocalName ==
+                    "svg")
+                {
+                    break;
+                }
+
+                current =
+                    current.ParentNode;
+            }
+
+            return null;
+        }
+
+        private static Color ReadSvgColorInherited(
+            XmlNode node,
+            string key,
+            Color fallback)
+        {
+            string raw =
+                GetSvgStyleInherited(
+                    node,
+                    key);
+
+            if (string.IsNullOrEmpty(raw))
+                return fallback;
+
+            raw = raw.Trim();
+
+            if (raw == "none")
+                return Color.Transparent;
+
+            if (raw.StartsWith("#"))
+            {
+                Color? parsed =
+                    ParseHexColor(
+                        raw.TrimStart('#'));
+
+                if (parsed.HasValue)
+                    return parsed.Value;
+            }
+
+            Color named =
+                Color.FromName(raw);
+
+            return named.A > 0 ||
+                string.Equals(
+                    raw,
+                    "transparent",
+                    StringComparison.OrdinalIgnoreCase)
+                    ? named
+                    : fallback;
+        }
+
+        private static float ReadSvgOpacity(
+            string raw,
+            float fallback)
+        {
+            if (string.IsNullOrEmpty(raw))
+                return fallback;
+
+            raw = raw.Trim();
+
+            if (raw.EndsWith("%"))
+            {
+                float percent =
+                    ParseSvgFloat(
+                        raw.Substring(
+                            0,
+                            raw.Length - 1),
+                        fallback *
+                        100f);
+
+                return Math.Max(
+                    0f,
+                    Math.Min(
+                        1f,
+                        percent /
+                        100f));
+            }
+
+            float value =
+                ParseSvgFloat(
+                    raw,
+                    fallback);
+
+            return Math.Max(
+                0f,
+                Math.Min(
+                    1f,
+                    value));
+        }
+
+        private static float ReadSvgGradientOffset(
+            string raw)
+        {
+            if (string.IsNullOrEmpty(raw))
+                return 0f;
+
+            raw = raw.Trim();
+
+            if (raw.EndsWith("%"))
+            {
+                return Math.Max(
+                    0f,
+                    Math.Min(
+                        1f,
+                        ParseSvgFloat(
+                            raw.Substring(
+                                0,
+                                raw.Length - 1),
+                            0f) /
+                        100f));
+            }
+
+            return Math.Max(
+                0f,
+                Math.Min(
+                    1f,
+                    ParseSvgFloat(
+                        raw,
+                        0f)));
+        }
+
+        private static float ResolveSvgGradientCoordinate(
+            string raw,
+            float boundsStart,
+            float boundsLength,
+            float targetStart,
+            float viewMin,
+            float scale,
+            float fallbackFraction,
+            bool userSpace)
+        {
+            if (string.IsNullOrEmpty(raw))
+            {
+                return boundsStart +
+                    boundsLength *
+                    fallbackFraction;
+            }
+
+            raw = raw.Trim();
+
+            if (raw.EndsWith("%"))
+            {
+                float percentage =
+                    ParseSvgFloat(
+                        raw.Substring(
+                            0,
+                            raw.Length - 1),
+                        fallbackFraction *
+                        100f) /
+                    100f;
+
+                return boundsStart +
+                    boundsLength *
+                    percentage;
+            }
+
+            float value =
+                ParseSvgFloat(
+                    raw,
+                    fallbackFraction);
+
+            if (userSpace)
+            {
+                return targetStart +
+                    (value -
+                     viewMin) *
+                    scale;
+            }
+
+            return boundsStart +
+                boundsLength *
+                value;
+        }
+
+        private static float ResolveSvgGradientRadius(
+            string raw,
+            RectangleF bounds,
+            float scale,
+            float fallbackFraction,
+            bool userSpace)
+        {
+            float reference =
+                Math.Min(
+                    bounds.Width,
+                    bounds.Height);
+
+            if (string.IsNullOrEmpty(raw))
+            {
+                return reference *
+                    fallbackFraction;
+            }
+
+            raw = raw.Trim();
+
+            if (raw.EndsWith("%"))
+            {
+                return reference *
+                    ParseSvgFloat(
+                        raw.Substring(
+                            0,
+                            raw.Length - 1),
+                        fallbackFraction *
+                        100f) /
+                    100f;
+            }
+
+            float value =
+                ParseSvgFloat(
+                    raw,
+                    fallbackFraction);
+
+            return userSpace
+                ? Math.Abs(
+                    value *
+                    scale)
+                : reference *
+                    value;
+        }
+
+        private static void ApplySimpleSvgTransform(
+            Graphics g,
+            XmlNode node,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy)
+        {
+            string transform =
+                GetAttr(
+                    node,
+                    "transform");
+
+            if (string.IsNullOrEmpty(transform))
+                return;
+
+            string lower =
+                transform.ToLowerInvariant();
+
+            int translate =
+                lower.IndexOf(
+                    "translate(");
+
+            if (translate >= 0)
+            {
+                string args =
+                    ReadSvgTransformArguments(
+                        transform,
+                        translate +
+                        "translate(".Length);
+
+                List<float> values =
+                    ParseSvgNumberList(args);
+
+                if (values.Count > 0)
+                {
+                    float dx =
+                        values[0] *
+                        sx;
+
+                    float dy =
+                        values.Count > 1
+                            ? values[1] *
+                                sy
+                            : 0f;
+
+                    g.TranslateTransform(
+                        dx,
+                        dy,
+                        MatrixOrder.Append);
+                }
+            }
+
+            int scaleIndex =
+                lower.IndexOf(
+                    "scale(");
+
+            if (scaleIndex >= 0)
+            {
+                string args =
+                    ReadSvgTransformArguments(
+                        transform,
+                        scaleIndex +
+                        "scale(".Length);
+
+                List<float> values =
+                    ParseSvgNumberList(args);
+
+                if (values.Count > 0)
+                {
+                    float scaleX =
+                        values[0];
+                    float scaleY =
+                        values.Count > 1
+                            ? values[1]
+                            : scaleX;
+
+                    g.ScaleTransform(
+                        scaleX,
+                        scaleY,
+                        MatrixOrder.Append);
+                }
+            }
+
+            int rotate =
+                lower.IndexOf(
+                    "rotate(");
+
+            if (rotate >= 0)
+            {
+                string args =
+                    ReadSvgTransformArguments(
+                        transform,
+                        rotate +
+                        "rotate(".Length);
+
+                List<float> values =
+                    ParseSvgNumberList(args);
+
+                if (values.Count > 0)
+                {
+                    float degrees =
+                        values[0];
+
+                    if (values.Count >= 3)
+                    {
+                        float cx =
+                            SvgX(
+                                target,
+                                minX,
+                                sx,
+                                values[1]);
+
+                        float cy =
+                            SvgY(
+                                target,
+                                minY,
+                                sy,
+                                values[2]);
+
+                        g.TranslateTransform(
+                            cx,
+                            cy,
+                            MatrixOrder.Append);
+                        g.RotateTransform(
+                            degrees,
+                            MatrixOrder.Append);
+                        g.TranslateTransform(
+                            -cx,
+                            -cy,
+                            MatrixOrder.Append);
+                    }
+                    else
+                    {
+                        g.RotateTransform(
+                            degrees,
+                            MatrixOrder.Append);
+                    }
+                }
+            }
+        }
+
+        private static string ReadSvgTransformArguments(
+            string raw,
+            int start)
+        {
+            if (string.IsNullOrEmpty(raw) ||
+                start < 0 ||
+                start >= raw.Length)
+            {
+                return string.Empty;
+            }
+
+            int end =
+                raw.IndexOf(
+                    ')',
+                    start);
+
+            if (end < 0)
+                end = raw.Length;
+
+            return raw.Substring(
+                start,
+                end - start);
+        }
+
+        private static List<float> ParseSvgNumberList(
+            string raw)
+        {
+            List<float> result =
+                new List<float>();
+
+            if (string.IsNullOrEmpty(raw))
+                return result;
+
+            string cleaned =
+                raw.Replace(
+                    ',',
+                    ' ');
+
+            string[] pieces =
+                cleaned.Split(
+                    new char[]
+                    {
+                        ' ',
+                        '\t',
+                        '\r',
+                        '\n'
+                    },
+                    StringSplitOptions.RemoveEmptyEntries);
+
+            for (int i = 0;
+                 i < pieces.Length;
+                 i++)
+            {
+                float value;
+                if (float.TryParse(
+                        pieces[i],
+                        NumberStyles.Float,
+                        CultureInfo.InvariantCulture,
+                        out value))
+                {
+                    result.Add(
+                        value);
+                }
+            }
+
+            return result;
         }
 
         private static bool TryDrawSimpleSvgFromDocument(
@@ -634,7 +2223,7 @@ namespace PptxViewer
 
                 bool relative = char.IsLower(command);
                 char upper = char.ToUpperInvariant(command);
-                float a, b, c, d, e, f;
+                float a, b, c, d, e, f, h;
 
                 if (upper == 'M' || upper == 'L')
                 {
@@ -707,6 +2296,39 @@ namespace PptxViewer
                         ToSvgTarget(end, target, minX, minY, sx, sy));
                     current = end;
                 }
+                else if (upper == 'A')
+                {
+                    if (!ReadSvgNumber(tokens, ref index, out a) ||
+                        !ReadSvgNumber(tokens, ref index, out b) ||
+                        !ReadSvgNumber(tokens, ref index, out c) ||
+                        !ReadSvgNumber(tokens, ref index, out d) ||
+                        !ReadSvgNumber(tokens, ref index, out e) ||
+                        !ReadSvgNumber(tokens, ref index, out f) ||
+                        !ReadSvgNumber(tokens, ref index, out h)) break;
+
+                    PointF end = SvgPoint(
+                        f,
+                        h,
+                        relative,
+                        current);
+
+                    AppendSvgArc(
+                        path,
+                        current,
+                        end,
+                        a,
+                        b,
+                        c,
+                        Math.Abs(d) > 0.5f,
+                        Math.Abs(e) > 0.5f,
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy);
+
+                    current = end;
+                }
                 else
                 {
                     index++;
@@ -714,6 +2336,262 @@ namespace PptxViewer
             }
 
             return path;
+        }
+
+        private static void AppendSvgArc(
+            GraphicsPath path,
+            PointF start,
+            PointF end,
+            float radiusX,
+            float radiusY,
+            float rotationDegrees,
+            bool largeArc,
+            bool sweep,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy)
+        {
+            double rx =
+                Math.Abs(
+                    radiusX);
+            double ry =
+                Math.Abs(
+                    radiusY);
+
+            if (rx < 0.000001 ||
+                ry < 0.000001 ||
+                (Math.Abs(
+                    start.X -
+                    end.X) < 0.000001 &&
+                 Math.Abs(
+                    start.Y -
+                    end.Y) < 0.000001))
+            {
+                path.AddLine(
+                    ToSvgTarget(
+                        start,
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy),
+                    ToSvgTarget(
+                        end,
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy));
+                return;
+            }
+
+            double phi =
+                rotationDegrees *
+                Math.PI /
+                180.0;
+
+            double cosPhi =
+                Math.Cos(phi);
+            double sinPhi =
+                Math.Sin(phi);
+
+            double dx =
+                (start.X -
+                 end.X) /
+                2.0;
+            double dy =
+                (start.Y -
+                 end.Y) /
+                2.0;
+
+            double x1p =
+                cosPhi * dx +
+                sinPhi * dy;
+            double y1p =
+                -sinPhi * dx +
+                cosPhi * dy;
+
+            double lambda =
+                x1p * x1p /
+                (rx * rx) +
+                y1p * y1p /
+                (ry * ry);
+
+            if (lambda > 1.0)
+            {
+                double scale =
+                    Math.Sqrt(lambda);
+                rx *= scale;
+                ry *= scale;
+            }
+
+            double rx2 = rx * rx;
+            double ry2 = ry * ry;
+            double x1p2 = x1p * x1p;
+            double y1p2 = y1p * y1p;
+
+            double numerator =
+                rx2 * ry2 -
+                rx2 * y1p2 -
+                ry2 * x1p2;
+
+            double denominator =
+                rx2 * y1p2 +
+                ry2 * x1p2;
+
+            double factor = 0.0;
+            if (denominator > 0.0000001)
+            {
+                factor =
+                    Math.Sqrt(
+                        Math.Max(
+                            0.0,
+                            numerator /
+                            denominator));
+            }
+
+            if (largeArc == sweep)
+                factor = -factor;
+
+            double cxp =
+                factor *
+                rx *
+                y1p /
+                ry;
+            double cyp =
+                factor *
+                -ry *
+                x1p /
+                rx;
+
+            double cx =
+                cosPhi * cxp -
+                sinPhi * cyp +
+                (start.X +
+                 end.X) /
+                2.0;
+            double cy =
+                sinPhi * cxp +
+                cosPhi * cyp +
+                (start.Y +
+                 end.Y) /
+                2.0;
+
+            double ux =
+                (x1p -
+                 cxp) /
+                rx;
+            double uy =
+                (y1p -
+                 cyp) /
+                ry;
+            double vx =
+                (-x1p -
+                 cxp) /
+                rx;
+            double vy =
+                (-y1p -
+                 cyp) /
+                ry;
+
+            double startAngle =
+                Math.Atan2(
+                    uy,
+                    ux);
+
+            double deltaAngle =
+                Math.Atan2(
+                    ux * vy -
+                    uy * vx,
+                    ux * vx +
+                    uy * vy);
+
+            if (!sweep &&
+                deltaAngle > 0.0)
+            {
+                deltaAngle -=
+                    Math.PI *
+                    2.0;
+            }
+            else if (sweep &&
+                     deltaAngle < 0.0)
+            {
+                deltaAngle +=
+                    Math.PI *
+                    2.0;
+            }
+
+            int segments =
+                Math.Max(
+                    2,
+                    Math.Min(
+                        64,
+                        (int)Math.Ceiling(
+                            Math.Abs(
+                                deltaAngle) /
+                            (Math.PI /
+                             12.0))));
+
+            PointF previous =
+                ToSvgTarget(
+                    start,
+                    target,
+                    minX,
+                    minY,
+                    sx,
+                    sy);
+
+            for (int i = 1;
+                 i <= segments;
+                 i++)
+            {
+                double t =
+                    startAngle +
+                    deltaAngle *
+                    i /
+                    segments;
+
+                double cosT =
+                    Math.Cos(t);
+                double sinT =
+                    Math.Sin(t);
+
+                double x =
+                    cx +
+                    cosPhi *
+                    rx *
+                    cosT -
+                    sinPhi *
+                    ry *
+                    sinT;
+
+                double y =
+                    cy +
+                    sinPhi *
+                    rx *
+                    cosT +
+                    cosPhi *
+                    ry *
+                    sinT;
+
+                PointF next =
+                    ToSvgTarget(
+                        new PointF(
+                            (float)x,
+                            (float)y),
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy);
+
+                path.AddLine(
+                    previous,
+                    next);
+                previous = next;
+            }
         }
 
         private static List<string> TokenizeSvgPath(string data)

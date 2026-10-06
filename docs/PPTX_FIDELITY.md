@@ -30,9 +30,13 @@ Microsoft PowerPoint (설치된 경우)
 - grayscale / bi-level / brightness / contrast 그림 효과의 GDI+ 근사
 - PNG / JPEG / GIF / BMP
 - EMF / WMF는 GDI+가 읽을 수 있는 경우
-- SVG 기본 primitive와 path
-  - M / L / H / V / C / Q / Z
+- SVG primitive와 path
+  - rect / circle / ellipse / line / polygon / polyline / text 혼합 렌더
+  - M / L / H / V / C / Q / A / Z
   - absolute / relative path
+  - linearGradient / radialGradient 기본 stop interpolation
+  - clipPath 기본 geometry
+  - translate / scale / rotate 기본 transform
 - shape
   - 기본 Office preset
   - custom geometry의 line / cubic / quadratic path
@@ -123,7 +127,7 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 - SmartArt 고유 layout algorithm
 - chart의 모든 axis/style/data-label/3D 조합
 - theme effect style 전체
-- SVG arc/filter/mask/clipPath/gradient 등 고급 SVG 기능
+- SVG filter/mask/pattern 및 복잡한 gradientTransform/clipPathUnits 등 고급 SVG 기능
 - image artistic effects
 - 3D shape / bevel / material / lighting
 - complex custom geometry formula/adjust handle
