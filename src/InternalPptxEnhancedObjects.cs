@@ -6214,9 +6214,13 @@ namespace PptxViewer
                 if (string.Equals(
                         blendMode,
                         "multiply",
+                        StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(
+                        blendMode,
+                        "screen",
                         StringComparison.OrdinalIgnoreCase))
                 {
-                    DrawSvgMultiplyOverlapApproximation(
+                    DrawSvgBlendOverlapApproximation(
                         g,
                         path,
                         offsetX,
@@ -6226,7 +6230,8 @@ namespace PptxViewer
                         fill,
                         strokeAlpha,
                         stroke,
-                        strokeWidth);
+                        strokeWidth,
+                        blendMode);
                 }
             }
 
