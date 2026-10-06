@@ -2736,6 +2736,93 @@ namespace PptxViewer
                 }
             }
 
+            SmartNode processLayoutNode0 =
+                new SmartNode();
+            processLayoutNode0.Id = "processLayout0";
+            processLayoutNode0.Label = "P1";
+
+            SmartNode processLayoutNode1 =
+                new SmartNode();
+            processLayoutNode1.Id = "processLayout1";
+            processLayoutNode1.Label = "P2";
+
+            SmartNode processLayoutNode2 =
+                new SmartNode();
+            processLayoutNode2.Id = "processLayout2";
+            processLayoutNode2.Label = "P3";
+
+            SmartNode processLayoutNode3 =
+                new SmartNode();
+            processLayoutNode3.Id = "processLayout3";
+            processLayoutNode3.Label = "P4";
+
+            SmartNode processLayoutNode4 =
+                new SmartNode();
+            processLayoutNode4.Id = "processLayout4";
+            processLayoutNode4.Label = "P5";
+
+            SmartNode processLayoutNode5 =
+                new SmartNode();
+            processLayoutNode5.Id = "processLayout5";
+            processLayoutNode5.Label = "P6";
+
+            List<SmartNode> processLayoutNodes =
+                new List<SmartNode>();
+            processLayoutNodes.Add(
+                processLayoutNode0);
+            processLayoutNodes.Add(
+                processLayoutNode1);
+            processLayoutNodes.Add(
+                processLayoutNode2);
+            processLayoutNodes.Add(
+                processLayoutNode3);
+            processLayoutNodes.Add(
+                processLayoutNode4);
+            processLayoutNodes.Add(
+                processLayoutNode5);
+
+            RectangleF processLayoutRect =
+                new RectangleF(
+                    0f,
+                    0f,
+                    600f,
+                    300f);
+
+            Dictionary<string, RectangleF> processLayoutPositions =
+                BuildProcessSmartArtPositions(
+                    processLayoutNodes,
+                    processLayoutRect);
+
+            RectangleF processFirstRow =
+                processLayoutPositions[
+                    "processLayout0"];
+            RectangleF processLastRow =
+                processLayoutPositions[
+                    "processLayout5"];
+
+            float lastRowCenter =
+                processLastRow.Left +
+                processLastRow.Width /
+                2f;
+            float expectedProcessCenter =
+                processLayoutRect.Left +
+                processLayoutRect.Width /
+                2f;
+
+            if (Math.Abs(
+                    lastRowCenter -
+                    expectedProcessCenter) > 1.5f ||
+                processLastRow.Top <=
+                    processFirstRow.Bottom ||
+                processLastRow.Left <
+                    processLayoutRect.Left ||
+                processLastRow.Right >
+                    processLayoutRect.Right)
+            {
+                throw new InvalidOperationException(
+                    "SmartArt process rows were not centered or spaced correctly.");
+            }
+
             SmartNode processSource =
                 new SmartNode();
             processSource.Id = "processSource";
