@@ -2418,7 +2418,9 @@ namespace PptxViewer
                     return false;
                 }
 
-                path.Flatten();
+                path.Flatten(
+                    null,
+                    0.001f);
 
                 PointF[] points =
                     path.PathPoints;
