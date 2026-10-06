@@ -1658,6 +1658,7 @@ namespace PptxViewer
                     GraphicsState state = g.Save();
                     GraphicsPath clip = null;
                     GraphicsPath mask = null;
+                    GraphicsPath filteredPath = null;
 
                     try
                     {
@@ -1727,18 +1728,23 @@ namespace PptxViewer
                             sx,
                             sy);
 
-                        ApplySvgOffsetFilterApproximation(
-                            g,
-                            node,
-                            parent.OwnerDocument,
-                            sx,
-                            sy);
+                        filteredPath =
+                            CreateStandaloneSvgOffsetPath(
+                                node,
+                                parent.OwnerDocument,
+                                path,
+                                sx,
+                                sy);
+
+                        GraphicsPath renderPath =
+                            filteredPath ??
+                            path;
 
                         using (Brush fillBrush =
                             CreateSvgFillBrush(
                                 node,
                                 parent.OwnerDocument,
-                                path.GetBounds(),
+                                renderPath.GetBounds(),
                                 target,
                                 minX,
                                 minY,
@@ -1748,7 +1754,7 @@ namespace PptxViewer
                             if (fillBrush != null)
                                 g.FillPath(
                                     fillBrush,
-                                    path);
+                                    renderPath);
                         }
 
                         Color stroke =
@@ -1816,7 +1822,7 @@ namespace PptxViewer
 
                                 g.DrawPath(
                                     pen,
-                                    path);
+                                    renderPath);
                             }
                         }
 
@@ -1829,6 +1835,9 @@ namespace PptxViewer
 
                         if (mask != null)
                             mask.Dispose();
+
+                        if (filteredPath != null)
+                            filteredPath.Dispose();
 
                         g.Restore(state);
                     }
@@ -3798,16 +3807,17 @@ namespace PptxViewer
                     0.001f;
         }
 
-        private static void ApplySvgOffsetFilterApproximation(
-            Graphics g,
+        private static GraphicsPath CreateStandaloneSvgOffsetPath(
             XmlNode node,
             XmlDocument document,
+            GraphicsPath path,
             float sx,
             float sy)
         {
-            if (g == null)
+            if (path == null ||
+                path.PointCount == 0)
             {
-                return;
+                return null;
             }
 
             float offsetX;
@@ -3821,13 +3831,24 @@ namespace PptxViewer
                     out offsetX,
                     out offsetY))
             {
-                return;
+                return null;
             }
 
-            g.TranslateTransform(
-                offsetX,
-                offsetY,
-                MatrixOrder.Append);
+            GraphicsPath shifted =
+                (GraphicsPath)path.Clone();
+
+            using (Matrix translation =
+                new Matrix())
+            {
+                translation.Translate(
+                    offsetX,
+                    offsetY);
+
+                shifted.Transform(
+                    translation);
+            }
+
+            return shifted;
         }
 
         private static bool TryReadSvgDropShadow(
