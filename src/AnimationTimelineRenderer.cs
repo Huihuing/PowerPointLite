@@ -72,7 +72,10 @@ namespace PptxViewer
                 for (int i = 0; i < info.SlideParts.Count; i++)
                 {
                     XmlDocument document = LoadXml(zip, info.SlideParts[i]);
-                    result.Add(ParseAnimationTimeline(document));
+                    result.Add(
+                        ParseAnimationTimeline(
+                            document,
+                            info.ThemeColors));
                 }
             }
 
@@ -92,7 +95,10 @@ namespace PptxViewer
                     return null;
 
                 XmlDocument slideDocument = LoadXml(zip, info.SlideParts[slideIndex]);
-                SlideAnimationTimeline timeline = ParseAnimationTimeline(slideDocument);
+                SlideAnimationTimeline timeline =
+                    ParseAnimationTimeline(
+                        slideDocument,
+                        info.ThemeColors);
                 completedSteps = Math.Max(
                     0,
                     Math.Min(timeline.Steps.Count, completedSteps));
@@ -143,6 +149,15 @@ namespace PptxViewer
         private static SlideAnimationTimeline ParseAnimationTimeline(
             XmlDocument document)
         {
+            return ParseAnimationTimeline(
+                document,
+                null);
+        }
+
+        private static SlideAnimationTimeline ParseAnimationTimeline(
+            XmlDocument document,
+            Dictionary<string, Color> theme)
+        {
             SlideAnimationTimeline timeline = new SlideAnimationTimeline();
             if (document == null)
                 return timeline;
@@ -177,7 +192,8 @@ namespace PptxViewer
                 AnimationActionSpec action = BuildAnimationAction(
                     shapeId,
                     effect,
-                    timingNode);
+                    timingNode,
+                    theme);
                 actions.Add(action);
             }
 
@@ -188,7 +204,8 @@ namespace PptxViewer
         private static AnimationActionSpec BuildAnimationAction(
             string shapeId,
             XmlNode effect,
-            XmlNode timingNode)
+            XmlNode timingNode,
+            Dictionary<string, Color> theme)
         {
             AnimationActionSpec action = new AnimationActionSpec();
             action.ShapeId = shapeId ?? string.Empty;
@@ -248,7 +265,8 @@ namespace PptxViewer
             {
                 ReadAnimationColor(
                     effect,
-                    action);
+                    action,
+                    theme);
             }
 
             return action;
@@ -553,7 +571,8 @@ namespace PptxViewer
 
         private static void ReadAnimationColor(
             XmlNode effect,
-            AnimationActionSpec action)
+            AnimationActionSpec action,
+            Dictionary<string, Color> theme)
         {
             if (effect == null ||
                 action == null)
@@ -570,6 +589,7 @@ namespace PptxViewer
                     DirectChild(
                         effect,
                         "from"),
+                    theme,
                     out from);
 
             bool hasTo =
@@ -577,6 +597,7 @@ namespace PptxViewer
                     DirectChild(
                         effect,
                         "to"),
+                    theme,
                     out to);
 
             bool hasBy =
@@ -584,9 +605,11 @@ namespace PptxViewer
                     DirectChild(
                         effect,
                         "by"),
+                    theme,
                     out by);
 
-            if (!hasTo && hasBy)
+            if (!hasTo &&
+                hasBy)
             {
                 to = by;
                 hasTo = true;
@@ -600,69 +623,110 @@ namespace PptxViewer
                 hasFrom
                     ? from
                     : Color.Empty;
-            action.ColorTo = to;
+            action.ColorTo =
+                to;
         }
 
         private static bool TryReadAnimationColorNode(
             XmlNode node,
+            Dictionary<string, Color> theme,
             out Color color)
         {
-            color = Color.Empty;
+            color =
+                Color.Empty;
 
             if (node == null)
                 return false;
 
-            if (node.LocalName == "srgbClr")
+            if (node.LocalName == "srgbClr" ||
+                node.LocalName == "sysClr" ||
+                node.LocalName == "prstClr" ||
+                node.LocalName == "schemeClr")
             {
                 Color? parsed =
-                    ParseHexColor(
+                    ReadDrawingEffectColorNode(
+                        node,
+                        theme);
+
+                if (parsed.HasValue)
+                {
+                    color =
+                        parsed.Value;
+                    return true;
+                }
+            }
+
+            if (node.LocalName == "hslClr")
+            {
+                double hue =
+                    GetLong(
+                        node,
+                        "hue",
+                        0) /
+                    60000.0;
+
+                double saturation =
+                    Math.Max(
+                        0.0,
+                        Math.Min(
+                            1.0,
+                            GetLong(
+                                node,
+                                "sat",
+                                0) /
+                            100000.0));
+
+                double lightness =
+                    Math.Max(
+                        0.0,
+                        Math.Min(
+                            1.0,
+                            GetLong(
+                                node,
+                                "lum",
+                                0) /
+                            100000.0));
+
+                color =
+                    ApplyColorTransforms(
+                        HslToRgb(
+                            hue,
+                            saturation,
+                            lightness),
+                        node);
+                return true;
+            }
+
+            if (node.LocalName == "scrgbClr")
+            {
+                int r;
+                int g;
+                int b;
+
+                if (TryReadAnimationScRgbComponent(
                         GetAttr(
                             node,
-                            "val"));
-
-                if (parsed.HasValue)
+                            "r"),
+                        out r) &&
+                    TryReadAnimationScRgbComponent(
+                        GetAttr(
+                            node,
+                            "g"),
+                        out g) &&
+                    TryReadAnimationScRgbComponent(
+                        GetAttr(
+                            node,
+                            "b"),
+                        out b))
                 {
                     color =
-                        parsed.Value;
+                        ApplyColorTransforms(
+                            Color.FromArgb(
+                                r,
+                                g,
+                                b),
+                            node);
                     return true;
-                }
-            }
-
-            if (node.LocalName == "sysClr")
-            {
-                string raw =
-                    GetAttr(
-                        node,
-                        "lastClr");
-
-                Color? parsed =
-                    ParseHexColor(raw);
-
-                if (parsed.HasValue)
-                {
-                    color =
-                        parsed.Value;
-                    return true;
-                }
-            }
-
-            if (node.LocalName == "prstClr")
-            {
-                string raw =
-                    GetAttr(
-                        node,
-                        "val");
-
-                if (!string.IsNullOrEmpty(raw))
-                {
-                    Color named =
-                        Color.FromName(raw);
-
-                    if (named.A > 0)
-                    {
-                        color = named;
-                        return true;
-                    }
                 }
             }
 
@@ -673,13 +737,19 @@ namespace PptxViewer
                 int b;
 
                 if (TryReadAnimationColorComponent(
-                        GetAttr(node, "r"),
+                        GetAttr(
+                            node,
+                            "r"),
                         out r) &&
                     TryReadAnimationColorComponent(
-                        GetAttr(node, "g"),
+                        GetAttr(
+                            node,
+                            "g"),
                         out g) &&
                     TryReadAnimationColorComponent(
-                        GetAttr(node, "b"),
+                        GetAttr(
+                            node,
+                            "b"),
                         out b))
                 {
                     color =
@@ -698,6 +768,7 @@ namespace PptxViewer
             {
                 if (TryReadAnimationColorNode(
                         node.ChildNodes[i],
+                        theme,
                         out color))
                 {
                     return true;
@@ -705,6 +776,44 @@ namespace PptxViewer
             }
 
             return false;
+        }
+
+        private static bool TryReadAnimationScRgbComponent(
+            string raw,
+            out int value)
+        {
+            value = 0;
+
+            if (string.IsNullOrEmpty(raw))
+                return false;
+
+            float parsed;
+            if (!float.TryParse(
+                    raw,
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out parsed))
+            {
+                return false;
+            }
+
+            parsed =
+                Math.Max(
+                    0f,
+                    Math.Min(
+                        100000f,
+                        parsed));
+
+            value =
+                Math.Max(
+                    0,
+                    Math.Min(
+                        255,
+                        (int)Math.Round(
+                            parsed *
+                            255f /
+                            100000f)));
+            return true;
         }
 
         private static bool TryReadAnimationColorComponent(
@@ -739,8 +848,20 @@ namespace PptxViewer
                     0,
                     Math.Min(
                         255,
-                        (int)Math.Round(parsed)));
+                        (int)Math.Round(
+                            parsed)));
             return true;
+        }
+
+        internal static bool TryReadAnimationColorForDiagnostics(
+            XmlNode node,
+            Dictionary<string, Color> theme,
+            out Color color)
+        {
+            return TryReadAnimationColorNode(
+                node,
+                theme,
+                out color);
         }
 
         private static XmlNode FindAnimationEffectNode(XmlNode target)
@@ -1170,7 +1291,9 @@ namespace PptxViewer
                 XmlDocument slideDocument =
                     LoadXml(zip, info.SlideParts[slideIndex]);
                 SlideAnimationTimeline timeline =
-                    ParseAnimationTimeline(slideDocument);
+                    ParseAnimationTimeline(
+                        slideDocument,
+                        info.ThemeColors);
 
                 if (stepIndex < 0 || stepIndex >= timeline.Steps.Count)
                     return outputs;

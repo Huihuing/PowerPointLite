@@ -115,7 +115,7 @@ namespace PptxViewer
                 "<p:par><p:cTn id=\"20\" dur=\"300\" accel=\"25000\" decel=\"15000\" nodeType=\"withEffect\" presetClass=\"emph\" presetID=\"3\">" +
                 "<p:stCondLst><p:cond evt=\"onBegin\" delay=\"80\"/></p:stCondLst>" +
                 "<p:childTnLst><p:animClr>" +
-                "<p:to><a:srgbClr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" val=\"FF6633\"/></p:to>" +
+                "<p:to><a:schemeClr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" val=\"accent5\"/></p:to>" +
                 "<p:cBhvr><p:cTn id=\"21\" dur=\"300\"/><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cBhvr>" +
                 "</p:animClr></p:childTnLst></p:cTn></p:par>" +
 
@@ -188,9 +188,9 @@ namespace PptxViewer
                     first.Actions[i];
 
                 if (action.HasColor &&
-                    action.ColorTo.R == 0xFF &&
-                    action.ColorTo.G == 0x66 &&
-                    action.ColorTo.B == 0x33)
+                    action.ColorTo.R == 0xE7 &&
+                    action.ColorTo.G == 0x6F &&
+                    action.ColorTo.B == 0x8A)
                 {
                     foundColor = true;
                 }
@@ -212,6 +212,8 @@ namespace PptxViewer
                 throw new InvalidOperationException(
                     "Color emphasis or acceleration/deceleration timing was not parsed.");
             }
+
+            ValidateExtendedAnimationColors();
 
             if (!second.RequiresClick ||
                 second.Actions.Count != 3)
@@ -349,6 +351,88 @@ namespace PptxViewer
                         i.ToString() +
                         " is missing.");
                 }
+            }
+        }
+
+        private static void ValidateExtendedAnimationColors()
+        {
+            XmlDocument hslDocument =
+                new XmlDocument();
+
+            hslDocument.LoadXml(
+                "<a:hslClr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" " +
+                "hue=\"7200000\" sat=\"80000\" lum=\"50000\">" +
+                "<a:lumMod val=\"85000\"/>" +
+                "</a:hslClr>");
+
+            Color hslColor;
+            if (!InternalPptxRenderer.TryReadAnimationColorForDiagnostics(
+                    hslDocument.DocumentElement,
+                    null,
+                    out hslColor))
+            {
+                throw new InvalidOperationException(
+                    "HSL animation color was not parsed.");
+            }
+
+            if (hslColor.R < 20 &&
+                hslColor.G < 20 &&
+                hslColor.B < 20)
+            {
+                throw new InvalidOperationException(
+                    "HSL animation color produced an invalid near-black result.");
+            }
+
+            XmlDocument scRgbDocument =
+                new XmlDocument();
+
+            scRgbDocument.LoadXml(
+                "<a:scrgbClr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" " +
+                "r=\"100000\" g=\"25000\" b=\"50000\"/>");
+
+            Color scRgb;
+            if (!InternalPptxRenderer.TryReadAnimationColorForDiagnostics(
+                    scRgbDocument.DocumentElement,
+                    null,
+                    out scRgb) ||
+                scRgb.R < 250 ||
+                scRgb.G < 60 ||
+                scRgb.G > 70 ||
+                scRgb.B < 125 ||
+                scRgb.B > 130)
+            {
+                throw new InvalidOperationException(
+                    "scRGB animation color was not parsed correctly.");
+            }
+
+            Dictionary<string, Color> theme =
+                new Dictionary<string, Color>(
+                    StringComparer.OrdinalIgnoreCase);
+            theme["accent2"] =
+                Color.FromArgb(
+                    40,
+                    120,
+                    210);
+
+            XmlDocument schemeDocument =
+                new XmlDocument();
+
+            schemeDocument.LoadXml(
+                "<a:schemeClr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" val=\"accent2\">" +
+                "<a:tint val=\"20000\"/>" +
+                "</a:schemeClr>");
+
+            Color scheme;
+            if (!InternalPptxRenderer.TryReadAnimationColorForDiagnostics(
+                    schemeDocument.DocumentElement,
+                    theme,
+                    out scheme) ||
+                scheme.R <= 40 ||
+                scheme.G <= 120 ||
+                scheme.B <= 210)
+            {
+                throw new InvalidOperationException(
+                    "Theme scheme animation color transforms were not applied.");
             }
         }
 
