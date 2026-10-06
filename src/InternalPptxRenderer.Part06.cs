@@ -544,7 +544,10 @@ internal static partial class InternalPptxRenderer
                     valueTickLabelPosition,
                     "none",
                     StringComparison.OrdinalIgnoreCase),
-                valueTickLabelPosition);
+                valueTickLabelPosition,
+                ReadChartMajorGridlineStyle(
+                    chartDoc,
+                    theme));
 
             double range =
                 Math.Max(
@@ -1931,7 +1934,8 @@ internal static partial class InternalPptxRenderer
             ChartAxisScale scale,
             string kind,
             bool showLabels,
-            string tickLabelPosition)
+            string tickLabelPosition,
+            ChartLineStyle gridStyle)
         {
             if (scale == null)
                 return;
@@ -1940,13 +1944,22 @@ internal static partial class InternalPptxRenderer
                 BuildChartAxisTicks(
                     scale);
 
-            using (Pen grid =
-                new Pen(
+            if (gridStyle == null)
+            {
+                gridStyle =
+                    new ChartLineStyle();
+                gridStyle.Color =
                     Color.FromArgb(
                         225,
                         228,
-                        232),
-                    1f))
+                        232);
+                gridStyle.Width = 1f;
+            }
+
+            using (Pen grid =
+                new Pen(
+                    gridStyle.Color,
+                    gridStyle.Width))
             using (Font font = SafeFont(
                 "Arial",
                 Math.Max(
@@ -1961,6 +1974,9 @@ internal static partial class InternalPptxRenderer
                         105,
                         105)))
             {
+                grid.DashStyle =
+                    gridStyle.DashStyle;
+
                 bool high =
                     string.Equals(
                         tickLabelPosition,
@@ -2913,6 +2929,90 @@ internal static partial class InternalPptxRenderer
                         markerRect);
                 }
             }
+        }
+
+        private static ChartLineStyle ReadChartMajorGridlineStyle(
+            XmlDocument chartDoc,
+            Dictionary<string, Color> theme)
+        {
+            ChartLineStyle style =
+                new ChartLineStyle();
+            style.Color =
+                Color.FromArgb(
+                    225,
+                    228,
+                    232);
+            style.Width = 1f;
+
+            XmlNode valueAxis =
+                chartDoc == null
+                    ? null
+                    : FindFirst(
+                        chartDoc,
+                        "valAx");
+
+            XmlNode majorGridlines =
+                valueAxis == null
+                    ? null
+                    : DirectChild(
+                        valueAxis,
+                        "majorGridlines");
+            XmlNode shapeProperties =
+                majorGridlines == null
+                    ? null
+                    : DirectChild(
+                        majorGridlines,
+                        "spPr");
+            XmlNode line =
+                shapeProperties == null
+                    ? null
+                    : DirectChild(
+                        shapeProperties,
+                        "ln");
+
+            if (line == null)
+                return style;
+
+            Color? color =
+                ReadSolidFill(
+                    line,
+                    theme);
+
+            if (color.HasValue)
+            {
+                style.Color =
+                    color.Value;
+            }
+
+            long width =
+                GetLong(
+                    line,
+                    "w",
+                    0);
+
+            if (width > 0)
+            {
+                style.Width =
+                    Math.Max(
+                        1f,
+                        EmuToRenderPixels(
+                            width));
+            }
+
+            XmlNode dash =
+                DirectChild(
+                    line,
+                    "prstDash");
+
+            style.DashStyle =
+                ParseChartDashStyle(
+                    dash == null
+                        ? string.Empty
+                        : GetAttr(
+                            dash,
+                            "val"));
+
+            return style;
         }
 
         private static ChartLineStyle ReadChartAxisLineStyle(
