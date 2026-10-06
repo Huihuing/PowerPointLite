@@ -189,6 +189,34 @@ namespace PptxViewer
                         "Animation timeline render state " + state.ToString() + " was not created.");
                 }
             }
+
+            List<string> progressFrames =
+                InternalPptxRenderer.RenderAnimationTimelineStepFrames(
+                    packagePath,
+                    renderDirectory,
+                    0,
+                    0,
+                    8);
+
+            if (progressFrames == null ||
+                progressFrames.Count != 8)
+            {
+                throw new InvalidOperationException(
+                    "Object-level animation progress frames were not created.");
+            }
+
+            for (int i = 0; i < progressFrames.Count; i++)
+            {
+                if (string.IsNullOrEmpty(progressFrames[i]) ||
+                    !File.Exists(progressFrames[i]) ||
+                    new FileInfo(progressFrames[i]).Length <= 0)
+                {
+                    throw new InvalidOperationException(
+                        "Animation progress frame " +
+                        i.ToString() +
+                        " is missing.");
+                }
+            }
         }
 
         private static void RequireActionClass(

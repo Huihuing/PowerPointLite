@@ -252,34 +252,72 @@ namespace PptxViewer
 
             try
             {
-                string frame =
-                    InternalPptxRenderer.RenderAnimationTimelineState(
-                        currentFile,
-                        currentCacheDirectory,
-                        currentIndex,
-                        targetStep);
-
-                if (string.IsNullOrEmpty(frame) || !File.Exists(frame))
-                    return;
-
-                Image next = LoadImageUnlocked(frame);
-                string kind = forward
-                    ? NormalizeEnhancedAnimationKind(step.VisualKind)
-                    : "fade";
                 int visualDuration = forward
                     ? Math.Max(
                         80,
                         Math.Min(
                             10000,
-                            Math.Max(1, step.TotalDurationMs - step.AutoStartDelayMs)))
+                            Math.Max(
+                                1,
+                                step.TotalDurationMs -
+                                step.AutoStartDelayMs)))
                     : 120;
 
-                AnimateBetweenImages(
-                    viewer.Image,
-                    next,
-                    kind,
-                    visualDuration,
-                    forward);
+                bool playedObjectFrames = false;
+
+                if (forward)
+                {
+                    int frameCount = Math.Max(
+                        5,
+                        Math.Min(
+                            14,
+                            visualDuration / 55));
+
+                    List<string> frames =
+                        InternalPptxRenderer.RenderAnimationTimelineStepFrames(
+                            currentFile,
+                            currentCacheDirectory,
+                            currentIndex,
+                            Math.Max(0, targetStep - 1),
+                            frameCount);
+
+                    if (frames != null && frames.Count > 0)
+                    {
+                        PlayEnhancedAnimationFrames(
+                            frames,
+                            visualDuration);
+                        playedObjectFrames = true;
+                    }
+                }
+
+                if (!playedObjectFrames)
+                {
+                    string frame =
+                        InternalPptxRenderer.RenderAnimationTimelineState(
+                            currentFile,
+                            currentCacheDirectory,
+                            currentIndex,
+                            targetStep);
+
+                    if (string.IsNullOrEmpty(frame) ||
+                        !File.Exists(frame))
+                    {
+                        return;
+                    }
+
+                    Image next = LoadImageUnlocked(frame);
+                    string kind = forward
+                        ? NormalizeEnhancedAnimationKind(step.VisualKind)
+                        : "fade";
+
+                    AnimateBetweenImages(
+                        viewer.Image,
+                        next,
+                        kind,
+                        visualDuration,
+                        forward);
+                }
+
                 animationRevealCount = targetStep;
                 enhancedAnimationObservedSlide = currentIndex;
             }
@@ -291,6 +329,40 @@ namespace PptxViewer
             finally
             {
                 enhancedAnimationAdvancing = false;
+            }
+        }
+
+        private void PlayEnhancedAnimationFrames(
+            List<string> frames,
+            int totalDurationMs)
+        {
+            if (frames == null || frames.Count == 0)
+                return;
+
+            int delay = Math.Max(
+                1,
+                totalDurationMs /
+                Math.Max(1, frames.Count));
+
+            for (int i = 0; i < frames.Count; i++)
+            {
+                string path = frames[i];
+                if (string.IsNullOrEmpty(path) ||
+                    !File.Exists(path))
+                {
+                    continue;
+                }
+
+                ReplaceViewerImage(
+                    LoadImageUnlocked(path));
+
+                if (fitMode)
+                    ApplyFit();
+                else
+                    ApplyZoom();
+
+                Application.DoEvents();
+                System.Threading.Thread.Sleep(delay);
             }
         }
 

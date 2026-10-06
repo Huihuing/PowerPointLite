@@ -18,6 +18,8 @@ namespace PptxViewer
             public string EffectClass = "unknown";
             public string Trigger = "onClick";
             public string VisualKind = "fade";
+            public string VisualDirection = "fromLeft";
+            public string MotionPath = string.Empty;
             public string PresetClass = string.Empty;
             public string PresetId = string.Empty;
             public string PresetSubtype = string.Empty;
@@ -196,6 +198,11 @@ namespace PptxViewer
             action.VisualKind = ChooseAnimationVisualKind(
                 effect,
                 action);
+            action.VisualDirection = ChooseAnimationVisualDirection(
+                effect,
+                action);
+            if (effect != null && effect.LocalName == "animMotion")
+                action.MotionPath = GetAttr(effect, "path") ?? string.Empty;
             return action;
         }
 
@@ -437,6 +444,33 @@ namespace PptxViewer
             return "fade";
         }
 
+        private static string ChooseAnimationVisualDirection(
+            XmlNode effect,
+            AnimationActionSpec action)
+        {
+            string text = string.Empty;
+
+            if (effect != null)
+            {
+                text =
+                    (GetAttr(effect, "filter") ?? string.Empty) + " " +
+                    (GetAttr(effect, "path") ?? string.Empty);
+            }
+
+            text += " " + (action == null ? string.Empty : action.PresetSubtype);
+            text = text.ToLowerInvariant();
+
+            if (text.IndexOf("right") >= 0)
+                return "fromRight";
+            if (text.IndexOf("top") >= 0 ||
+                text.IndexOf("up") >= 0)
+                return "fromTop";
+            if (text.IndexOf("bottom") >= 0 ||
+                text.IndexOf("down") >= 0)
+                return "fromBottom";
+            return "fromLeft";
+        }
+
         private static void BuildAnimationSteps(
             List<AnimationActionSpec> actions,
             SlideAnimationTimeline timeline)
@@ -573,6 +607,667 @@ namespace PptxViewer
                     }
                 }
             }
+        }
+
+        public static List<string> RenderAnimationTimelineStepFrames(
+            string file,
+            string cacheDir,
+            int slideIndex,
+            int stepIndex,
+            int frameCount)
+        {
+            List<string> outputs = new List<string>();
+            if (string.IsNullOrEmpty(file) ||
+                string.IsNullOrEmpty(cacheDir))
+                return outputs;
+
+            frameCount = Math.Max(3, Math.Min(18, frameCount));
+            Directory.CreateDirectory(cacheDir);
+
+            using (ZipArchive zip = ZipFile.OpenRead(file))
+            {
+                PresentationInfo info = ReadPresentationInfo(zip);
+                if (slideIndex < 0 || slideIndex >= info.SlideParts.Count)
+                    return outputs;
+
+                XmlDocument slideDocument =
+                    LoadXml(zip, info.SlideParts[slideIndex]);
+                SlideAnimationTimeline timeline =
+                    ParseAnimationTimeline(slideDocument);
+
+                if (stepIndex < 0 || stepIndex >= timeline.Steps.Count)
+                    return outputs;
+
+                AnimationStepSpec step = timeline.Steps[stepIndex];
+
+                HashSet<string> beforeHidden =
+                    BuildAnimationHiddenSet(timeline, stepIndex);
+                HashSet<string> afterHidden =
+                    BuildAnimationHiddenSet(timeline, stepIndex + 1);
+
+                int width = 1920;
+                int height = (int)Math.Round(
+                    width * ((double)info.HeightEmu / info.WidthEmu));
+                if (height < 200 || height > 4000)
+                    height = 1080;
+
+                using (Bitmap before = RenderSlide(
+                    zip,
+                    info,
+                    info.SlideParts[slideIndex],
+                    width,
+                    height,
+                    beforeHidden))
+                using (Bitmap after = RenderSlide(
+                    zip,
+                    info,
+                    info.SlideParts[slideIndex],
+                    width,
+                    height,
+                    afterHidden))
+                {
+                    Dictionary<string, RectangleF> bounds =
+                        ReadSlideShapeBounds(
+                            slideDocument,
+                            info,
+                            width,
+                            height);
+
+                    for (int i = 1; i <= frameCount; i++)
+                    {
+                        string output = Path.Combine(
+                            cacheDir,
+                            "timeline_" +
+                            (slideIndex + 1).ToString("D4") +
+                            "_step_" +
+                            (stepIndex + 1).ToString("D3") +
+                            "_frame_" +
+                            i.ToString("D3") +
+                            ".png");
+
+                        outputs.Add(output);
+                        if (File.Exists(output))
+                            continue;
+
+                        float progress = i / (float)frameCount;
+
+                        using (Bitmap frame =
+                            ComposeAnimationProgressFrame(
+                                before,
+                                after,
+                                bounds,
+                                step,
+                                progress))
+                        {
+                            frame.Save(output, ImageFormat.Png);
+                        }
+                    }
+                }
+            }
+
+            return outputs;
+        }
+
+        private static Bitmap ComposeAnimationProgressFrame(
+            Bitmap before,
+            Bitmap after,
+            Dictionary<string, RectangleF> bounds,
+            AnimationStepSpec step,
+            float progress)
+        {
+            progress = Math.Max(0f, Math.Min(1f, progress));
+
+            if (progress >= 0.999f)
+                return new Bitmap(after);
+
+            Bitmap frame = new Bitmap(
+                before.Width,
+                before.Height,
+                PixelFormat.Format32bppArgb);
+
+            using (Graphics g = Graphics.FromImage(frame))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.InterpolationMode =
+                    InterpolationMode.HighQualityBicubic;
+                g.DrawImage(
+                    before,
+                    new Rectangle(
+                        0,
+                        0,
+                        frame.Width,
+                        frame.Height));
+
+                for (int i = 0; i < step.Actions.Count; i++)
+                {
+                    AnimationActionSpec action = step.Actions[i];
+                    if (action == null ||
+                        string.IsNullOrEmpty(action.ShapeId))
+                        continue;
+
+                    RectangleF rectF;
+                    if (!bounds.TryGetValue(action.ShapeId, out rectF))
+                        continue;
+
+                    Rectangle rect = ClampAnimationRect(
+                        rectF,
+                        frame.Width,
+                        frame.Height);
+                    if (rect.Width <= 0 || rect.Height <= 0)
+                        continue;
+
+                    float localProgress =
+                        CalculateAnimationActionProgress(
+                            action,
+                            step,
+                            progress);
+
+                    if (localProgress <= 0f)
+                        continue;
+
+                    if (action.EffectClass == "entrance")
+                    {
+                        DrawEntranceAnimationRegion(
+                            g,
+                            after,
+                            rect,
+                            action,
+                            localProgress);
+                    }
+                    else if (action.EffectClass == "exit")
+                    {
+                        DrawExitAnimationRegion(
+                            g,
+                            before,
+                            after,
+                            rect,
+                            action,
+                            localProgress);
+                    }
+                    else if (action.EffectClass == "motion")
+                    {
+                        DrawMotionAnimationProgress(
+                            g,
+                            rect,
+                            action,
+                            localProgress,
+                            frame.Width,
+                            frame.Height);
+                    }
+                    else if (action.EffectClass == "emphasis")
+                    {
+                        DrawEmphasisAnimationProgress(
+                            g,
+                            rect,
+                            localProgress);
+                    }
+                }
+            }
+
+            return frame;
+        }
+
+        private static float CalculateAnimationActionProgress(
+            AnimationActionSpec action,
+            AnimationStepSpec step,
+            float stepProgress)
+        {
+            int total = Math.Max(1, step.TotalDurationMs);
+            double elapsed = total * stepProgress;
+            double start = Math.Max(0, action.StartOffsetMs);
+
+            int repeats = Math.Max(1, action.RepeatCount);
+            double duration =
+                Math.Max(1, action.DurationMs) * repeats;
+            if (action.AutoReverse)
+                duration *= 2.0;
+
+            if (elapsed <= start)
+                return 0f;
+            if (elapsed >= start + duration)
+                return 1f;
+
+            double value = (elapsed - start) / duration;
+
+            if (action.AutoReverse)
+            {
+                double doubled = value * 2.0;
+                value = doubled <= 1.0
+                    ? doubled
+                    : 2.0 - doubled;
+            }
+
+            return (float)Math.Max(
+                0.0,
+                Math.Min(1.0, value));
+        }
+
+        private static Rectangle ClampAnimationRect(
+            RectangleF source,
+            int width,
+            int height)
+        {
+            int left = Math.Max(
+                0,
+                Math.Min(
+                    width,
+                    (int)Math.Floor(source.Left)));
+            int top = Math.Max(
+                0,
+                Math.Min(
+                    height,
+                    (int)Math.Floor(source.Top)));
+            int right = Math.Max(
+                left,
+                Math.Min(
+                    width,
+                    (int)Math.Ceiling(source.Right)));
+            int bottom = Math.Max(
+                top,
+                Math.Min(
+                    height,
+                    (int)Math.Ceiling(source.Bottom)));
+
+            return Rectangle.FromLTRB(
+                left,
+                top,
+                right,
+                bottom);
+        }
+
+        private static void DrawEntranceAnimationRegion(
+            Graphics g,
+            Bitmap after,
+            Rectangle rect,
+            AnimationActionSpec action,
+            float progress)
+        {
+            string kind = action.VisualKind ?? "fade";
+
+            if (kind == "wipe")
+            {
+                Rectangle reveal = GetAnimationRevealRect(
+                    rect,
+                    action.VisualDirection,
+                    progress);
+                if (reveal.Width > 0 && reveal.Height > 0)
+                    DrawAnimationRegion(
+                        g,
+                        after,
+                        reveal,
+                        reveal,
+                        1f);
+                return;
+            }
+
+            if (kind == "push")
+            {
+                Rectangle destination =
+                    GetAnimationPushDestination(
+                        rect,
+                        action.VisualDirection,
+                        progress,
+                        false);
+
+                GraphicsState state = g.Save();
+                g.SetClip(rect);
+                DrawAnimationRegion(
+                    g,
+                    after,
+                    destination,
+                    rect,
+                    1f);
+                g.Restore(state);
+                return;
+            }
+
+            DrawAnimationRegion(
+                g,
+                after,
+                rect,
+                rect,
+                progress);
+        }
+
+        private static void DrawExitAnimationRegion(
+            Graphics g,
+            Bitmap before,
+            Bitmap after,
+            Rectangle rect,
+            AnimationActionSpec action,
+            float progress)
+        {
+            string kind = action.VisualKind ?? "fade";
+
+            if (kind == "wipe")
+            {
+                Rectangle reveal = GetAnimationRevealRect(
+                    rect,
+                    action.VisualDirection,
+                    progress);
+
+                if (reveal.Width > 0 && reveal.Height > 0)
+                    DrawAnimationRegion(
+                        g,
+                        after,
+                        reveal,
+                        reveal,
+                        1f);
+                return;
+            }
+
+            if (kind == "push")
+            {
+                DrawAnimationRegion(
+                    g,
+                    after,
+                    rect,
+                    rect,
+                    1f);
+
+                Rectangle destination =
+                    GetAnimationPushDestination(
+                        rect,
+                        action.VisualDirection,
+                        progress,
+                        true);
+
+                GraphicsState state = g.Save();
+                g.SetClip(rect);
+                DrawAnimationRegion(
+                    g,
+                    before,
+                    destination,
+                    rect,
+                    1f);
+                g.Restore(state);
+                return;
+            }
+
+            DrawAnimationRegion(
+                g,
+                after,
+                rect,
+                rect,
+                progress);
+        }
+
+        private static Rectangle GetAnimationRevealRect(
+            Rectangle rect,
+            string direction,
+            float progress)
+        {
+            progress = Math.Max(0f, Math.Min(1f, progress));
+
+            if (direction == "fromRight")
+            {
+                int width = Math.Max(
+                    1,
+                    (int)Math.Round(rect.Width * progress));
+                return new Rectangle(
+                    rect.Right - width,
+                    rect.Top,
+                    width,
+                    rect.Height);
+            }
+
+            if (direction == "fromTop")
+            {
+                int height = Math.Max(
+                    1,
+                    (int)Math.Round(rect.Height * progress));
+                return new Rectangle(
+                    rect.Left,
+                    rect.Top,
+                    rect.Width,
+                    height);
+            }
+
+            if (direction == "fromBottom")
+            {
+                int height = Math.Max(
+                    1,
+                    (int)Math.Round(rect.Height * progress));
+                return new Rectangle(
+                    rect.Left,
+                    rect.Bottom - height,
+                    rect.Width,
+                    height);
+            }
+
+            int revealWidth = Math.Max(
+                1,
+                (int)Math.Round(rect.Width * progress));
+            return new Rectangle(
+                rect.Left,
+                rect.Top,
+                revealWidth,
+                rect.Height);
+        }
+
+        private static Rectangle GetAnimationPushDestination(
+            Rectangle rect,
+            string direction,
+            float progress,
+            bool exiting)
+        {
+            progress = Math.Max(0f, Math.Min(1f, progress));
+
+            float amount = exiting
+                ? progress
+                : 1f - progress;
+
+            int dx = 0;
+            int dy = 0;
+
+            if (direction == "fromRight")
+                dx = (int)Math.Round(rect.Width * amount);
+            else if (direction == "fromTop")
+                dy = -(int)Math.Round(rect.Height * amount);
+            else if (direction == "fromBottom")
+                dy = (int)Math.Round(rect.Height * amount);
+            else
+                dx = -(int)Math.Round(rect.Width * amount);
+
+            return new Rectangle(
+                rect.X + dx,
+                rect.Y + dy,
+                rect.Width,
+                rect.Height);
+        }
+
+        private static void DrawAnimationRegion(
+            Graphics g,
+            Bitmap source,
+            Rectangle destination,
+            Rectangle sourceRect,
+            float alpha)
+        {
+            alpha = Math.Max(0f, Math.Min(1f, alpha));
+
+            using (ImageAttributes attributes =
+                new ImageAttributes())
+            {
+                ColorMatrix matrix = new ColorMatrix();
+                matrix.Matrix33 = alpha;
+                attributes.SetColorMatrix(
+                    matrix,
+                    ColorMatrixFlag.Default,
+                    ColorAdjustType.Bitmap);
+
+                g.DrawImage(
+                    source,
+                    destination,
+                    sourceRect.X,
+                    sourceRect.Y,
+                    sourceRect.Width,
+                    sourceRect.Height,
+                    GraphicsUnit.Pixel,
+                    attributes);
+            }
+        }
+
+        private static void DrawEmphasisAnimationProgress(
+            Graphics g,
+            Rectangle rect,
+            float progress)
+        {
+            double wave = Math.Sin(
+                Math.PI * Math.Max(
+                    0f,
+                    Math.Min(1f, progress)));
+
+            int alpha = Math.Max(
+                0,
+                Math.Min(
+                    220,
+                    (int)Math.Round(210.0 * wave)));
+
+            if (alpha <= 0)
+                return;
+
+            float expand = (float)(4.0 + 5.0 * wave);
+            RectangleF glowRect = new RectangleF(
+                rect.X - expand,
+                rect.Y - expand,
+                rect.Width + expand * 2f,
+                rect.Height + expand * 2f);
+
+            using (Pen glow = new Pen(
+                Color.FromArgb(
+                    alpha,
+                    245,
+                    170,
+                    40),
+                (float)(2.0 + 4.0 * wave)))
+            {
+                g.DrawRectangle(
+                    glow,
+                    glowRect.X,
+                    glowRect.Y,
+                    glowRect.Width,
+                    glowRect.Height);
+            }
+        }
+
+        private static void DrawMotionAnimationProgress(
+            Graphics g,
+            Rectangle rect,
+            AnimationActionSpec action,
+            float progress,
+            int width,
+            int height)
+        {
+            float dx;
+            float dy;
+            TryReadMotionPathDelta(
+                action.MotionPath,
+                out dx,
+                out dy);
+
+            if (Math.Abs(dx) < 0.0001f &&
+                Math.Abs(dy) < 0.0001f)
+            {
+                dx = 0.18f;
+            }
+
+            PointF start = new PointF(
+                rect.Left + rect.Width / 2f,
+                rect.Top + rect.Height / 2f);
+
+            PointF end = new PointF(
+                start.X + dx * width,
+                start.Y + dy * height);
+
+            PointF current = new PointF(
+                start.X + (end.X - start.X) * progress,
+                start.Y + (end.Y - start.Y) * progress);
+
+            using (Pen path = new Pen(
+                Color.FromArgb(
+                    175,
+                    70,
+                    125,
+                    230),
+                3f))
+            {
+                path.DashStyle = DashStyle.Dash;
+                g.DrawLine(path, start, current);
+            }
+
+            using (Brush marker = new SolidBrush(
+                Color.FromArgb(
+                    205,
+                    91,
+                    140,
+                    255)))
+            {
+                float radius = 5f;
+                g.FillEllipse(
+                    marker,
+                    current.X - radius,
+                    current.Y - radius,
+                    radius * 2f,
+                    radius * 2f);
+            }
+        }
+
+        private static void TryReadMotionPathDelta(
+            string path,
+            out float dx,
+            out float dy)
+        {
+            dx = 0f;
+            dy = 0f;
+
+            if (string.IsNullOrEmpty(path))
+                return;
+
+            List<double> values = new List<double>();
+            string token = string.Empty;
+
+            for (int i = 0; i <= path.Length; i++)
+            {
+                char ch = i < path.Length
+                    ? path[i]
+                    : ' ';
+
+                bool numeric =
+                    (ch >= '0' && ch <= '9') ||
+                    ch == '-' ||
+                    ch == '+' ||
+                    ch == '.' ||
+                    ch == 'e' ||
+                    ch == 'E';
+
+                if (numeric)
+                {
+                    token += ch;
+                }
+                else if (token.Length > 0)
+                {
+                    double value;
+                    if (double.TryParse(
+                            token,
+                            NumberStyles.Float,
+                            CultureInfo.InvariantCulture,
+                            out value))
+                    {
+                        values.Add(value);
+                    }
+                    token = string.Empty;
+                }
+            }
+
+            if (values.Count < 4)
+                return;
+
+            dx = (float)(
+                values[values.Count - 2] -
+                values[0]);
+            dy = (float)(
+                values[values.Count - 1] -
+                values[1]);
         }
 
         private static Dictionary<string, RectangleF> ReadSlideShapeBounds(
