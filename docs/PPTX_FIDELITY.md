@@ -113,7 +113,7 @@ Microsoft PowerPoint (설치된 경우)
   - cached category/value 기반 title/legend
   - 음수 값과 0 기준선
   - valAx min/max/majorUnit/orientation 기본 반영
-  - column/bar/line의 catAx crossesAt 및 crosses=min/max 축 교차 위치 기본 반영
+  - column/bar/line/area의 catAx crossesAt 및 crosses=min/max 축 교차 위치 기본 반영
   - showVal/showCatName/showSerName/showPercent 데이터 레이블
   - dLbls numFmt 숫자 서식 기본 반영
   - 데이터 레이블 separator 기본 반영
