@@ -14147,6 +14147,8 @@ namespace PptxViewer
 
                         PointF from;
                         PointF to;
+                        bool processSameRow =
+                            false;
 
                         SmartNode destinationNode;
                         bool destinationIsAssistant =
@@ -14155,8 +14157,77 @@ namespace PptxViewer
                                 out destinationNode) &&
                             destinationNode.IsAssistant;
 
-                        if (layoutKind == "hierarchy" &&
-                            destinationIsAssistant)
+                        if (layoutKind == "process")
+                        {
+                            float sourceCenterX =
+                                source.Left +
+                                source.Width /
+                                2f;
+                            float sourceCenterY =
+                                source.Top +
+                                source.Height /
+                                2f;
+                            float destinationCenterX =
+                                destination.Left +
+                                destination.Width /
+                                2f;
+                            float destinationCenterY =
+                                destination.Top +
+                                destination.Height /
+                                2f;
+
+                            processSameRow =
+                                Math.Abs(
+                                    sourceCenterY -
+                                    destinationCenterY) <=
+                                Math.Max(
+                                    source.Height,
+                                    destination.Height) *
+                                0.45f;
+
+                            if (processSameRow)
+                            {
+                                bool destinationOnRight =
+                                    destinationCenterX >=
+                                    sourceCenterX;
+
+                                from =
+                                    new PointF(
+                                        destinationOnRight
+                                            ? source.Right
+                                            : source.Left,
+                                        sourceCenterY);
+
+                                to =
+                                    new PointF(
+                                        destinationOnRight
+                                            ? destination.Left
+                                            : destination.Right,
+                                        destinationCenterY);
+                            }
+                            else
+                            {
+                                bool destinationBelow =
+                                    destinationCenterY >=
+                                    sourceCenterY;
+
+                                from =
+                                    new PointF(
+                                        sourceCenterX,
+                                        destinationBelow
+                                            ? source.Bottom
+                                            : source.Top);
+
+                                to =
+                                    new PointF(
+                                        destinationCenterX,
+                                        destinationBelow
+                                            ? destination.Top
+                                            : destination.Bottom);
+                            }
+                        }
+                        else if (layoutKind == "hierarchy" &&
+                                 destinationIsAssistant)
                         {
                             bool assistantOnLeft =
                                 destination.Left <
@@ -14183,19 +14254,27 @@ namespace PptxViewer
                         else if (layoutKind == "hierarchy" ||
                                  layoutKind == "verticalProcess")
                         {
+                            bool destinationBelow =
+                                destination.Top >=
+                                source.Top;
+
                             from =
                                 new PointF(
                                     source.Left +
                                     source.Width /
                                     2f,
-                                    source.Bottom);
+                                    destinationBelow
+                                        ? source.Bottom
+                                        : source.Top);
 
                             to =
                                 new PointF(
                                     destination.Left +
                                     destination.Width /
                                     2f,
-                                    destination.Top);
+                                    destinationBelow
+                                        ? destination.Top
+                                        : destination.Bottom);
                         }
                         else
                         {
@@ -14264,6 +14343,30 @@ namespace PptxViewer
                                         to
                                     });
                             }
+                        }
+                        else if (layoutKind == "verticalProcess" ||
+                                 (layoutKind == "process" &&
+                                  !processSameRow))
+                        {
+                            float middleY =
+                                from.Y +
+                                (to.Y -
+                                 from.Y) /
+                                2f;
+
+                            g.DrawLines(
+                                connector,
+                                new PointF[]
+                                {
+                                    from,
+                                    new PointF(
+                                        from.X,
+                                        middleY),
+                                    new PointF(
+                                        to.X,
+                                        middleY),
+                                    to
+                                });
                         }
                         else
                         {
