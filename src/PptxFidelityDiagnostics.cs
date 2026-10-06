@@ -2989,6 +2989,80 @@ namespace PptxViewer
                     "SmartArt process rows were not centered or spaced correctly.");
             }
 
+            SmartNode verticalLayoutNode0 =
+                new SmartNode();
+            verticalLayoutNode0.Id =
+                "verticalLayout0";
+            SmartNode verticalLayoutNode1 =
+                new SmartNode();
+            verticalLayoutNode1.Id =
+                "verticalLayout1";
+            SmartNode verticalLayoutNode2 =
+                new SmartNode();
+            verticalLayoutNode2.Id =
+                "verticalLayout2";
+
+            List<SmartNode> verticalLayoutNodes =
+                new List<SmartNode>();
+            verticalLayoutNodes.Add(
+                verticalLayoutNode0);
+            verticalLayoutNodes.Add(
+                verticalLayoutNode1);
+            verticalLayoutNodes.Add(
+                verticalLayoutNode2);
+
+            RectangleF verticalLayoutRect =
+                new RectangleF(
+                    0f,
+                    0f,
+                    320f,
+                    520f);
+
+            Dictionary<string, RectangleF> verticalLayoutPositions =
+                BuildVerticalProcessSmartArtPositions(
+                    verticalLayoutNodes,
+                    verticalLayoutRect);
+
+            RectangleF verticalFirst =
+                verticalLayoutPositions[
+                    "verticalLayout0"];
+            RectangleF verticalMiddle =
+                verticalLayoutPositions[
+                    "verticalLayout1"];
+            RectangleF verticalLast =
+                verticalLayoutPositions[
+                    "verticalLayout2"];
+
+            float topMargin =
+                verticalFirst.Top -
+                verticalLayoutRect.Top;
+            float bottomMargin =
+                verticalLayoutRect.Bottom -
+                verticalLast.Bottom;
+            float verticalCenter =
+                verticalLayoutRect.Left +
+                verticalLayoutRect.Width /
+                2f;
+            float firstCenter =
+                verticalFirst.Left +
+                verticalFirst.Width /
+                2f;
+
+            if (Math.Abs(
+                    topMargin -
+                    bottomMargin) > 2f ||
+                Math.Abs(
+                    firstCenter -
+                    verticalCenter) > 1f ||
+                verticalMiddle.Top <=
+                    verticalFirst.Bottom ||
+                verticalLast.Top <=
+                    verticalMiddle.Bottom)
+            {
+                throw new InvalidOperationException(
+                    "SmartArt vertical process stack was not centered or spaced correctly.");
+            }
+
             SmartNode processSource =
                 new SmartNode();
             processSource.Id = "processSource";
