@@ -3917,8 +3917,8 @@ namespace PptxViewer
                         Math.Abs(sx),
                         Math.Abs(sy)));
 
-            const int rings = 4;
-            const int directions = 12;
+            const int rings = 6;
+            const int directions = 16;
 
             for (int ring = rings;
                  ring >= 1;
@@ -3928,12 +3928,22 @@ namespace PptxViewer
                     ring /
                     (float)rings;
 
+                double sigmaDistance =
+                    3.0 *
+                    ringRatio;
+
+                float gaussianWeight =
+                    (float)Math.Exp(
+                        -0.5 *
+                        sigmaDistance *
+                        sigmaDistance);
+
                 float alphaRatio =
-                    (rings -
-                     ring +
-                     1) /
-                    (float)(rings *
-                            12);
+                    Math.Max(
+                        0.006f,
+                        gaussianWeight /
+                        (directions *
+                         0.65f));
 
                 for (int direction = 0;
                      direction < directions;
@@ -3949,11 +3959,13 @@ namespace PptxViewer
                         (float)Math.Cos(
                             angle) *
                         blurX *
+                        3f *
                         ringRatio;
                     float offsetY =
                         (float)Math.Sin(
                             angle) *
                         blurY *
+                        3f *
                         ringRatio;
 
                     using (GraphicsPath shifted =
