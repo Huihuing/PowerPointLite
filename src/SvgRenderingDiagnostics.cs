@@ -31,6 +31,8 @@ namespace PptxViewer
                 "<path id=\"reuseTriangle\" d=\"M 0 0 L 8 0 L 4 8 Z\"/>" +
                 "<path id=\"styledReference\" d=\"M 0 0 H 7 V 7 H 0 Z\" fill=\"#2f8f5b\" stroke=\"#163a27\" stroke-width=\"1.5\"/>" +
                 "<symbol id=\"reuseSymbol\" viewBox=\"0 0 10 10\"><rect x=\"0\" y=\"0\" width=\"6\" height=\"6\"/><circle cx=\"8\" cy=\"3\" r=\"2\"/></symbol>" +
+                "<symbol id=\"styledSymbol\" fill=\"#6b4fd3\" stroke=\"#2b1c68\"><rect x=\"0\" y=\"0\" width=\"5\" height=\"5\"/></symbol>" +
+                "<g id=\"styledGroup\" fill=\"#cc6b32\" stroke-width=\"2.25\"><rect x=\"0\" y=\"0\" width=\"4\" height=\"4\"/></g>" +
                 "<use id=\"nestedUseSource\" xlink:href=\"#reuseSymbol\" x=\"2\" y=\"1\" width=\"20\" height=\"10\" preserveAspectRatio=\"none\"/>" +
                 "<linearGradient id=\"g\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\" spreadMethod=\"reflect\" gradientTransform=\"rotate(22 .5 .5)\">" +
                 "<stop offset=\"0%\" stop-color=\"#e84b4b\"/>" +
@@ -52,6 +54,8 @@ namespace PptxViewer
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<g color=\"hsl(326deg 53% 50% / 100%)\"><use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" color=\"inherit\" fill=\"currentColor\"/></g>" +
                 "<use id=\"styledUse\" xlink:href=\"#styledReference\" x=\"118\" y=\"2\"/>" +
+                "<use id=\"styledSymbolUse\" xlink:href=\"#styledSymbol\" x=\"106\" y=\"2\"/>" +
+                "<use id=\"styledGroupUse\" xlink:href=\"#styledGroup\" x=\"98\" y=\"2\"/>" +
                 "<use id=\"useSymbol\" xlink:href=\"#nestedUseSource\" x=\"146\" y=\"4\" fill=\"#3a7bd5\"/>" +
                 "<circle cx=\"154\" cy=\"28\" r=\"18\" fill=\"url(#g)\" transform=\"skewX(8)\"/>" +
                 "<rect id=\"clipRuleTarget\" x=\"176\" y=\"2\" width=\"20\" height=\"20\" fill=\"#7b61ff\" clip-path=\"url(#evenoddClip)\"/>" +
@@ -99,6 +103,44 @@ namespace PptxViewer
             {
                 throw new InvalidOperationException(
                     "SVG direct use did not inherit explicit presentation styles from its referenced primitive.");
+            }
+
+            XmlNode styledSymbolUseNode =
+                FindSvgNodeById(
+                    document,
+                    "styledSymbolUse");
+            XmlNode styledGroupUseNode =
+                FindSvgNodeById(
+                    document,
+                    "styledGroupUse");
+
+            if (!string.Equals(
+                    GetSvgStyleInherited(
+                        styledSymbolUseNode,
+                        "fill"),
+                    "#6b4fd3",
+                    StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(
+                    GetSvgStyleInherited(
+                        styledSymbolUseNode,
+                        "stroke"),
+                    "#2b1c68",
+                    StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(
+                    GetSvgStyleInherited(
+                        styledGroupUseNode,
+                        "fill"),
+                    "#cc6b32",
+                    StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(
+                    GetSvgStyleInherited(
+                        styledGroupUseNode,
+                        "stroke-width"),
+                    "2.25",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "SVG use did not inherit container-level presentation styles from symbol or group references.");
             }
 
             XmlNode nestedUseNode =

@@ -5725,45 +5725,18 @@ namespace PptxViewer
             if (node != null &&
                 node.LocalName == "use")
             {
-                string referenceId =
-                    ReadSvgUseReferenceId(
-                        node);
+                string referencedValue =
+                    GetSvgUseReferencedStyle(
+                        node,
+                        key,
+                        new HashSet<string>(
+                            StringComparer.Ordinal),
+                        0);
 
                 if (!string.IsNullOrEmpty(
-                        referenceId))
+                        referencedValue))
                 {
-                    XmlNode referenced =
-                        FindSvgNodeById(
-                            node.OwnerDocument,
-                            referenceId);
-
-                    if (referenced != null &&
-                        referenced != node &&
-                        referenced.LocalName != "use" &&
-                        referenced.LocalName != "g" &&
-                        referenced.LocalName != "symbol" &&
-                        referenced.LocalName != "svg")
-                    {
-                        string referencedValue =
-                            GetSvgStyle(
-                                referenced,
-                                key);
-
-                        if (!string.IsNullOrEmpty(
-                                referencedValue))
-                        {
-                            referencedValue =
-                                referencedValue.Trim();
-
-                            if (!string.Equals(
-                                    referencedValue,
-                                    "inherit",
-                                    StringComparison.OrdinalIgnoreCase))
-                            {
-                                return referencedValue;
-                            }
-                        }
-                    }
+                    return referencedValue;
                 }
             }
 
@@ -5803,6 +5776,87 @@ namespace PptxViewer
             }
 
             return null;
+        }
+
+        private static string GetSvgUseReferencedStyle(
+            XmlNode useNode,
+            string key,
+            HashSet<string> activeReferences,
+            int depth)
+        {
+            if (useNode == null ||
+                useNode.LocalName != "use" ||
+                activeReferences == null ||
+                depth > 12)
+            {
+                return null;
+            }
+
+            string referenceId =
+                ReadSvgUseReferenceId(
+                    useNode);
+
+            if (string.IsNullOrEmpty(
+                    referenceId) ||
+                activeReferences.Contains(
+                    referenceId))
+            {
+                return null;
+            }
+
+            XmlNode referenced =
+                FindSvgNodeById(
+                    useNode.OwnerDocument,
+                    referenceId);
+
+            if (referenced == null ||
+                referenced == useNode)
+            {
+                return null;
+            }
+
+            activeReferences.Add(
+                referenceId);
+
+            try
+            {
+                string referencedValue =
+                    GetSvgStyle(
+                        referenced,
+                        key);
+
+                if (!string.IsNullOrEmpty(
+                        referencedValue))
+                {
+                    referencedValue =
+                        referencedValue.Trim();
+
+                    if (!string.Equals(
+                            referencedValue,
+                            "inherit",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        return referencedValue;
+                    }
+                }
+
+                if (referenced.LocalName ==
+                    "use")
+                {
+                    return GetSvgUseReferencedStyle(
+                        referenced,
+                        key,
+                        activeReferences,
+                        depth + 1);
+                }
+
+                return null;
+            }
+            finally
+            {
+                activeReferences.Remove(
+                    referenceId);
+            }
         }
 
         private static Color ReadSvgColorInherited(
