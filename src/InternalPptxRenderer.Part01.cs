@@ -221,6 +221,72 @@ internal static partial class InternalPptxRenderer
                         radius;
                 }
 
+                if (string.Equals(
+                        GeometryKind,
+                        "diamond",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    float halfWidth =
+                        Bounds.Width *
+                        0.5f;
+                    float halfHeight =
+                        Bounds.Height *
+                        0.5f;
+
+                    if (halfWidth <= 0f ||
+                        halfHeight <= 0f)
+                    {
+                        return false;
+                    }
+
+                    float nx =
+                        Math.Abs(
+                            x -
+                            centerX) /
+                        halfWidth;
+                    float ny =
+                        Math.Abs(
+                            y -
+                            centerY) /
+                        halfHeight;
+
+                    return nx + ny <=
+                        1f;
+                }
+
+                if (string.Equals(
+                        GeometryKind,
+                        "triangle",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    if (Bounds.Height <=
+                        0.0001f)
+                    {
+                        return false;
+                    }
+
+                    float progress =
+                        (y -
+                         Bounds.Top) /
+                        Bounds.Height;
+
+                    if (progress < 0f ||
+                        progress > 1f)
+                    {
+                        return false;
+                    }
+
+                    float allowedHalfWidth =
+                        Bounds.Width *
+                        0.5f *
+                        progress;
+
+                    return Math.Abs(
+                            x -
+                            centerX) <=
+                        allowedHalfWidth;
+                }
+
                 return true;
             }
         }
@@ -888,7 +954,17 @@ internal static partial class InternalPptxRenderer
                               "roundRect",
                               StringComparison.OrdinalIgnoreCase)
                             ? "roundRect"
-                            : "rect";
+                            : string.Equals(
+                                  presetName,
+                                  "diamond",
+                                  StringComparison.OrdinalIgnoreCase)
+                                ? "diamond"
+                                : string.Equals(
+                                      presetName,
+                                      "triangle",
+                                      StringComparison.OrdinalIgnoreCase)
+                                    ? "triangle"
+                                    : "rect";
 
                 regions.Add(
                     new ShapeRegion
