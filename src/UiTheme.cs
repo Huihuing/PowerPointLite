@@ -278,9 +278,11 @@ namespace PptxViewer
 
             engineLabel.ForeColor = ApplicationTheme.SecondaryText;
 
-            notesBox.BorderStyle = BorderStyle.None;
-            notesBox.BackColor = Color.FromArgb(246, 247, 249);
-            notesBox.ForeColor = Color.FromArgb(30, 33, 38);
+            notesBox.BorderStyle = BorderStyle.FixedSingle;
+            notesBox.BackColor = ApplicationTheme.Surface;
+            notesBox.ForeColor = ApplicationTheme.PrimaryText;
+            notesBox.Height = 168;
+            notesBox.DetectUrls = true;
 
             for (int i = 0; i < toolbar.Controls.Count; i++)
                 ApplicationTheme.ApplyRecursively(toolbar.Controls[i]);
