@@ -1240,7 +1240,7 @@ internal static partial class InternalPptxRenderer
                             70,
                             Math.Min(
                                 235,
-                                extrusionColor.A)),
+                                (int)extrusionColor.A)),
                         Math.Min(
                             255,
                             extrusionColor.R +
