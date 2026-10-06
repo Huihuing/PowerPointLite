@@ -13671,9 +13671,32 @@ namespace PptxViewer
 
             float boxW =
                 Math.Max(
-                    60f,
-                    rect.Width *
-                    0.72f);
+                    20f,
+                    Math.Min(
+                        Math.Max(
+                            60f,
+                            rect.Width *
+                            0.72f),
+                        Math.Max(
+                            20f,
+                            rect.Width -
+                            gap *
+                            2f)));
+
+            float totalHeight =
+                count *
+                boxH +
+                Math.Max(
+                    0,
+                    count - 1) *
+                gap;
+            float startY =
+                rect.Top +
+                Math.Max(
+                    gap,
+                    (rect.Height -
+                     totalHeight) /
+                    2f);
 
             for (int i = 0;
                  i < nodes.Count;
@@ -13686,8 +13709,7 @@ namespace PptxViewer
                     2f;
 
                 float y =
-                    rect.Top +
-                    gap +
+                    startY +
                     i *
                     (boxH + gap);
 
