@@ -370,46 +370,65 @@ public sealed partial class MainForm : Form
                 form.StartPosition = FormStartPosition.CenterParent;
                 form.Width = 900;
                 form.Height = 650;
-                form.BackColor = Color.FromArgb(25, 27, 31);
+                form.MinimumSize = new Size(680, 480);
+                form.BackColor = ApplicationTheme.Window;
+                form.ForeColor = ApplicationTheme.PrimaryText;
 
                 FlowLayoutPanel flow = new FlowLayoutPanel();
                 flow.Dock = DockStyle.Fill;
                 flow.AutoScroll = true;
                 flow.WrapContents = true;
-                flow.Padding = new Padding(12);
-                flow.BackColor = form.BackColor;
+                flow.Padding = new Padding(16);
+                flow.BackColor = ApplicationTheme.Window;
                 form.Controls.Add(flow);
 
                 for (int m = 0; m < indexes.Count; m++)
                 {
                     int index = indexes[m];
 
+                    bool selected =
+                        index == currentIndex;
+
                     Panel card = new Panel();
                     card.Width = 250;
                     card.Height = 180;
-                    card.Margin = new Padding(10);
-                    card.BackColor = Color.FromArgb(40, 43, 50);
+                    card.Margin = new Padding(8);
+                    card.BackColor = selected
+                        ? ApplicationTheme.AccentSoft
+                        : ApplicationTheme.Surface;
                     card.Cursor = Cursors.Hand;
 
+                    Panel accent = new Panel();
+                    accent.Dock = DockStyle.Left;
+                    accent.Width = 3;
+                    accent.Visible = selected;
+                    accent.BackColor = ApplicationTheme.Accent;
+                    accent.Cursor = Cursors.Hand;
+
                     PictureBox pic = new PictureBox();
-                    pic.Left = 8;
-                    pic.Top = 8;
-                    pic.Width = 234;
-                    pic.Height = 132;
+                    pic.Left = 10;
+                    pic.Top = 10;
+                    pic.Width = 230;
+                    pic.Height = 130;
                     pic.SizeMode = PictureBoxSizeMode.Zoom;
+                    pic.BackColor = Color.Black;
                     pic.Image = LoadImageUnlocked(renderedSlides[index]);
                     pic.Cursor = Cursors.Hand;
 
                     Label label = new Label();
-                    label.Left = 8;
-                    label.Top = 144;
-                    label.Width = 234;
-                    label.Height = 28;
+                    label.Left = 10;
+                    label.Top = 146;
+                    label.Width = 230;
+                    label.Height = 24;
+                    label.AutoEllipsis = true;
+                    label.BackColor = Color.Transparent;
                     label.ForeColor =
                         index < hiddenSlides.Count && hiddenSlides[index]
-                        ? Color.DarkGray
-                        : Color.WhiteSmoke;
-                    label.TextAlign = ContentAlignment.MiddleCenter;
+                        ? Color.FromArgb(126, 132, 142)
+                        : selected
+                            ? ApplicationTheme.PrimaryText
+                            : ApplicationTheme.SecondaryText;
+                    label.TextAlign = ContentAlignment.MiddleLeft;
 
                     string titleText =
                         index < slideTitles.Count && !string.IsNullOrWhiteSpace(slideTitles[index])
@@ -426,12 +445,42 @@ public sealed partial class MainForm : Form
                         form.Close();
                     };
 
+                    EventHandler enter =
+                        delegate
+                        {
+                            card.BackColor = selected
+                                ? ApplicationTheme.AccentSoftHover
+                                : ApplicationTheme.SurfaceHover;
+                        };
+
+                    EventHandler leave =
+                        delegate
+                        {
+                            card.BackColor = selected
+                                ? ApplicationTheme.AccentSoft
+                                : ApplicationTheme.Surface;
+                        };
+
                     card.Click += click;
                     pic.Click += click;
                     label.Click += click;
+                    accent.Click += click;
+
+                    card.MouseEnter += enter;
+                    pic.MouseEnter += enter;
+                    label.MouseEnter += enter;
+                    accent.MouseEnter += enter;
+
+                    card.MouseLeave += leave;
+                    pic.MouseLeave += leave;
+                    label.MouseLeave += leave;
+                    accent.MouseLeave += leave;
 
                     card.Controls.Add(pic);
                     card.Controls.Add(label);
+                    card.Controls.Add(accent);
+                    if (selected)
+                        accent.BringToFront();
                     flow.Controls.Add(card);
                 }
 
