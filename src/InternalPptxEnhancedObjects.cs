@@ -11220,12 +11220,20 @@ namespace PptxViewer
                 }
             }
 
-            DrawChartCategoryLabels(
-                g,
-                plot,
-                series[0],
-                categoryCount,
-                "column");
+            if (!string.Equals(
+                    ReadChartAxisTickLabelPosition(
+                        chartDoc,
+                        "catAx"),
+                    "none",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                DrawChartCategoryLabels(
+                    g,
+                    plot,
+                    series[0],
+                    categoryCount,
+                    "column");
+            }
 
             DrawChartAxisTitles(
                 g,

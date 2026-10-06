@@ -982,12 +982,20 @@ internal static partial class InternalPptxRenderer
                 }
             }
 
-            DrawChartCategoryLabels(
-                g,
-                plot,
-                series[0],
-                categoryCount,
-                kind);
+            if (!string.Equals(
+                    ReadChartAxisTickLabelPosition(
+                        chartDoc,
+                        "catAx"),
+                    "none",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                DrawChartCategoryLabels(
+                    g,
+                    plot,
+                    series[0],
+                    categoryCount,
+                    kind);
+            }
 
             DrawChartAxisTitles(
                 g,
@@ -2727,6 +2735,38 @@ internal static partial class InternalPptxRenderer
                         markerRect);
                 }
             }
+        }
+
+        private static string ReadChartAxisTickLabelPosition(
+            XmlDocument chartDoc,
+            string axisName)
+        {
+            if (chartDoc == null ||
+                string.IsNullOrEmpty(
+                    axisName))
+            {
+                return string.Empty;
+            }
+
+            XmlNode axis =
+                FindFirst(
+                    chartDoc,
+                    axisName);
+
+            if (axis == null)
+                return string.Empty;
+
+            XmlNode tickLabelPosition =
+                DirectChild(
+                    axis,
+                    "tickLblPos");
+
+            return tickLabelPosition == null
+                ? string.Empty
+                : GetAttr(
+                    tickLabelPosition,
+                    "val") ??
+                  string.Empty;
         }
 
         private static string ReadChartAxisTitle(
