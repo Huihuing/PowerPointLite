@@ -1936,6 +1936,16 @@ namespace PptxViewer
                     return null;
                 }
 
+                ApplySvgUseViewportTransform(
+                    referencedPath,
+                    node,
+                    referenced,
+                    target,
+                    minX,
+                    minY,
+                    sx,
+                    sy);
+
                 float useX =
                     ParseSvgFloat(
                         GetAttr(
@@ -2197,6 +2207,219 @@ namespace PptxViewer
             return null;
         }
 
+        private static void ApplySvgUseViewportTransform(
+            GraphicsPath path,
+            XmlNode useNode,
+            XmlNode referenced,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy)
+        {
+            if (path == null ||
+                useNode == null ||
+                referenced == null ||
+                (referenced.LocalName != "symbol" &&
+                 referenced.LocalName != "svg"))
+            {
+                return;
+            }
+
+            List<float> viewBox =
+                ParseSvgNumberList(
+                    GetAttr(
+                        referenced,
+                        "viewBox"));
+
+            if (viewBox.Count < 4 ||
+                Math.Abs(viewBox[2]) <
+                    0.0001f ||
+                Math.Abs(viewBox[3]) <
+                    0.0001f)
+            {
+                return;
+            }
+
+            string widthText =
+                GetAttr(
+                    useNode,
+                    "width");
+            string heightText =
+                GetAttr(
+                    useNode,
+                    "height");
+
+            if (string.IsNullOrEmpty(
+                    widthText) &&
+                string.IsNullOrEmpty(
+                    heightText))
+            {
+                return;
+            }
+
+            float viewportWidth =
+                ParseSvgFloat(
+                    widthText,
+                    viewBox[2]);
+            float viewportHeight =
+                ParseSvgFloat(
+                    heightText,
+                    viewBox[3]);
+
+            if (viewportWidth <= 0f ||
+                viewportHeight <= 0f)
+            {
+                return;
+            }
+
+            float scaleX =
+                viewportWidth /
+                viewBox[2];
+            float scaleY =
+                viewportHeight /
+                viewBox[3];
+
+            float alignX = 0f;
+            float alignY = 0f;
+
+            string preserve =
+                GetAttr(
+                    useNode,
+                    "preserveAspectRatio");
+
+            if (string.IsNullOrEmpty(
+                    preserve))
+            {
+                preserve =
+                    GetAttr(
+                        referenced,
+                        "preserveAspectRatio");
+            }
+
+            if (string.IsNullOrEmpty(
+                    preserve))
+            {
+                preserve =
+                    "xMidYMid meet";
+            }
+
+            bool stretch =
+                preserve.IndexOf(
+                    "none",
+                    StringComparison.OrdinalIgnoreCase) >=
+                0;
+
+            if (!stretch)
+            {
+                bool slice =
+                    preserve.IndexOf(
+                        "slice",
+                        StringComparison.OrdinalIgnoreCase) >=
+                    0;
+
+                float uniform =
+                    slice
+                        ? Math.Max(
+                            scaleX,
+                            scaleY)
+                        : Math.Min(
+                            scaleX,
+                            scaleY);
+
+                float remainingX =
+                    viewportWidth -
+                    viewBox[2] *
+                    uniform;
+                float remainingY =
+                    viewportHeight -
+                    viewBox[3] *
+                    uniform;
+
+                if (preserve.IndexOf(
+                        "xMax",
+                        StringComparison.OrdinalIgnoreCase) >=
+                    0)
+                {
+                    alignX =
+                        remainingX *
+                        sx;
+                }
+                else if (preserve.IndexOf(
+                             "xMid",
+                             StringComparison.OrdinalIgnoreCase) >=
+                         0)
+                {
+                    alignX =
+                        remainingX *
+                        sx *
+                        0.5f;
+                }
+
+                if (preserve.IndexOf(
+                        "YMax",
+                        StringComparison.OrdinalIgnoreCase) >=
+                    0)
+                {
+                    alignY =
+                        remainingY *
+                        sy;
+                }
+                else if (preserve.IndexOf(
+                             "YMid",
+                             StringComparison.OrdinalIgnoreCase) >=
+                         0)
+                {
+                    alignY =
+                        remainingY *
+                        sy *
+                        0.5f;
+                }
+
+                scaleX =
+                    uniform;
+                scaleY =
+                    uniform;
+            }
+
+            float originX =
+                SvgX(
+                    target,
+                    minX,
+                    sx,
+                    viewBox[0]);
+            float originY =
+                SvgY(
+                    target,
+                    minY,
+                    sy,
+                    viewBox[1]);
+
+            float offsetX =
+                originX -
+                originX *
+                scaleX +
+                alignX;
+            float offsetY =
+                originY -
+                originY *
+                scaleY +
+                alignY;
+
+            using (Matrix viewportMatrix =
+                new Matrix(
+                    scaleX,
+                    0f,
+                    0f,
+                    scaleY,
+                    offsetX,
+                    offsetY))
+            {
+                path.Transform(
+                    viewportMatrix);
+            }
+        }
+
         private static GraphicsPath BuildEnhancedSvgReferencePath(
             XmlNode node,
             RectangleF target,
@@ -2274,6 +2497,16 @@ namespace PptxViewer
 
                     return null;
                 }
+
+                ApplySvgUseViewportTransform(
+                    result,
+                    node,
+                    referenced,
+                    target,
+                    minX,
+                    minY,
+                    sx,
+                    sy);
 
                 float useX =
                     ParseSvgFloat(

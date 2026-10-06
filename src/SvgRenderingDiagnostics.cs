@@ -29,8 +29,8 @@ namespace PptxViewer
                 "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 200 120\">" +
                 "<defs>" +
                 "<path id=\"reuseTriangle\" d=\"M 0 0 L 8 0 L 4 8 Z\"/>" +
-                "<symbol id=\"reuseSymbol\"><rect x=\"0\" y=\"0\" width=\"6\" height=\"6\"/><circle cx=\"8\" cy=\"3\" r=\"3\"/></symbol>" +
-                "<use id=\"nestedUseSource\" xlink:href=\"#reuseSymbol\" x=\"2\" y=\"1\"/>" +
+                "<symbol id=\"reuseSymbol\" viewBox=\"0 0 10 10\"><rect x=\"0\" y=\"0\" width=\"6\" height=\"6\"/><circle cx=\"8\" cy=\"3\" r=\"2\"/></symbol>" +
+                "<use id=\"nestedUseSource\" xlink:href=\"#reuseSymbol\" x=\"2\" y=\"1\" width=\"20\" height=\"10\" preserveAspectRatio=\"none\"/>" +
                 "<linearGradient id=\"g\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\" spreadMethod=\"reflect\" gradientTransform=\"rotate(22 .5 .5)\">" +
                 "<stop offset=\"0%\" stop-color=\"#e84b4b\"/>" +
                 "<stop offset=\"50%\" stop-color=\"#f2c94c\"/>" +
@@ -95,6 +95,16 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "SVG symbol or nested use reference did not produce geometry.");
+                }
+
+                RectangleF nestedBounds =
+                    nestedUsePath.GetBounds();
+
+                if (nestedBounds.Width < 65f ||
+                    nestedBounds.Height < 25f)
+                {
+                    throw new InvalidOperationException(
+                        "SVG symbol viewBox was not scaled by use width and height.");
                 }
             }
 
