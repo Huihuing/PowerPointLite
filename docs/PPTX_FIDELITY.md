@@ -123,6 +123,7 @@ Microsoft PowerPoint (설치된 경우)
   - chartSpace / plotArea spPr solidFill 배경색 기본 반영
   - valAx/catAx 축 제목 기본 렌더
   - catAx/valAx spPr/ln solidFill·width·prstDash 축선 스타일 기본 반영
+  - valAx majorGridlines spPr/ln solidFill·width·prstDash 스타일 기본 반영
   - catAx tickLblPos=none 카테고리 축 레이블 숨김
   - catAx tickLblPos=high: column/area 위쪽, bar 오른쪽 레이블 배치
   - catAx tickLblSkip 기반 카테고리 레이블 표시 간격 기본 반영
