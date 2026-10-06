@@ -76,6 +76,7 @@ namespace PptxViewer
 
             chart.LoadXml(
                 "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
+                "<c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"F5F7FB\"/></a:solidFill></c:spPr>" +
                 "<c:chart>" +
                 "<c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarterly Delta</a:t></a:r></a:p></c:rich></c:tx></c:title>" +
                 "<c:plotArea><c:barChart><c:barDir val=\"col\"/>" +
@@ -93,6 +94,7 @@ namespace PptxViewer
                 "</c:barChart>" +
                 "<c:catAx><c:axId val=\"1\"/><c:tickLblPos val=\"none\"/><c:tickLblSkip val=\"2\"/><c:crossesAt val=\"20\"/><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarter</a:t></a:r></a:p></c:rich></c:tx></c:title></c:catAx>" +
                 "<c:valAx><c:axId val=\"2\"/><c:tickLblPos val=\"none\"/><c:scaling><c:orientation val=\"minMax\"/><c:min val=\"-50\"/><c:max val=\"80\"/></c:scaling><c:majorUnit val=\"20\"/><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Delta</a:t></a:r></a:p></c:rich></c:tx></c:title></c:valAx>" +
+                "<c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"FFF8EE\"/></a:solidFill></c:spPr>" +
                 "</c:plotArea>" +
                 "<c:legend><c:legendPos val=\"b\"/></c:legend>" +
                 "</c:chart></c:chartSpace>");
@@ -105,6 +107,30 @@ namespace PptxViewer
                 Color.FromArgb(74, 122, 206);
             theme["accent2"] =
                 Color.FromArgb(210, 86, 72);
+
+            Color chartAreaFill =
+                ReadChartAreaFill(
+                    chart,
+                    theme,
+                    "chartSpace",
+                    Color.Black);
+            Color plotAreaFill =
+                ReadChartAreaFill(
+                    chart,
+                    theme,
+                    "plotArea",
+                    Color.Black);
+
+            if (chartAreaFill.R != 0xF5 ||
+                chartAreaFill.G != 0xF7 ||
+                chartAreaFill.B != 0xFB ||
+                plotAreaFill.R != 0xFF ||
+                plotAreaFill.G != 0xF8 ||
+                plotAreaFill.B != 0xEE)
+            {
+                throw new InvalidOperationException(
+                    "ChartSpace or plotArea solid fill was not parsed correctly.");
+            }
 
             List<XmlNode> syntheticSeries =
                 FindAll(
