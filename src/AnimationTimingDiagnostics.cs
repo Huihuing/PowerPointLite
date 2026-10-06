@@ -221,6 +221,10 @@ namespace PptxViewer
                         region.ShapeId == "3" &&
                         region.Bounds.Width > 0f &&
                         region.Bounds.Height > 0f &&
+                        string.Equals(
+                            region.GeometryKind,
+                            "ellipse",
+                            StringComparison.OrdinalIgnoreCase) &&
                         Math.Abs(
                             region.RotationDegrees -
                             45f) < 0.01f)
@@ -238,18 +242,52 @@ namespace PptxViewer
                             region.Contains(
                                 centerX,
                                 centerY);
-                        bool cornerMiss =
+
+                        float localX =
+                            region.Bounds.Left +
+                            region.Bounds.Width *
+                            0.08f;
+                        float localY =
+                            region.Bounds.Top +
+                            region.Bounds.Height *
+                            0.08f;
+                        float dx =
+                            localX -
+                            centerX;
+                        float dy =
+                            localY -
+                            centerY;
+                        double radians =
+                            45.0 *
+                            Math.PI /
+                            180.0;
+                        float rotatedX =
+                            centerX +
+                            (float)(
+                                dx *
+                                Math.Cos(
+                                    radians) -
+                                dy *
+                                Math.Sin(
+                                    radians));
+                        float rotatedY =
+                            centerY +
+                            (float)(
+                                dx *
+                                Math.Sin(
+                                    radians) +
+                                dy *
+                                Math.Cos(
+                                    radians));
+
+                        bool ellipseCornerMiss =
                             !region.Contains(
-                                region.Bounds.Left +
-                                    region.Bounds.Width *
-                                    0.02f,
-                                region.Bounds.Top +
-                                    region.Bounds.Height *
-                                    0.02f);
+                                rotatedX,
+                                rotatedY);
 
                         foundTriggerShape =
                             centerHit &&
-                            cornerMiss;
+                            ellipseCornerMiss;
                         break;
                     }
                 }
@@ -258,7 +296,7 @@ namespace PptxViewer
             if (!foundTriggerShape)
             {
                 throw new InvalidOperationException(
-                    "Animation trigger shape rotation or rotated hit testing was not preserved.");
+                    "Animation trigger ellipse geometry, rotation, or precise hit testing was not preserved.");
             }
 
             InternalPptxRenderer.SlideAnimationTimeline timeline = timelines[0];

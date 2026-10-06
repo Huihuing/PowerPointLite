@@ -181,6 +181,7 @@ slide load
 → 특정 trigger shape id가 있는 click step은 해당 shape bounds를 클릭했을 때만 실행
 → PictureBox Zoom 레터박스를 제외한 실제 슬라이드 표시 영역 기준으로 클릭 좌표 정규화
 → xfrm rot가 있는 trigger shape는 중심 기준 역회전 좌표로 회전 사각형 hit-test
+→ prstGeom=ellipse trigger는 역회전 후 타원 방정식으로 실제 타원 내부만 hit
 → with-previous는 같은 group
 → after-previous는 앞 action 종료 시점 뒤에 배치
 → delay/duration을 내부 timer에 반영
@@ -217,7 +218,7 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 - exact PowerPoint easing curve parity
 - PowerPoint의 origin/pathEditMode 등 세부 motion-path 좌표계 semantics
 - scheme/HSL color animation과 복합 color transform
-- 비정형 path/곡선 자체의 정밀 trigger hit-test, media bookmark 등 고급 trigger
+- 자유형/custom geometry path 자체의 정밀 trigger hit-test, media bookmark 등 고급 trigger
 - nested sequence/parallel timing tree의 모든 PowerPoint edge case
 - Morph object matching
 

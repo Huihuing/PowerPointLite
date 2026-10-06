@@ -45,20 +45,12 @@ internal static partial class InternalPptxRenderer
             public RectangleF Bounds;
             public string ShapeId = string.Empty;
             public float RotationDegrees;
+            public string GeometryKind = "rect";
 
             public bool Contains(
                 float x,
                 float y)
             {
-                if (Math.Abs(
-                        RotationDegrees) <
-                    0.001f)
-                {
-                    return Bounds.Contains(
-                        x,
-                        y);
-                }
-
                 float centerX =
                     Bounds.Left +
                     Bounds.Width *
@@ -67,6 +59,49 @@ internal static partial class InternalPptxRenderer
                     Bounds.Top +
                     Bounds.Height *
                     0.5f;
+
+                if (Math.Abs(
+                        RotationDegrees) <
+                    0.001f)
+                {
+                    if (string.Equals(
+                            GeometryKind,
+                            "ellipse",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        float radiusX =
+                            Bounds.Width *
+                            0.5f;
+                        float radiusY =
+                            Bounds.Height *
+                            0.5f;
+
+                        if (radiusX <= 0f ||
+                            radiusY <= 0f)
+                        {
+                            return false;
+                        }
+
+                        float ellipseX =
+                            (x -
+                             centerX) /
+                            radiusX;
+                        float ellipseY =
+                            (y -
+                             centerY) /
+                            radiusY;
+
+                        return ellipseX *
+                                ellipseX +
+                            ellipseY *
+                                ellipseY <=
+                            1f;
+                    }
+
+                    return Bounds.Contains(
+                        x,
+                        y);
+                }
 
                 double radians =
                     -RotationDegrees *
@@ -100,6 +135,40 @@ internal static partial class InternalPptxRenderer
                         sine +
                         dy *
                         cosine);
+
+                if (string.Equals(
+                        GeometryKind,
+                        "ellipse",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    float radiusX =
+                        Bounds.Width *
+                        0.5f;
+                    float radiusY =
+                        Bounds.Height *
+                        0.5f;
+
+                    if (radiusX <= 0f ||
+                        radiusY <= 0f)
+                    {
+                        return false;
+                    }
+
+                    float ellipseX =
+                        (localX -
+                         centerX) /
+                        radiusX;
+                    float ellipseY =
+                        (localY -
+                         centerY) /
+                        radiusY;
+
+                    return ellipseX *
+                            ellipseX +
+                        ellipseY *
+                            ellipseY <=
+                        1f;
+                }
 
                 return Bounds.Contains(
                     localX,
@@ -746,13 +815,31 @@ internal static partial class InternalPptxRenderer
                             0) /
                           60000f;
 
+                XmlNode presetGeometry =
+                    FindFirst(
+                        child,
+                        "prstGeom");
+
+                string geometryKind =
+                    presetGeometry != null &&
+                    string.Equals(
+                        GetAttr(
+                            presetGeometry,
+                            "prst"),
+                        "ellipse",
+                        StringComparison.OrdinalIgnoreCase)
+                        ? "ellipse"
+                        : "rect";
+
                 regions.Add(
                     new ShapeRegion
                     {
                         Bounds = rect,
                         ShapeId = shapeId,
                         RotationDegrees =
-                            rotationDegrees
+                            rotationDegrees,
+                        GeometryKind =
+                            geometryKind
                     });
             }
         }
