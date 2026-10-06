@@ -1266,6 +1266,18 @@ namespace PptxViewer
                             cy);
                     brush.InterpolationColors =
                         blend;
+
+                    ApplySvgGradientTransform(
+                        brush,
+                        gradient,
+                        bounds,
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy,
+                        userSpace);
+
                     return brush;
                 }
             }
@@ -1343,6 +1355,18 @@ namespace PptxViewer
 
             linear.InterpolationColors =
                 blend;
+
+            ApplySvgGradientTransform(
+                linear,
+                gradient,
+                bounds,
+                target,
+                minX,
+                minY,
+                sx,
+                sy,
+                userSpace);
+
             return linear;
         }
 
@@ -1955,130 +1979,555 @@ namespace PptxViewer
             if (string.IsNullOrEmpty(transform))
                 return;
 
-            string lower =
-                transform.ToLowerInvariant();
+            ApplySvgTransformSequence(
+                g,
+                transform,
+                target,
+                minX,
+                minY,
+                sx,
+                sy);
+        }
 
-            int translate =
-                lower.IndexOf(
-                    "translate(");
-
-            if (translate >= 0)
+        private static void ApplySvgTransformSequence(
+            Graphics g,
+            string transform,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy)
+        {
+            if (g == null ||
+                string.IsNullOrEmpty(transform))
             {
-                string args =
-                    ReadSvgTransformArguments(
-                        transform,
-                        translate +
-                        "translate(".Length);
+                return;
+            }
+
+            int index = 0;
+
+            while (index < transform.Length)
+            {
+                while (index < transform.Length &&
+                    (char.IsWhiteSpace(transform[index]) ||
+                     transform[index] == ','))
+                {
+                    index++;
+                }
+
+                int nameStart = index;
+
+                while (index < transform.Length &&
+                    char.IsLetter(transform[index]))
+                {
+                    index++;
+                }
+
+                if (index <= nameStart)
+                {
+                    index++;
+                    continue;
+                }
+
+                string name =
+                    transform.Substring(
+                        nameStart,
+                        index -
+                        nameStart);
+
+                while (index < transform.Length &&
+                    char.IsWhiteSpace(transform[index]))
+                {
+                    index++;
+                }
+
+                if (index >= transform.Length ||
+                    transform[index] != '(')
+                {
+                    continue;
+                }
+
+                int argumentStart =
+                    index + 1;
+                int close =
+                    transform.IndexOf(
+                        ')',
+                        argumentStart);
+
+                if (close < 0)
+                    break;
 
                 List<float> values =
-                    ParseSvgNumberList(args);
+                    ParseSvgNumberList(
+                        transform.Substring(
+                            argumentStart,
+                            close -
+                            argumentStart));
 
-                if (values.Count > 0)
+                ApplySvgTransformOperation(
+                    g,
+                    name,
+                    values,
+                    target,
+                    minX,
+                    minY,
+                    sx,
+                    sy);
+
+                index =
+                    close + 1;
+            }
+        }
+
+        private static void ApplySvgTransformOperation(
+            Graphics g,
+            string name,
+            List<float> values,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy)
+        {
+            if (g == null ||
+                string.IsNullOrEmpty(name) ||
+                values == null)
+            {
+                return;
+            }
+
+            string lower =
+                name.ToLowerInvariant();
+
+            if (lower == "matrix" &&
+                values.Count >= 6)
+            {
+                float safeSx =
+                    Math.Abs(sx) < 0.0001f
+                        ? 1f
+                        : sx;
+                float safeSy =
+                    Math.Abs(sy) < 0.0001f
+                        ? 1f
+                        : sy;
+
+                using (Matrix matrix =
+                    new Matrix(
+                        values[0],
+                        values[1] *
+                            safeSy /
+                            safeSx,
+                        values[2] *
+                            safeSx /
+                            safeSy,
+                        values[3],
+                        values[4] *
+                            safeSx,
+                        values[5] *
+                            safeSy))
                 {
-                    float dx =
-                        values[0] *
-                        sx;
+                    g.MultiplyTransform(
+                        matrix,
+                        MatrixOrder.Append);
+                }
+                return;
+            }
 
-                    float dy =
-                        values.Count > 1
-                            ? values[1] *
-                                sy
-                            : 0f;
+            if (lower == "translate" &&
+                values.Count > 0)
+            {
+                float dx =
+                    values[0] *
+                    sx;
+                float dy =
+                    values.Count > 1
+                        ? values[1] *
+                            sy
+                        : 0f;
+
+                g.TranslateTransform(
+                    dx,
+                    dy,
+                    MatrixOrder.Append);
+                return;
+            }
+
+            if (lower == "scale" &&
+                values.Count > 0)
+            {
+                float scaleX =
+                    values[0];
+                float scaleY =
+                    values.Count > 1
+                        ? values[1]
+                        : scaleX;
+
+                g.ScaleTransform(
+                    scaleX,
+                    scaleY,
+                    MatrixOrder.Append);
+                return;
+            }
+
+            if (lower == "rotate" &&
+                values.Count > 0)
+            {
+                float degrees =
+                    values[0];
+
+                if (values.Count >= 3)
+                {
+                    float cx =
+                        SvgX(
+                            target,
+                            minX,
+                            sx,
+                            values[1]);
+
+                    float cy =
+                        SvgY(
+                            target,
+                            minY,
+                            sy,
+                            values[2]);
 
                     g.TranslateTransform(
-                        dx,
-                        dy,
+                        cx,
+                        cy,
+                        MatrixOrder.Append);
+                    g.RotateTransform(
+                        degrees,
+                        MatrixOrder.Append);
+                    g.TranslateTransform(
+                        -cx,
+                        -cy,
+                        MatrixOrder.Append);
+                }
+                else
+                {
+                    g.RotateTransform(
+                        degrees,
+                        MatrixOrder.Append);
+                }
+                return;
+            }
+
+            if (lower == "skewx" &&
+                values.Count > 0)
+            {
+                float tangent =
+                    (float)Math.Tan(
+                        values[0] *
+                        Math.PI /
+                        180.0);
+
+                using (Matrix matrix =
+                    new Matrix(
+                        1f,
+                        0f,
+                        tangent,
+                        1f,
+                        0f,
+                        0f))
+                {
+                    g.MultiplyTransform(
+                        matrix,
+                        MatrixOrder.Append);
+                }
+                return;
+            }
+
+            if (lower == "skewy" &&
+                values.Count > 0)
+            {
+                float tangent =
+                    (float)Math.Tan(
+                        values[0] *
+                        Math.PI /
+                        180.0);
+
+                using (Matrix matrix =
+                    new Matrix(
+                        1f,
+                        tangent,
+                        0f,
+                        1f,
+                        0f,
+                        0f))
+                {
+                    g.MultiplyTransform(
+                        matrix,
                         MatrixOrder.Append);
                 }
             }
+        }
 
-            int scaleIndex =
-                lower.IndexOf(
-                    "scale(");
-
-            if (scaleIndex >= 0)
+        private static void ApplySvgGradientTransform(
+            Brush brush,
+            XmlNode gradient,
+            RectangleF bounds,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy,
+            bool userSpace)
+        {
+            if (brush == null ||
+                gradient == null)
             {
-                string args =
-                    ReadSvgTransformArguments(
-                        transform,
-                        scaleIndex +
-                        "scale(".Length);
+                return;
+            }
+
+            string transform =
+                GetAttr(
+                    gradient,
+                    "gradientTransform");
+
+            if (string.IsNullOrEmpty(transform))
+                return;
+
+            Matrix matrix =
+                BuildSvgBrushTransformMatrix(
+                    transform,
+                    bounds,
+                    target,
+                    minX,
+                    minY,
+                    sx,
+                    sy,
+                    userSpace);
+
+            if (matrix == null)
+                return;
+
+            try
+            {
+                LinearGradientBrush linear =
+                    brush as LinearGradientBrush;
+
+                if (linear != null)
+                {
+                    linear.MultiplyTransform(
+                        matrix,
+                        MatrixOrder.Append);
+                    return;
+                }
+
+                PathGradientBrush radial =
+                    brush as PathGradientBrush;
+
+                if (radial != null)
+                {
+                    radial.MultiplyTransform(
+                        matrix,
+                        MatrixOrder.Append);
+                }
+            }
+            finally
+            {
+                matrix.Dispose();
+            }
+        }
+
+        private static Matrix BuildSvgBrushTransformMatrix(
+            string transform,
+            RectangleF bounds,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy,
+            bool userSpace)
+        {
+            Matrix result =
+                new Matrix();
+
+            int index = 0;
+
+            while (index < transform.Length)
+            {
+                while (index < transform.Length &&
+                    (char.IsWhiteSpace(transform[index]) ||
+                     transform[index] == ','))
+                {
+                    index++;
+                }
+
+                int nameStart = index;
+
+                while (index < transform.Length &&
+                    char.IsLetter(transform[index]))
+                {
+                    index++;
+                }
+
+                if (index <= nameStart)
+                {
+                    index++;
+                    continue;
+                }
+
+                string name =
+                    transform.Substring(
+                        nameStart,
+                        index -
+                        nameStart)
+                    .ToLowerInvariant();
+
+                while (index < transform.Length &&
+                    char.IsWhiteSpace(transform[index]))
+                {
+                    index++;
+                }
+
+                if (index >= transform.Length ||
+                    transform[index] != '(')
+                {
+                    continue;
+                }
+
+                int argumentStart =
+                    index + 1;
+                int close =
+                    transform.IndexOf(
+                        ')',
+                        argumentStart);
+
+                if (close < 0)
+                    break;
 
                 List<float> values =
-                    ParseSvgNumberList(args);
+                    ParseSvgNumberList(
+                        transform.Substring(
+                            argumentStart,
+                            close -
+                            argumentStart));
 
-                if (values.Count > 0)
+                float coordinateSx =
+                    userSpace
+                        ? sx
+                        : bounds.Width;
+                float coordinateSy =
+                    userSpace
+                        ? sy
+                        : bounds.Height;
+
+                if (name == "matrix" &&
+                    values.Count >= 6)
                 {
-                    float scaleX =
-                        values[0];
-                    float scaleY =
+                    float safeX =
+                        Math.Abs(coordinateSx) <
+                        0.0001f
+                            ? 1f
+                            : coordinateSx;
+                    float safeY =
+                        Math.Abs(coordinateSy) <
+                        0.0001f
+                            ? 1f
+                            : coordinateSy;
+
+                    using (Matrix operation =
+                        new Matrix(
+                            values[0],
+                            values[1] *
+                                safeY /
+                                safeX,
+                            values[2] *
+                                safeX /
+                                safeY,
+                            values[3],
+                            values[4] *
+                                coordinateSx,
+                            values[5] *
+                                coordinateSy))
+                    {
+                        result.Multiply(
+                            operation,
+                            MatrixOrder.Append);
+                    }
+                }
+                else if (name == "translate" &&
+                    values.Count > 0)
+                {
+                    result.Translate(
+                        values[0] *
+                            coordinateSx,
+                        (values.Count > 1
+                            ? values[1]
+                            : 0f) *
+                            coordinateSy,
+                        MatrixOrder.Append);
+                }
+                else if (name == "scale" &&
+                    values.Count > 0)
+                {
+                    result.Scale(
+                        values[0],
                         values.Count > 1
                             ? values[1]
-                            : scaleX;
-
-                    g.ScaleTransform(
-                        scaleX,
-                        scaleY,
+                            : values[0],
                         MatrixOrder.Append);
                 }
-            }
-
-            int rotate =
-                lower.IndexOf(
-                    "rotate(");
-
-            if (rotate >= 0)
-            {
-                string args =
-                    ReadSvgTransformArguments(
-                        transform,
-                        rotate +
-                        "rotate(".Length);
-
-                List<float> values =
-                    ParseSvgNumberList(args);
-
-                if (values.Count > 0)
+                else if (name == "rotate" &&
+                    values.Count > 0)
                 {
-                    float degrees =
-                        values[0];
-
                     if (values.Count >= 3)
                     {
                         float cx =
-                            SvgX(
-                                target,
-                                minX,
-                                sx,
-                                values[1]);
+                            userSpace
+                                ? SvgX(
+                                    target,
+                                    minX,
+                                    sx,
+                                    values[1])
+                                : bounds.Left +
+                                    bounds.Width *
+                                    values[1];
 
                         float cy =
-                            SvgY(
-                                target,
-                                minY,
-                                sy,
-                                values[2]);
+                            userSpace
+                                ? SvgY(
+                                    target,
+                                    minY,
+                                    sy,
+                                    values[2])
+                                : bounds.Top +
+                                    bounds.Height *
+                                    values[2];
 
-                        g.TranslateTransform(
+                        result.Translate(
                             cx,
                             cy,
                             MatrixOrder.Append);
-                        g.RotateTransform(
-                            degrees,
+                        result.Rotate(
+                            values[0],
                             MatrixOrder.Append);
-                        g.TranslateTransform(
+                        result.Translate(
                             -cx,
                             -cy,
                             MatrixOrder.Append);
                     }
                     else
                     {
-                        g.RotateTransform(
-                            degrees,
+                        result.RotateAt(
+                            values[0],
+                            new PointF(
+                                bounds.Left +
+                                    bounds.Width /
+                                    2f,
+                                bounds.Top +
+                                    bounds.Height /
+                                    2f),
                             MatrixOrder.Append);
                     }
                 }
+
+                index =
+                    close + 1;
             }
+
+            return result;
         }
 
         private static string ReadSvgTransformArguments(
