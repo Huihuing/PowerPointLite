@@ -53,7 +53,9 @@ namespace PptxViewer
                     "South",
                     new string[] { "Q1", "Q2", "Q3", "Q4" },
                     new double[] { -18.0, 34.0, 51.0, -39.0 }) +
-                "</c:barChart></c:plotArea>" +
+                "</c:barChart>" +
+                "<c:valAx><c:axId val=\"2\"/><c:scaling><c:orientation val=\"minMax\"/><c:min val=\"-50\"/><c:max val=\"80\"/></c:scaling><c:majorUnit val=\"20\"/></c:valAx>" +
+                "</c:plotArea>" +
                 "</c:chart></c:chartSpace>");
 
             Dictionary<string, Color> theme =
@@ -64,6 +66,27 @@ namespace PptxViewer
                 Color.FromArgb(74, 122, 206);
             theme["accent2"] =
                 Color.FromArgb(210, 86, 72);
+
+            ChartAxisScale scale =
+                ReadChartAxisScale(
+                    chart,
+                    -39.0,
+                    68.0);
+
+            if (Math.Abs(
+                    scale.Minimum -
+                    (-50.0)) > 0.0001 ||
+                Math.Abs(
+                    scale.Maximum -
+                    80.0) > 0.0001 ||
+                Math.Abs(
+                    scale.MajorUnit -
+                    20.0) > 0.0001 ||
+                scale.Reverse)
+            {
+                throw new InvalidOperationException(
+                    "Explicit chart value-axis scaling was not retained.");
+            }
 
             using (Bitmap bitmap =
                 new Bitmap(

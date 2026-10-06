@@ -56,6 +56,9 @@ Microsoft PowerPoint (설치된 경우)
   - bubble
   - radar
   - cached category/value 기반 title/legend
+  - 음수 값과 0 기준선
+  - valAx min/max/majorUnit/orientation 기본 반영
+  - showVal 데이터 레이블 및 값 눈금선
 - SmartArt / diagram
   - data model의 node / connection을 읽어 hierarchy로 표시
   - 구조를 알 수 없는 경우 기존 static approximation으로 fallback

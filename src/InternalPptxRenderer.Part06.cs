@@ -18,6 +18,14 @@ namespace PptxViewer
 {
 internal static partial class InternalPptxRenderer
     {
+        private sealed class ChartAxisScale
+        {
+            public double Minimum;
+            public double Maximum;
+            public double MajorUnit;
+            public bool Reverse;
+        }
+
         private static void DrawChart(
             Graphics g,
             XmlDocument chartDoc,
@@ -282,11 +290,21 @@ internal static partial class InternalPptxRenderer
                     minValue + 1.0;
             }
 
+            ChartAxisScale axisScale =
+                ReadChartAxisScale(
+                    chartDoc,
+                    minValue,
+                    maxValue);
+
+            minValue =
+                axisScale.Minimum;
+            maxValue =
+                axisScale.Maximum;
+
             DrawChartValueGrid(
                 g,
                 plot,
-                minValue,
-                maxValue,
+                axisScale,
                 kind);
 
             double range =
@@ -297,15 +315,17 @@ internal static partial class InternalPptxRenderer
             float zeroY =
                 plot.Bottom -
                 (float)(
-                    (0.0 - minValue) /
-                    range *
+                    ChartAxisFraction(
+                        0.0,
+                        axisScale) *
                     plot.Height);
 
             float zeroX =
                 plot.Left +
                 (float)(
-                    (0.0 - minValue) /
-                    range *
+                    ChartAxisFraction(
+                        0.0,
+                        axisScale) *
                     plot.Width);
 
             if (kind == "bar")
@@ -414,9 +434,9 @@ internal static partial class InternalPptxRenderer
                             float y =
                                 plot.Bottom -
                                 (float)(
-                                    (sd.Values[i] -
-                                     minValue) /
-                                    range *
+                                    ChartAxisFraction(
+                                        sd.Values[i],
+                                        axisScale) *
                                     plot.Height);
 
                             points.Add(
@@ -511,9 +531,9 @@ internal static partial class InternalPptxRenderer
                             float valueX =
                                 plot.Left +
                                 (float)(
-                                    (value -
-                                     minValue) /
-                                    range *
+                                    ChartAxisFraction(
+                                        value,
+                                        axisScale) *
                                     plot.Width);
 
                             float left =
@@ -610,9 +630,9 @@ internal static partial class InternalPptxRenderer
                             float valueY =
                                 plot.Bottom -
                                 (float)(
-                                    (value -
-                                     minValue) /
-                                    range *
+                                    ChartAxisFraction(
+                                        value,
+                                        axisScale) *
                                     plot.Height);
 
                             float top =
@@ -724,19 +744,198 @@ internal static partial class InternalPptxRenderer
                     StringComparison.OrdinalIgnoreCase);
         }
 
-        private static void DrawChartValueGrid(
-            Graphics g,
-            RectangleF plot,
-            double minValue,
-            double maxValue,
-            string kind)
+        private static ChartAxisScale ReadChartAxisScale(
+            XmlDocument chartDoc,
+            double dataMinimum,
+            double dataMaximum)
         {
-            const int divisions = 5;
+            ChartAxisScale scale =
+                new ChartAxisScale();
+
+            scale.Minimum =
+                dataMinimum;
+            scale.Maximum =
+                dataMaximum;
+            scale.MajorUnit = 0.0;
+            scale.Reverse = false;
+
+            XmlNode valueAxis =
+                chartDoc == null
+                    ? null
+                    : FindFirst(
+                        chartDoc,
+                        "valAx");
+
+            if (valueAxis == null)
+            {
+                NormalizeChartAxisScale(scale);
+                return scale;
+            }
+
+            XmlNode scaling =
+                DirectChild(
+                    valueAxis,
+                    "scaling");
+
+            if (scaling != null)
+            {
+                XmlNode minimum =
+                    DirectChild(
+                        scaling,
+                        "min");
+                XmlNode maximum =
+                    DirectChild(
+                        scaling,
+                        "max");
+                XmlNode orientation =
+                    DirectChild(
+                        scaling,
+                        "orientation");
+
+                double parsed;
+
+                if (minimum != null &&
+                    double.TryParse(
+                        GetAttr(
+                            minimum,
+                            "val"),
+                        System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out parsed))
+                {
+                    scale.Minimum =
+                        parsed;
+                }
+
+                if (maximum != null &&
+                    double.TryParse(
+                        GetAttr(
+                            maximum,
+                            "val"),
+                        System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out parsed))
+                {
+                    scale.Maximum =
+                        parsed;
+                }
+
+                if (orientation != null)
+                {
+                    scale.Reverse =
+                        string.Equals(
+                            GetAttr(
+                                orientation,
+                                "val"),
+                            "maxMin",
+                            StringComparison.OrdinalIgnoreCase);
+                }
+            }
+
+            XmlNode majorUnit =
+                DirectChild(
+                    valueAxis,
+                    "majorUnit");
+
+            double unit;
+            if (majorUnit != null &&
+                double.TryParse(
+                    GetAttr(
+                        majorUnit,
+                        "val"),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out unit) &&
+                unit > 0.0 &&
+                !double.IsNaN(unit) &&
+                !double.IsInfinity(unit))
+            {
+                scale.MajorUnit =
+                    unit;
+            }
+
+            NormalizeChartAxisScale(scale);
+            return scale;
+        }
+
+        private static void NormalizeChartAxisScale(
+            ChartAxisScale scale)
+        {
+            if (scale == null)
+                return;
+
+            if (double.IsNaN(scale.Minimum) ||
+                double.IsInfinity(scale.Minimum))
+            {
+                scale.Minimum = 0.0;
+            }
+
+            if (double.IsNaN(scale.Maximum) ||
+                double.IsInfinity(scale.Maximum))
+            {
+                scale.Maximum =
+                    scale.Minimum + 1.0;
+            }
+
+            if (scale.Maximum <= scale.Minimum)
+            {
+                scale.Maximum =
+                    scale.Minimum + 1.0;
+            }
+
+            double range =
+                scale.Maximum -
+                scale.Minimum;
+
+            if (scale.MajorUnit <= 0.0 ||
+                scale.MajorUnit > range * 4.0)
+            {
+                scale.MajorUnit = 0.0;
+            }
+        }
+
+        private static double ChartAxisFraction(
+            double value,
+            ChartAxisScale scale)
+        {
+            if (scale == null)
+                return 0.0;
+
             double range =
                 Math.Max(
                     0.0000001,
-                    maxValue -
-                    minValue);
+                    scale.Maximum -
+                    scale.Minimum);
+
+            double fraction =
+                (value -
+                 scale.Minimum) /
+                range;
+
+            fraction =
+                Math.Max(
+                    0.0,
+                    Math.Min(
+                        1.0,
+                        fraction));
+
+            return scale.Reverse
+                ? 1.0 - fraction
+                : fraction;
+        }
+
+        private static void DrawChartValueGrid(
+            Graphics g,
+            RectangleF plot,
+            ChartAxisScale scale,
+            string kind)
+        {
+            if (scale == null)
+                return;
+
+            List<double> ticks =
+                BuildChartAxisTicks(
+                    scale);
 
             using (Pen grid =
                 new Pen(
@@ -760,22 +959,23 @@ internal static partial class InternalPptxRenderer
                         105)))
             {
                 for (int i = 0;
-                     i <= divisions;
+                     i < ticks.Count;
                      i++)
                 {
                     double value =
-                        minValue +
-                        range *
-                        i /
-                        divisions;
+                        ticks[i];
+
+                    double fraction =
+                        ChartAxisFraction(
+                            value,
+                            scale);
 
                     if (kind == "bar")
                     {
                         float x =
                             plot.Left +
                             plot.Width *
-                            i /
-                            divisions;
+                            (float)fraction;
 
                         g.DrawLine(
                             grid,
@@ -807,8 +1007,7 @@ internal static partial class InternalPptxRenderer
                         float y =
                             plot.Bottom -
                             plot.Height *
-                            i /
-                            divisions;
+                            (float)fraction;
 
                         g.DrawLine(
                             grid,
@@ -839,6 +1038,101 @@ internal static partial class InternalPptxRenderer
                     }
                 }
             }
+        }
+
+        private static List<double> BuildChartAxisTicks(
+            ChartAxisScale scale)
+        {
+            List<double> ticks =
+                new List<double>();
+
+            if (scale == null)
+                return ticks;
+
+            double range =
+                scale.Maximum -
+                scale.Minimum;
+
+            double unit =
+                scale.MajorUnit;
+
+            if (unit <= 0.0)
+            {
+                unit =
+                    ChooseNiceChartUnit(
+                        range /
+                        5.0);
+            }
+
+            if (unit <= 0.0)
+                unit = 1.0;
+
+            double first =
+                Math.Ceiling(
+                    scale.Minimum /
+                    unit) *
+                unit;
+
+            int guard = 0;
+
+            for (double value = first;
+                 value <=
+                    scale.Maximum +
+                    unit * 0.0001 &&
+                 guard < 64;
+                 value += unit)
+            {
+                ticks.Add(value);
+                guard++;
+            }
+
+            if (ticks.Count == 0)
+            {
+                ticks.Add(
+                    scale.Minimum);
+                ticks.Add(
+                    scale.Maximum);
+            }
+
+            return ticks;
+        }
+
+        private static double ChooseNiceChartUnit(
+            double raw)
+        {
+            if (raw <= 0.0 ||
+                double.IsNaN(raw) ||
+                double.IsInfinity(raw))
+            {
+                return 1.0;
+            }
+
+            double exponent =
+                Math.Floor(
+                    Math.Log10(raw));
+
+            double magnitude =
+                Math.Pow(
+                    10.0,
+                    exponent);
+
+            double normalized =
+                raw /
+                magnitude;
+
+            double nice;
+
+            if (normalized <= 1.0)
+                nice = 1.0;
+            else if (normalized <= 2.0)
+                nice = 2.0;
+            else if (normalized <= 5.0)
+                nice = 5.0;
+            else
+                nice = 10.0;
+
+            return nice *
+                magnitude;
         }
 
         private static void DrawChartValueLabel(
