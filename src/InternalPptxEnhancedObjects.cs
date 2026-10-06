@@ -5979,61 +5979,377 @@ namespace PptxViewer
             bool bubble)
         {
             RectangleF plot;
-            PrepareChartSurface(g, rect, chartDoc, out plot);
-            List<XmlNode> seriesNodes = FindAll(chartDoc, "ser");
-            Color[] palette = EnhancedChartPalette(theme);
+            PrepareChartSurface(
+                g,
+                rect,
+                chartDoc,
+                out plot);
 
-            double minX = double.MaxValue, maxX = double.MinValue;
-            double minY = double.MaxValue, maxY = double.MinValue;
-            List<List<double>> allX = new List<List<double>>();
-            List<List<double>> allY = new List<List<double>>();
-            List<List<double>> allSize = new List<List<double>>();
+            List<XmlNode> seriesNodes =
+                FindAll(
+                    chartDoc,
+                    "ser");
 
-            for (int s = 0; s < seriesNodes.Count; s++)
+            Color[] palette =
+                EnhancedChartPalette(
+                    theme);
+
+            double minX = double.MaxValue;
+            double maxX = double.MinValue;
+            double minY = double.MaxValue;
+            double maxY = double.MinValue;
+
+            List<List<double>> allX =
+                new List<List<double>>();
+            List<List<double>> allY =
+                new List<List<double>>();
+            List<List<double>> allSize =
+                new List<List<double>>();
+            List<ChartSeriesData> styles =
+                new List<ChartSeriesData>();
+
+            for (int s = 0;
+                 s < seriesNodes.Count;
+                 s++)
             {
-                List<double> xs = ReadCachedNumbers(DirectChild(seriesNodes[s], "xVal"));
-                List<double> ys = ReadCachedNumbers(DirectChild(seriesNodes[s], "yVal"));
-                List<double> sizes = ReadCachedNumbers(DirectChild(seriesNodes[s], "bubbleSize"));
-                allX.Add(xs); allY.Add(ys); allSize.Add(sizes);
+                List<double> xs =
+                    ReadCachedNumbers(
+                        DirectChild(
+                            seriesNodes[s],
+                            "xVal"));
 
-                int count = Math.Min(xs.Count, ys.Count);
-                for (int i = 0; i < count; i++)
+                List<double> ys =
+                    ReadCachedNumbers(
+                        DirectChild(
+                            seriesNodes[s],
+                            "yVal"));
+
+                List<double> sizes =
+                    ReadCachedNumbers(
+                        DirectChild(
+                            seriesNodes[s],
+                            "bubbleSize"));
+
+                allX.Add(xs);
+                allY.Add(ys);
+                allSize.Add(sizes);
+
+                ChartSeriesData style =
+                    new ChartSeriesData();
+
+                style.Name =
+                    ReadChartSeriesName(
+                        seriesNodes[s]);
+
+                style.ExplicitColor =
+                    ReadChartSeriesColor(
+                        seriesNodes[s],
+                        theme);
+
+                ReadChartSeriesVisualStyle(
+                    seriesNodes[s],
+                    style);
+
+                int pointCount =
+                    Math.Min(
+                        xs.Count,
+                        ys.Count);
+
+                ReadChartPointColors(
+                    seriesNodes[s],
+                    theme,
+                    style.PointColors,
+                    pointCount);
+
+                styles.Add(style);
+
+                for (int i = 0;
+                     i < pointCount;
+                     i++)
                 {
-                    minX = Math.Min(minX, xs[i]); maxX = Math.Max(maxX, xs[i]);
-                    minY = Math.Min(minY, ys[i]); maxY = Math.Max(maxY, ys[i]);
+                    minX =
+                        Math.Min(
+                            minX,
+                            xs[i]);
+                    maxX =
+                        Math.Max(
+                            maxX,
+                            xs[i]);
+                    minY =
+                        Math.Min(
+                            minY,
+                            ys[i]);
+                    maxY =
+                        Math.Max(
+                            maxY,
+                            ys[i]);
                 }
             }
 
             if (minX == double.MaxValue)
             {
-                DrawPlaceholder(g, plot, bubble ? "Bubble chart" : "Scatter chart");
+                DrawPlaceholder(
+                    g,
+                    plot,
+                    bubble
+                        ? "Bubble chart"
+                        : "Scatter chart");
                 return;
             }
-            if (Math.Abs(maxX - minX) < 0.000001) maxX = minX + 1.0;
-            if (Math.Abs(maxY - minY) < 0.000001) maxY = minY + 1.0;
 
-            using (Pen axis = new Pen(Color.FromArgb(110, 110, 110), 1f))
+            if (Math.Abs(
+                    maxX -
+                    minX) < 0.000001)
             {
-                g.DrawRectangle(axis, plot.X, plot.Y, plot.Width, plot.Height);
+                maxX =
+                    minX + 1.0;
             }
 
-            for (int s = 0; s < allX.Count; s++)
+            if (Math.Abs(
+                    maxY -
+                    minY) < 0.000001)
             {
-                int count = Math.Min(allX[s].Count, allY[s].Count);
-                Color color = palette[s % palette.Length];
-                for (int i = 0; i < count; i++)
+                maxY =
+                    minY + 1.0;
+            }
+
+            using (Pen axis =
+                new Pen(
+                    Color.FromArgb(
+                        110,
+                        110,
+                        110),
+                    1f))
+            {
+                g.DrawRectangle(
+                    axis,
+                    plot.X,
+                    plot.Y,
+                    plot.Width,
+                    plot.Height);
+            }
+
+            string scatterStyle =
+                ReadScatterChartStyle(
+                    chartDoc);
+
+            bool drawSeriesLine =
+                !bubble &&
+                (scatterStyle.IndexOf(
+                    "line",
+                    StringComparison.OrdinalIgnoreCase) >= 0 ||
+                 scatterStyle.IndexOf(
+                    "smooth",
+                    StringComparison.OrdinalIgnoreCase) >= 0);
+
+            bool smoothSeriesLine =
+                !bubble &&
+                scatterStyle.IndexOf(
+                    "smooth",
+                    StringComparison.OrdinalIgnoreCase) >= 0;
+
+            bool drawMarkers =
+                bubble ||
+                scatterStyle.IndexOf(
+                    "marker",
+                    StringComparison.OrdinalIgnoreCase) >= 0 ||
+                string.IsNullOrEmpty(
+                    scatterStyle);
+
+            for (int s = 0;
+                 s < allX.Count;
+                 s++)
+            {
+                int pointCount =
+                    Math.Min(
+                        allX[s].Count,
+                        allY[s].Count);
+
+                if (pointCount <= 0)
+                    continue;
+
+                ChartSeriesData style =
+                    s < styles.Count
+                        ? styles[s]
+                        : new ChartSeriesData();
+
+                Color seriesColor =
+                    style.ExplicitColor ??
+                    palette[
+                        s %
+                        palette.Length];
+
+                PointF[] points =
+                    new PointF[
+                        pointCount];
+
+                for (int i = 0;
+                     i < pointCount;
+                     i++)
                 {
-                    float x = plot.Left + (float)((allX[s][i] - minX) / (maxX - minX)) * plot.Width;
-                    float y = plot.Bottom - (float)((allY[s][i] - minY) / (maxY - minY)) * plot.Height;
-                    float radius = 4f;
-                    if (bubble && i < allSize[s].Count)
-                        radius = Math.Max(3f, Math.Min(16f, (float)Math.Sqrt(Math.Abs(allSize[s][i]))));
-                    using (Brush brush = new SolidBrush(Color.FromArgb(160, color)))
-                        g.FillEllipse(brush, x - radius, y - radius, radius * 2f, radius * 2f);
-                    using (Pen pen = new Pen(color, 1f))
-                        g.DrawEllipse(pen, x - radius, y - radius, radius * 2f, radius * 2f);
+                    float x =
+                        plot.Left +
+                        (float)(
+                            (allX[s][i] -
+                             minX) /
+                            (maxX -
+                             minX)) *
+                        plot.Width;
+
+                    float y =
+                        plot.Bottom -
+                        (float)(
+                            (allY[s][i] -
+                             minY) /
+                            (maxY -
+                             minY)) *
+                        plot.Height;
+
+                    points[i] =
+                        new PointF(
+                            x,
+                            y);
+                }
+
+                if (drawSeriesLine &&
+                    points.Length > 1)
+                {
+                    using (Pen pen =
+                        new Pen(
+                            seriesColor,
+                            Math.Max(
+                                1f,
+                                style.LineWidth)))
+                    {
+                        pen.DashStyle =
+                            style.LineDashStyle;
+
+                        if (smoothSeriesLine &&
+                            points.Length > 2)
+                        {
+                            g.DrawCurve(
+                                pen,
+                                points,
+                                0.5f);
+                        }
+                        else
+                        {
+                            g.DrawLines(
+                                pen,
+                                points);
+                        }
+                    }
+                }
+
+                for (int i = 0;
+                     i < pointCount;
+                     i++)
+                {
+                    Color pointColor =
+                        GetChartPointColor(
+                            style,
+                            i,
+                            palette);
+
+                    if (bubble)
+                    {
+                        float radius = 4f;
+
+                        if (i <
+                            allSize[s].Count)
+                        {
+                            radius =
+                                Math.Max(
+                                    3f,
+                                    Math.Min(
+                                        20f,
+                                        (float)Math.Sqrt(
+                                            Math.Abs(
+                                                allSize[s][i]))));
+                        }
+
+                        using (Brush brush =
+                            new SolidBrush(
+                                Color.FromArgb(
+                                    150,
+                                    pointColor)))
+                        using (Pen pen =
+                            new Pen(
+                                pointColor,
+                                1f))
+                        {
+                            g.FillEllipse(
+                                brush,
+                                points[i].X -
+                                    radius,
+                                points[i].Y -
+                                    radius,
+                                radius * 2f,
+                                radius * 2f);
+
+                            g.DrawEllipse(
+                                pen,
+                                points[i].X -
+                                    radius,
+                                points[i].Y -
+                                    radius,
+                                radius * 2f,
+                                radius * 2f);
+                        }
+                    }
+                    else if (drawMarkers &&
+                             style.MarkerEnabled)
+                    {
+                        DrawChartMarker(
+                            g,
+                            points[i],
+                            style.MarkerSymbol,
+                            style.MarkerSize,
+                            pointColor);
+                    }
                 }
             }
+
+            if (!bubble)
+            {
+                List<ChartSeriesData> legendSeries =
+                    styles;
+
+                DrawChartLegend(
+                    g,
+                    rect,
+                    legendSeries,
+                    palette,
+                    "scatter",
+                    ReadChartLegendPosition(
+                        chartDoc));
+            }
+        }
+
+        private static string ReadScatterChartStyle(
+            XmlDocument chartDoc)
+        {
+            XmlNode scatter =
+                chartDoc == null
+                    ? null
+                    : FindFirst(
+                        chartDoc,
+                        "scatterChart");
+
+            if (scatter == null)
+                return string.Empty;
+
+            XmlNode style =
+                DirectChild(
+                    scatter,
+                    "scatterStyle");
+
+            return style != null
+                ? GetAttr(
+                    style,
+                    "val") ??
+                  string.Empty
+                : string.Empty;
         }
 
         private static void DrawRadarChart(
