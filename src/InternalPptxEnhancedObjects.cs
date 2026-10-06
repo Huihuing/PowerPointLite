@@ -5106,6 +5106,77 @@ namespace PptxViewer
                 return true;
             }
 
+            if (string.Equals(
+                    type,
+                    "hueRotate",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                float degrees =
+                    ParseSvgFloat(
+                        GetAttr(
+                            colorMatrix,
+                            "values"),
+                        0f);
+
+                double radians =
+                    degrees *
+                    Math.PI /
+                    180.0;
+                float cosine =
+                    (float)Math.Cos(
+                        radians);
+                float sine =
+                    (float)Math.Sin(
+                        radians);
+
+                matrix =
+                    new float[]
+                    {
+                        0.213f + cosine * 0.787f - sine * 0.213f,
+                        0.715f - cosine * 0.715f - sine * 0.715f,
+                        0.072f - cosine * 0.072f + sine * 0.928f,
+                        0f,
+                        0f,
+
+                        0.213f - cosine * 0.213f + sine * 0.143f,
+                        0.715f + cosine * 0.285f + sine * 0.140f,
+                        0.072f - cosine * 0.072f - sine * 0.283f,
+                        0f,
+                        0f,
+
+                        0.213f - cosine * 0.213f - sine * 0.787f,
+                        0.715f - cosine * 0.715f + sine * 0.715f,
+                        0.072f + cosine * 0.928f + sine * 0.072f,
+                        0f,
+                        0f,
+
+                        0f,
+                        0f,
+                        0f,
+                        1f,
+                        0f
+                    };
+
+                return true;
+            }
+
+            if (string.Equals(
+                    type,
+                    "luminanceToAlpha",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                matrix =
+                    new float[]
+                    {
+                        0f, 0f, 0f, 0f, 0f,
+                        0f, 0f, 0f, 0f, 0f,
+                        0f, 0f, 0f, 0f, 0f,
+                        0.2125f, 0.7154f, 0.0721f, 0f, 0f
+                    };
+
+                return true;
+            }
+
             return false;
         }
 

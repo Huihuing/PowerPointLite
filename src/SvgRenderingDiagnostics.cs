@@ -54,6 +54,8 @@ namespace PptxViewer
                 "<filter id=\"offsetBlurChain\"><feOffset in=\"SourceGraphic\" dx=\"8\" dy=\"2\" result=\"shifted\"/><feGaussianBlur in=\"shifted\" stdDeviation=\"1\"/></filter>" +
                 "<filter id=\"swapRedBlue\"><feColorMatrix in=\"SourceGraphic\" type=\"matrix\" values=\"0 0 1 0 0  0 1 0 0 0  1 0 0 0 0  0 0 0 1 0\"/></filter>" +
                 "<filter id=\"desaturate\"><feColorMatrix in=\"SourceGraphic\" type=\"saturate\" values=\"0\"/></filter>" +
+                "<filter id=\"hueRotate\"><feColorMatrix in=\"SourceGraphic\" type=\"hueRotate\" values=\"240\"/></filter>" +
+                "<filter id=\"lumaAlpha\"><feColorMatrix in=\"SourceGraphic\" type=\"luminanceToAlpha\"/></filter>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<g color=\"hsl(326deg 53% 50% / 100%)\"><use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" color=\"inherit\" fill=\"currentColor\"/></g>" +
@@ -71,6 +73,8 @@ namespace PptxViewer
                 "<rect id=\"offsetBlurChainRect\" x=\"2\" y=\"2\" width=\"8\" height=\"6\" fill=\"#d64545\" filter=\"url(#offsetBlurChain)\"/>" +
                 "<rect id=\"colorMatrixRect\" x=\"14\" y=\"2\" width=\"8\" height=\"6\" fill=\"#e04030\" filter=\"url(#swapRedBlue)\"/>" +
                 "<rect id=\"saturateRect\" x=\"24\" y=\"2\" width=\"8\" height=\"6\" fill=\"#e04030\" filter=\"url(#desaturate)\"/>" +
+                "<rect id=\"hueRotateRect\" x=\"34\" y=\"2\" width=\"8\" height=\"6\" fill=\"#ff0000\" filter=\"url(#hueRotate)\"/>" +
+                "<rect id=\"lumaAlphaRect\" x=\"44\" y=\"2\" width=\"8\" height=\"6\" fill=\"#ffffff\" filter=\"url(#lumaAlpha)\"/>" +
                 "<line id=\"dashLine\" x1=\"100\" y1=\"4\" x2=\"132\" y2=\"4\" stroke=\"#111\" stroke-width=\"2\" stroke-linejoin=\"miter\" stroke-miterlimit=\"2.5\" stroke-dasharray=\"4 3\" stroke-dashoffset=\"1\"/>" +
                 "<path id=\"nonzeroPath\" d=\"M 2 30 H 14 V 38 H 2 Z M 5 32 H 11 V 36 H 5 Z\" fill=\"#f28c28\" fill-rule=\"nonzero\"/>" +
                 "<path id=\"evenoddPath\" d=\"M 2 40 H 14 V 48 H 2 Z M 5 42 H 11 V 46 H 5 Z\" fill=\"#159a8c\" fill-rule=\"evenodd\"/>" +
@@ -543,6 +547,51 @@ namespace PptxViewer
             {
                 throw new InvalidOperationException(
                     "SVG feColorMatrix did not transform colors as expected.");
+            }
+
+            XmlNode hueRotateRect =
+                FindSvgNodeById(
+                    document,
+                    "hueRotateRect");
+            XmlNode lumaAlphaRect =
+                FindSvgNodeById(
+                    document,
+                    "lumaAlphaRect");
+
+            float[] hueMatrix;
+            float[] lumaMatrix;
+
+            if (!TryReadSvgColorMatrix(
+                    hueRotateRect,
+                    document,
+                    out hueMatrix) ||
+                !TryReadSvgColorMatrix(
+                    lumaAlphaRect,
+                    document,
+                    out lumaMatrix))
+            {
+                throw new InvalidOperationException(
+                    "SVG feColorMatrix hueRotate or luminanceToAlpha mode was not parsed.");
+            }
+
+            Color hueRotated =
+                ApplySvgColorMatrix(
+                    Color.Red,
+                    hueMatrix);
+            Color luminanceAlpha =
+                ApplySvgColorMatrix(
+                    Color.White,
+                    lumaMatrix);
+
+            if (hueRotated.B < 220 ||
+                hueRotated.R > 40 ||
+                luminanceAlpha.A < 250 ||
+                luminanceAlpha.R > 3 ||
+                luminanceAlpha.G > 3 ||
+                luminanceAlpha.B > 3)
+            {
+                throw new InvalidOperationException(
+                    "SVG feColorMatrix hueRotate or luminanceToAlpha output was incorrect.");
             }
 
             using (GraphicsPath colorMatrixPath =
