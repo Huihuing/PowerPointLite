@@ -5338,6 +5338,15 @@ namespace PptxViewer
                     return parsed.Value;
             }
 
+            Color rgbColor;
+
+            if (TryParseSvgRgbColor(
+                    raw,
+                    out rgbColor))
+            {
+                return rgbColor;
+            }
+
             Color named =
                 Color.FromName(raw);
 
@@ -5348,6 +5357,301 @@ namespace PptxViewer
                     StringComparison.OrdinalIgnoreCase)
                     ? named
                     : fallback;
+        }
+
+        private static bool TryParseSvgRgbColor(
+            string raw,
+            out Color color)
+        {
+            color =
+                Color.Empty;
+
+            if (string.IsNullOrEmpty(raw))
+            {
+                return false;
+            }
+
+            raw =
+                raw.Trim();
+
+            bool rgb =
+                raw.StartsWith(
+                    "rgb(",
+                    StringComparison.OrdinalIgnoreCase);
+            bool rgba =
+                raw.StartsWith(
+                    "rgba(",
+                    StringComparison.OrdinalIgnoreCase);
+
+            if (!rgb &&
+                !rgba)
+            {
+                return false;
+            }
+
+            int open =
+                raw.IndexOf('(');
+            int close =
+                raw.LastIndexOf(')');
+
+            if (open < 0 ||
+                close <= open)
+            {
+                return false;
+            }
+
+            string body =
+                raw.Substring(
+                    open + 1,
+                    close -
+                    open -
+                    1)
+                .Trim();
+
+            if (body.StartsWith(
+                    "from ",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            body =
+                body.Replace(
+                    ",",
+                    " ")
+                .Replace(
+                    "/",
+                    " / ");
+
+            string[] tokens =
+                body.Split(
+                    new char[]
+                    {
+                        ' ',
+                        '\t',
+                        '\r',
+                        '\n'
+                    },
+                    StringSplitOptions.RemoveEmptyEntries);
+
+            List<string> components =
+                new List<string>();
+            string alphaToken =
+                null;
+            bool afterSlash =
+                false;
+
+            for (int i = 0;
+                 i < tokens.Length;
+                 i++)
+            {
+                string token =
+                    tokens[i];
+
+                if (token == "/")
+                {
+                    afterSlash =
+                        true;
+                    continue;
+                }
+
+                if (afterSlash)
+                {
+                    if (alphaToken == null)
+                    {
+                        alphaToken =
+                            token;
+                    }
+
+                    continue;
+                }
+
+                components.Add(
+                    token);
+            }
+
+            if (components.Count == 4 &&
+                alphaToken == null)
+            {
+                alphaToken =
+                    components[3];
+                components.RemoveAt(3);
+            }
+
+            if (components.Count != 3)
+            {
+                return false;
+            }
+
+            int red;
+            int green;
+            int blue;
+
+            if (!TryParseSvgRgbChannel(
+                    components[0],
+                    out red) ||
+                !TryParseSvgRgbChannel(
+                    components[1],
+                    out green) ||
+                !TryParseSvgRgbChannel(
+                    components[2],
+                    out blue))
+            {
+                return false;
+            }
+
+            int alpha =
+                255;
+
+            if (!string.IsNullOrEmpty(
+                    alphaToken) &&
+                !TryParseSvgAlphaChannel(
+                    alphaToken,
+                    out alpha))
+            {
+                return false;
+            }
+
+            color =
+                Color.FromArgb(
+                    alpha,
+                    red,
+                    green,
+                    blue);
+
+            return true;
+        }
+
+        private static bool TryParseSvgRgbChannel(
+            string raw,
+            out int value)
+        {
+            value = 0;
+
+            if (string.IsNullOrEmpty(raw))
+            {
+                return false;
+            }
+
+            raw =
+                raw.Trim();
+
+            if (string.Equals(
+                    raw,
+                    "none",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                value = 0;
+                return true;
+            }
+
+            bool percent =
+                raw.EndsWith(
+                    "%",
+                    StringComparison.Ordinal);
+
+            string number =
+                percent
+                    ? raw.Substring(
+                        0,
+                        raw.Length - 1)
+                    : raw;
+
+            float parsed =
+                ParseSvgFloat(
+                    number,
+                    float.NaN);
+
+            if (float.IsNaN(parsed) ||
+                float.IsInfinity(parsed))
+            {
+                return false;
+            }
+
+            float channel =
+                percent
+                    ? parsed *
+                      255f /
+                      100f
+                    : parsed;
+
+            value =
+                Math.Max(
+                    0,
+                    Math.Min(
+                        255,
+                        (int)Math.Round(
+                            channel)));
+
+            return true;
+        }
+
+        private static bool TryParseSvgAlphaChannel(
+            string raw,
+            out int value)
+        {
+            value = 255;
+
+            if (string.IsNullOrEmpty(raw))
+            {
+                return false;
+            }
+
+            raw =
+                raw.Trim();
+
+            if (string.Equals(
+                    raw,
+                    "none",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                value = 0;
+                return true;
+            }
+
+            bool percent =
+                raw.EndsWith(
+                    "%",
+                    StringComparison.Ordinal);
+
+            string number =
+                percent
+                    ? raw.Substring(
+                        0,
+                        raw.Length - 1)
+                    : raw;
+
+            float parsed =
+                ParseSvgFloat(
+                    number,
+                    float.NaN);
+
+            if (float.IsNaN(parsed) ||
+                float.IsInfinity(parsed))
+            {
+                return false;
+            }
+
+            float alpha =
+                percent
+                    ? parsed /
+                      100f
+                    : parsed;
+
+            value =
+                Math.Max(
+                    0,
+                    Math.Min(
+                        255,
+                        (int)Math.Round(
+                            Math.Max(
+                                0f,
+                                Math.Min(
+                                    1f,
+                                    alpha)) *
+                            255f)));
+
+            return true;
         }
 
         private static float ReadSvgOpacity(

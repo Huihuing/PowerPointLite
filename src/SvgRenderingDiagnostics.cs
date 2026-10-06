@@ -47,7 +47,7 @@ namespace PptxViewer
                 "<filter id=\"offsetOnly\"><feOffset in=\"SourceGraphic\" dx=\"3\" dy=\"3\"/></filter>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
-                "<use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" color=\"#c43d8d\" fill=\"currentColor\"/>" +
+                "<use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" color=\"rgb(196 61 141 / 100%)\" fill=\"currentColor\"/>" +
                 "<circle cx=\"154\" cy=\"28\" r=\"18\" fill=\"url(#g)\" transform=\"skewX(8)\"/>" +
                 "<rect id=\"clipRuleTarget\" x=\"176\" y=\"2\" width=\"20\" height=\"20\" fill=\"#7b61ff\" clip-path=\"url(#evenoddClip)\"/>" +
                 "<rect x=\"8\" y=\"6\" width=\"48\" height=\"22\" fill=\"#1677d2\" clip-path=\"url(#nestedClip)\"/>" +
@@ -368,6 +368,28 @@ namespace PptxViewer
                     useTriangle,
                     "fill",
                     Color.Transparent);
+
+            Color legacyRgba =
+                ParseSvgColorValue(
+                    "rgba(20%, 40%, 80%, 50%)",
+                    Color.Transparent);
+
+            if (Math.Abs(
+                    legacyRgba.R -
+                    51) > 1 ||
+                Math.Abs(
+                    legacyRgba.G -
+                    102) > 1 ||
+                Math.Abs(
+                    legacyRgba.B -
+                    204) > 1 ||
+                Math.Abs(
+                    legacyRgba.A -
+                    128) > 1)
+            {
+                throw new InvalidOperationException(
+                    "SVG rgba percentage color syntax was not parsed correctly.");
+            }
 
             if (currentColorFill.R < 180 ||
                 currentColorFill.B < 120 ||
