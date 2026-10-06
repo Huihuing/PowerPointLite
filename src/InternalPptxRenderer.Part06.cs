@@ -1013,7 +1013,9 @@ internal static partial class InternalPptxRenderer
                     series[0],
                     categoryCount,
                     kind,
-                    categoryTickLabelPosition);
+                    categoryTickLabelPosition,
+                    ReadChartCategoryLabelSkip(
+                        chartDoc));
             }
 
             DrawChartAxisTitles(
@@ -2303,7 +2305,8 @@ internal static partial class InternalPptxRenderer
             ChartSeriesData firstSeries,
             int categoryCount,
             string kind,
-            string tickLabelPosition)
+            string tickLabelPosition,
+            int labelSkip)
         {
             if (firstSeries == null || firstSeries.Categories.Count == 0)
                 return;
@@ -2323,7 +2326,14 @@ internal static partial class InternalPptxRenderer
                         "high",
                         StringComparison.OrdinalIgnoreCase);
 
-                for (int i = 0; i < count; i++)
+                labelSkip =
+                    Math.Max(
+                        1,
+                        labelSkip);
+
+                for (int i = 0;
+                     i < count;
+                     i += labelSkip)
                 {
                     if (kind == "bar")
                     {
@@ -2908,6 +2918,42 @@ internal static partial class InternalPptxRenderer
                     tickLabelPosition,
                     "val") ??
                   string.Empty;
+        }
+
+        private static int ReadChartCategoryLabelSkip(
+            XmlDocument chartDoc)
+        {
+            XmlNode categoryAxis =
+                chartDoc == null
+                    ? null
+                    : FindFirst(
+                        chartDoc,
+                        "catAx");
+
+            if (categoryAxis == null)
+                return 1;
+
+            XmlNode skip =
+                DirectChild(
+                    categoryAxis,
+                    "tickLblSkip");
+
+            int parsed;
+
+            if (skip != null &&
+                int.TryParse(
+                    GetAttr(
+                        skip,
+                        "val"),
+                    out parsed) &&
+                parsed > 0)
+            {
+                return Math.Min(
+                    1000,
+                    parsed);
+            }
+
+            return 1;
         }
 
         private static string ReadChartAxisTitle(
