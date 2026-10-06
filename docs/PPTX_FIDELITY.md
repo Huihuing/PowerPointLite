@@ -103,8 +103,11 @@ Microsoft PowerPoint (설치된 경우)
   - gapWidth / overlap 기반 bar thickness·series overlap 근사
   - pie/doughnut firstSliceAng
   - doughnut holeSize
+  - doughnut / area / radar도 공통 series 색상·point 색상·line dash·marker 스타일 재사용
 - SmartArt / diagram
-  - data model의 node / connection을 읽어 hierarchy로 표시
+  - data model의 node / connection 관계 해석
+  - layout definition 기반 hierarchy / process / vertical process / cycle / radial / matrix / pyramid / list / venn 배치 근사
+  - layout별 connector 방향과 node shape 기본 차등 표현
   - 구조를 알 수 없는 경우 기존 static approximation으로 fallback
 - hyperlink / slide navigation / media extraction
 - speaker notes
@@ -174,7 +177,7 @@ slide load
 
 Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것이 아니다. 다음 항목은 구조와 의미를 가능한 범위에서 유지하되 화면 결과가 PowerPoint와 정확히 같지 않을 수 있다.
 
-- SmartArt 고유 layout algorithm
+- SmartArt 고유 layout algorithm의 세부 spacing/assistant/routing semantics
 - chart의 모든 axis/style/data-label/3D 조합
 - theme effect style 참조 전체 및 복합 shadow/effect 조합
 - SVG filter 및 복잡한 mask luminance/gradient 등 고급 SVG 기능
