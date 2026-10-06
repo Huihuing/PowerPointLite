@@ -54,6 +54,24 @@ namespace PptxViewer
             second.Height = 1371600;
             second.FillColorHex = "31B6A1";
 
+            PresentationShape diamond = slide.AddShape(
+                PresentationShapeKind.Diamond);
+            diamond.Name = "Diamond trigger geometry";
+            diamond.X = 3657600;
+            diamond.Y = 4572000;
+            diamond.Width = 1828800;
+            diamond.Height = 1371600;
+            diamond.FillColorHex = "F2A83B";
+
+            PresentationShape triangle = slide.AddShape(
+                PresentationShapeKind.Triangle);
+            triangle.Name = "Triangle trigger geometry";
+            triangle.X = 5943600;
+            triangle.Y = 4572000;
+            triangle.Width = 1828800;
+            triangle.Height = 1371600;
+            triangle.FillColorHex = "B56BD8";
+
             PresentationPackageWriter.Save(document, packagePath);
             InjectSyntheticTiming(packagePath);
             ValidateTimeline(packagePath, renderDirectory);
@@ -89,13 +107,13 @@ namespace PptxViewer
                             shapes[i],
                             "cNvPr");
 
-                    if (properties == null ||
+                    if (properties == null)
+                        continue;
+
+                    string shapeId =
                         GetAttr(
                             properties,
-                            "id") != "3")
-                    {
-                        continue;
-                    }
+                            "id");
 
                     XmlNode transform =
                         FindFirst(
@@ -105,14 +123,21 @@ namespace PptxViewer
                     XmlElement transformElement =
                         transform as XmlElement;
 
-                    if (transformElement != null)
+                    if (transformElement == null)
+                        continue;
+
+                    if (shapeId == "3")
                     {
                         transformElement.SetAttribute(
                             "rot",
                             "2700000");
                     }
-
-                    break;
+                    else if (shapeId == "4")
+                    {
+                        transformElement.SetAttribute(
+                            "rot",
+                            "1800000");
+                    }
                 }
 
                 XmlNode oldTiming = FindFirst(slide.DocumentElement, "timing");
@@ -207,6 +232,10 @@ namespace PptxViewer
             bool foundTriggerShape =
                 false;
             bool foundRoundedRectangle =
+                false;
+            bool foundRotatedDiamond =
+                false;
+            bool foundTriangle =
                 false;
 
             if (shapeRegions != null &&
@@ -325,6 +354,109 @@ namespace PptxViewer
                             centerHit &&
                             roundedCornerMiss;
                     }
+
+                    if (region != null &&
+                        region.ShapeId == "4" &&
+                        string.Equals(
+                            region.GeometryKind,
+                            "diamond",
+                            StringComparison.OrdinalIgnoreCase) &&
+                        Math.Abs(
+                            region.RotationDegrees -
+                            30f) < 0.01f)
+                    {
+                        float centerX =
+                            region.Bounds.Left +
+                            region.Bounds.Width *
+                            0.5f;
+                        float centerY =
+                            region.Bounds.Top +
+                            region.Bounds.Height *
+                            0.5f;
+
+                        bool centerHit =
+                            region.Contains(
+                                centerX,
+                                centerY);
+
+                        float localX =
+                            region.Bounds.Left +
+                            region.Bounds.Width *
+                            0.08f;
+                        float localY =
+                            region.Bounds.Top +
+                            region.Bounds.Height *
+                            0.08f;
+                        float dx =
+                            localX -
+                            centerX;
+                        float dy =
+                            localY -
+                            centerY;
+                        double radians =
+                            30.0 *
+                            Math.PI /
+                            180.0;
+                        float rotatedX =
+                            centerX +
+                            (float)(
+                                dx *
+                                Math.Cos(
+                                    radians) -
+                                dy *
+                                Math.Sin(
+                                    radians));
+                        float rotatedY =
+                            centerY +
+                            (float)(
+                                dx *
+                                Math.Sin(
+                                    radians) +
+                                dy *
+                                Math.Cos(
+                                    radians));
+
+                        bool cornerMiss =
+                            !region.Contains(
+                                rotatedX,
+                                rotatedY);
+
+                        foundRotatedDiamond =
+                            centerHit &&
+                            cornerMiss;
+                    }
+
+                    if (region != null &&
+                        region.ShapeId == "5" &&
+                        string.Equals(
+                            region.GeometryKind,
+                            "triangle",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        float centerX =
+                            region.Bounds.Left +
+                            region.Bounds.Width *
+                            0.5f;
+
+                        bool centerHit =
+                            region.Contains(
+                                centerX,
+                                region.Bounds.Top +
+                                    region.Bounds.Height *
+                                    0.62f);
+                        bool upperCornerMiss =
+                            !region.Contains(
+                                region.Bounds.Left +
+                                    region.Bounds.Width *
+                                    0.08f,
+                                region.Bounds.Top +
+                                    region.Bounds.Height *
+                                    0.08f);
+
+                        foundTriangle =
+                            centerHit &&
+                            upperCornerMiss;
+                    }
                 }
             }
 
@@ -338,6 +470,18 @@ namespace PptxViewer
             {
                 throw new InvalidOperationException(
                     "Rounded rectangle animation geometry or corner hit testing was not preserved.");
+            }
+
+            if (!foundRotatedDiamond)
+            {
+                throw new InvalidOperationException(
+                    "Rotated diamond animation geometry or precise hit testing was not preserved.");
+            }
+
+            if (!foundTriangle)
+            {
+                throw new InvalidOperationException(
+                    "Triangle animation geometry or precise hit testing was not preserved.");
             }
 
             InternalPptxRenderer.SlideAnimationTimeline timeline = timelines[0];
