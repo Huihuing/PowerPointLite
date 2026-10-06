@@ -6,6 +6,7 @@ using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using System.Xml;
 
 namespace PptxViewer
@@ -468,6 +469,24 @@ namespace PptxViewer
                 blurredImage ??
                 image;
 
+            XmlNode sharpenSoften =
+                blip == null
+                    ? null
+                    : FindFirst(
+                        blip,
+                        "sharpenSoften");
+
+            Bitmap sharpenSoftenImage =
+                CreateSharpenSoftenImageApproximation(
+                    renderImage,
+                    sharpenSoften);
+
+            if (sharpenSoftenImage != null)
+            {
+                renderImage =
+                    sharpenSoftenImage;
+            }
+
             try
             {
             float brightness =
@@ -795,10 +814,344 @@ namespace PptxViewer
             }
             finally
             {
+                if (sharpenSoftenImage != null)
+                {
+                    sharpenSoftenImage.Dispose();
+                }
+
                 if (blurredImage != null)
                 {
                     blurredImage.Dispose();
                 }
+            }
+        }
+
+        private static Bitmap CreateSharpenSoftenImageApproximation(
+            Bitmap image,
+            XmlNode effect)
+        {
+            if (image == null ||
+                effect == null ||
+                image.Width <= 0 ||
+                image.Height <= 0)
+            {
+                return null;
+            }
+
+            long rawAmount =
+                GetLong(
+                    effect,
+                    "amount",
+                    0);
+
+            int amount =
+                (int)Math.Max(
+                    -100000L,
+                    Math.Min(
+                        100000L,
+                        rawAmount));
+
+            if (Math.Abs(amount) < 1000)
+            {
+                return null;
+            }
+
+            using (Bitmap normalized =
+                new Bitmap(
+                    image.Width,
+                    image.Height,
+                    PixelFormat.Format32bppArgb))
+            {
+                using (Graphics normalizedGraphics =
+                    Graphics.FromImage(
+                        normalized))
+                {
+                    normalizedGraphics.CompositingMode =
+                        CompositingMode.SourceCopy;
+                    normalizedGraphics.DrawImage(
+                        image,
+                        new Rectangle(
+                            0,
+                            0,
+                            normalized.Width,
+                            normalized.Height),
+                        0,
+                        0,
+                        image.Width,
+                        image.Height,
+                        GraphicsUnit.Pixel);
+                }
+
+                Rectangle bounds =
+                    new Rectangle(
+                        0,
+                        0,
+                        normalized.Width,
+                        normalized.Height);
+
+                BitmapData sourceData =
+                    normalized.LockBits(
+                        bounds,
+                        ImageLockMode.ReadOnly,
+                        PixelFormat.Format32bppArgb);
+
+                byte[] sourceBytes;
+
+                try
+                {
+                    if (sourceData.Stride <= 0)
+                    {
+                        return null;
+                    }
+
+                    sourceBytes =
+                        new byte[
+                            sourceData.Stride *
+                            normalized.Height];
+
+                    Marshal.Copy(
+                        sourceData.Scan0,
+                        sourceBytes,
+                        0,
+                        sourceBytes.Length);
+                }
+                finally
+                {
+                    normalized.UnlockBits(
+                        sourceData);
+                }
+
+                int stride =
+                    normalized.Width *
+                    4;
+
+                if (sourceBytes.Length <
+                    stride *
+                    normalized.Height)
+                {
+                    stride =
+                        sourceBytes.Length /
+                        normalized.Height;
+                }
+
+                byte[] blurredBytes =
+                    new byte[
+                        sourceBytes.Length];
+
+                Array.Copy(
+                    sourceBytes,
+                    blurredBytes,
+                    sourceBytes.Length);
+
+                for (int y = 0;
+                     y < normalized.Height;
+                     y++)
+                {
+                    for (int x = 0;
+                         x < normalized.Width;
+                         x++)
+                    {
+                        int pixelOffset =
+                            y *
+                            stride +
+                            x *
+                            4;
+
+                        for (int channel = 0;
+                             channel < 3;
+                             channel++)
+                        {
+                            int sum = 0;
+                            int count = 0;
+
+                            for (int oy = -1;
+                                 oy <= 1;
+                                 oy++)
+                            {
+                                int sampleY =
+                                    y +
+                                    oy;
+
+                                if (sampleY < 0 ||
+                                    sampleY >=
+                                        normalized.Height)
+                                {
+                                    continue;
+                                }
+
+                                for (int ox = -1;
+                                     ox <= 1;
+                                     ox++)
+                                {
+                                    int sampleX =
+                                        x +
+                                        ox;
+
+                                    if (sampleX < 0 ||
+                                        sampleX >=
+                                            normalized.Width)
+                                    {
+                                        continue;
+                                    }
+
+                                    int sampleOffset =
+                                        sampleY *
+                                        stride +
+                                        sampleX *
+                                        4 +
+                                        channel;
+
+                                    sum +=
+                                        sourceBytes[
+                                            sampleOffset];
+                                    count++;
+                                }
+                            }
+
+                            blurredBytes[
+                                pixelOffset +
+                                channel] =
+                                (byte)(
+                                    count > 0
+                                        ? sum /
+                                          count
+                                        : sourceBytes[
+                                            pixelOffset +
+                                            channel]);
+                        }
+
+                        blurredBytes[
+                            pixelOffset +
+                            3] =
+                            sourceBytes[
+                                pixelOffset +
+                                3];
+                    }
+                }
+
+                byte[] outputBytes =
+                    new byte[
+                        sourceBytes.Length];
+
+                Array.Copy(
+                    sourceBytes,
+                    outputBytes,
+                    sourceBytes.Length);
+
+                float strength =
+                    Math.Min(
+                        1f,
+                        Math.Abs(
+                            amount) /
+                        100000f);
+
+                float sharpenStrength =
+                    strength *
+                    1.75f;
+
+                for (int y = 0;
+                     y < normalized.Height;
+                     y++)
+                {
+                    for (int x = 0;
+                         x < normalized.Width;
+                         x++)
+                    {
+                        int pixelOffset =
+                            y *
+                            stride +
+                            x *
+                            4;
+
+                        for (int channel = 0;
+                             channel < 3;
+                             channel++)
+                        {
+                            float original =
+                                sourceBytes[
+                                    pixelOffset +
+                                    channel];
+                            float softened =
+                                blurredBytes[
+                                    pixelOffset +
+                                    channel];
+
+                            float adjusted =
+                                amount > 0
+                                    ? original +
+                                      (original -
+                                       softened) *
+                                      sharpenStrength
+                                    : original +
+                                      (softened -
+                                       original) *
+                                      strength;
+
+                            outputBytes[
+                                pixelOffset +
+                                channel] =
+                                (byte)Math.Max(
+                                    0,
+                                    Math.Min(
+                                        255,
+                                        (int)Math.Round(
+                                            adjusted)));
+                        }
+
+                        outputBytes[
+                            pixelOffset +
+                            3] =
+                            sourceBytes[
+                                pixelOffset +
+                                3];
+                    }
+                }
+
+                Bitmap result =
+                    new Bitmap(
+                        normalized.Width,
+                        normalized.Height,
+                        PixelFormat.Format32bppArgb);
+
+                BitmapData outputData =
+                    result.LockBits(
+                        bounds,
+                        ImageLockMode.WriteOnly,
+                        PixelFormat.Format32bppArgb);
+
+                bool outputUnlocked =
+                    false;
+
+                try
+                {
+                    if (outputData.Stride <= 0 ||
+                        outputData.Stride !=
+                            stride)
+                    {
+                        result.UnlockBits(
+                            outputData);
+                        outputUnlocked =
+                            true;
+                        result.Dispose();
+                        return null;
+                    }
+
+                    Marshal.Copy(
+                        outputBytes,
+                        0,
+                        outputData.Scan0,
+                        outputBytes.Length);
+                }
+                finally
+                {
+                    if (!outputUnlocked)
+                    {
+                        result.UnlockBits(
+                            outputData);
+                    }
+                }
+
+                return result;
             }
         }
 

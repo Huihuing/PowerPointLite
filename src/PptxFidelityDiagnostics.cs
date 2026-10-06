@@ -922,6 +922,77 @@ namespace PptxViewer
                         }
                     }
 
+                    using (Bitmap impulse =
+                        new Bitmap(
+                            9,
+                            9,
+                            PixelFormat.Format32bppArgb))
+                    {
+                        using (Graphics impulseGraphics =
+                            Graphics.FromImage(
+                                impulse))
+                        {
+                            impulseGraphics.Clear(
+                                Color.FromArgb(
+                                    100,
+                                    100,
+                                    100));
+                        }
+
+                        impulse.SetPixel(
+                            4,
+                            4,
+                            Color.FromArgb(
+                                160,
+                                160,
+                                160));
+
+                        XmlDocument sharpenDocument =
+                            new XmlDocument();
+                        sharpenDocument.LoadXml(
+                            "<a14:sharpenSoften xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" amount=\"75000\"/>");
+
+                        XmlDocument softenDocument =
+                            new XmlDocument();
+                        softenDocument.LoadXml(
+                            "<a14:sharpenSoften xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" amount=\"-75000\"/>");
+
+                        using (Bitmap sharpened =
+                            CreateSharpenSoftenImageApproximation(
+                                impulse,
+                                sharpenDocument.DocumentElement))
+                        using (Bitmap softened =
+                            CreateSharpenSoftenImageApproximation(
+                                impulse,
+                                softenDocument.DocumentElement))
+                        {
+                            if (sharpened == null ||
+                                softened == null)
+                            {
+                                throw new InvalidOperationException(
+                                    "Office 2010 sharpen/soften effect did not create output images.");
+                            }
+
+                            int sharpenedCenter =
+                                sharpened.GetPixel(
+                                    4,
+                                    4).R;
+                            int softenedCenter =
+                                softened.GetPixel(
+                                    4,
+                                    4).R;
+
+                            if (sharpenedCenter <= 160 ||
+                                softenedCenter >= 160 ||
+                                sharpenedCenter <=
+                                    softenedCenter)
+                            {
+                                throw new InvalidOperationException(
+                                    "Office 2010 sharpen/soften effect did not adjust local contrast as expected.");
+                            }
+                        }
+                    }
+
                     output.Save(
                         outputPath,
                         ImageFormat.Png);
