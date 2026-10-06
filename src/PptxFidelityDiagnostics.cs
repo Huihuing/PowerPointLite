@@ -2174,6 +2174,146 @@ namespace PptxViewer
                     "SmartArt hierarchy assistant was not positioned beside its parent.");
             }
 
+            SmartNode leftParent =
+                new SmartNode();
+            leftParent.Id = "leftParent";
+            leftParent.Label = "Left";
+            leftParent.Depth = 0;
+            leftParent.Children.Add(
+                "leftChild1");
+            leftParent.Children.Add(
+                "leftChild2");
+
+            SmartNode rightParent =
+                new SmartNode();
+            rightParent.Id = "rightParent";
+            rightParent.Label = "Right";
+            rightParent.Depth = 0;
+            rightParent.Children.Add(
+                "rightChild1");
+            rightParent.Children.Add(
+                "rightChild2");
+
+            SmartNode rightChild1 =
+                new SmartNode();
+            rightChild1.Id = "rightChild1";
+            rightChild1.Depth = 1;
+            rightChild1.ParentId =
+                "rightParent";
+
+            SmartNode leftChild1 =
+                new SmartNode();
+            leftChild1.Id = "leftChild1";
+            leftChild1.Depth = 1;
+            leftChild1.ParentId =
+                "leftParent";
+
+            SmartNode rightChild2 =
+                new SmartNode();
+            rightChild2.Id = "rightChild2";
+            rightChild2.Depth = 1;
+            rightChild2.ParentId =
+                "rightParent";
+
+            SmartNode leftChild2 =
+                new SmartNode();
+            leftChild2.Id = "leftChild2";
+            leftChild2.Depth = 1;
+            leftChild2.ParentId =
+                "leftParent";
+
+            List<SmartNode> groupedHierarchyNodes =
+                new List<SmartNode>();
+            groupedHierarchyNodes.Add(
+                leftParent);
+            groupedHierarchyNodes.Add(
+                rightParent);
+            groupedHierarchyNodes.Add(
+                rightChild1);
+            groupedHierarchyNodes.Add(
+                leftChild1);
+            groupedHierarchyNodes.Add(
+                rightChild2);
+            groupedHierarchyNodes.Add(
+                leftChild2);
+
+            Dictionary<string, RectangleF> groupedPositions =
+                BuildHierarchySmartArtPositions(
+                    groupedHierarchyNodes,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        600f,
+                        300f),
+                    1);
+
+            RectangleF leftParentBox =
+                groupedPositions[
+                    "leftParent"];
+            RectangleF rightParentBox =
+                groupedPositions[
+                    "rightParent"];
+            RectangleF leftChildBox1 =
+                groupedPositions[
+                    "leftChild1"];
+            RectangleF leftChildBox2 =
+                groupedPositions[
+                    "leftChild2"];
+            RectangleF rightChildBox1 =
+                groupedPositions[
+                    "rightChild1"];
+            RectangleF rightChildBox2 =
+                groupedPositions[
+                    "rightChild2"];
+
+            float leftParentCenter =
+                leftParentBox.Left +
+                leftParentBox.Width /
+                2f;
+            float rightParentCenter =
+                rightParentBox.Left +
+                rightParentBox.Width /
+                2f;
+            float leftChildrenCenter =
+                (leftChildBox1.Left +
+                 leftChildBox1.Width /
+                 2f +
+                 leftChildBox2.Left +
+                 leftChildBox2.Width /
+                 2f) /
+                2f;
+            float rightChildrenCenter =
+                (rightChildBox1.Left +
+                 rightChildBox1.Width /
+                 2f +
+                 rightChildBox2.Left +
+                 rightChildBox2.Width /
+                 2f) /
+                2f;
+
+            if (Math.Abs(
+                    leftChildrenCenter -
+                    leftParentCenter) >=
+                Math.Abs(
+                    leftChildrenCenter -
+                    rightParentCenter) ||
+                Math.Abs(
+                    rightChildrenCenter -
+                    rightParentCenter) >=
+                Math.Abs(
+                    rightChildrenCenter -
+                    leftParentCenter) ||
+                Math.Max(
+                    leftChildBox1.Right,
+                    leftChildBox2.Right) >
+                Math.Min(
+                    rightChildBox1.Left,
+                    rightChildBox2.Left))
+            {
+                throw new InvalidOperationException(
+                    "SmartArt hierarchy children were not grouped beneath their parent nodes.");
+            }
+
             Dictionary<string, SmartNode> hierarchyNodeMap =
                 new Dictionary<string, SmartNode>(
                     StringComparer.Ordinal);
