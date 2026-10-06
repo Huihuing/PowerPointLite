@@ -90,7 +90,7 @@ namespace PptxViewer
 
             toolbar.Controls.Add(languageButton);
             languageButton.BringToFront();
-            LayoutLanguageSelector();
+            LayoutViewerToolbar();
         }
 
         private void LayoutViewerToolbar()
@@ -99,7 +99,14 @@ namespace PptxViewer
                 return;
 
             int buttonHeight = 30;
-            int top = Math.Max(0, (toolbar.ClientSize.Height - buttonHeight) / 2);
+            Control documentStrip = toolbar.Controls["DocumentWorkspaceStrip"];
+            int reservedBottom = documentStrip != null && documentStrip.Visible
+                ? documentStrip.Height
+                : 0;
+            int topBandHeight = Math.Max(
+                buttonHeight,
+                toolbar.ClientSize.Height - reservedBottom);
+            int top = Math.Max(0, (topBandHeight - buttonHeight) / 2);
             int x = 8;
             int gap = 6;
 
@@ -164,7 +171,7 @@ namespace PptxViewer
                 zoomTrack.Left = x + 8;
                 zoomTrack.Top = Math.Max(
                     0,
-                    (toolbar.ClientSize.Height - zoomTrack.Height) / 2);
+                    (topBandHeight - zoomTrack.Height) / 2);
                 x = zoomTrack.Right + 14;
             }
 
@@ -191,7 +198,7 @@ namespace PptxViewer
                 engineLabel.Left = x;
                 engineLabel.Top = Math.Max(
                     0,
-                    (toolbar.ClientSize.Height - 22) / 2);
+                    (topBandHeight - 22) / 2);
                 engineLabel.Height = 22;
                 engineLabel.Width = Math.Max(0, available);
                 engineLabel.Visible = available >= 70;

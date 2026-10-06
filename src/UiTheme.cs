@@ -30,6 +30,10 @@ namespace PptxViewer
             button.ForeColor = PrimaryText;
             button.Cursor = Cursors.Hand;
             button.UseVisualStyleBackColor = false;
+            button.TextAlign = ContentAlignment.MiddleCenter;
+            button.UseCompatibleTextRendering = true;
+            button.Padding = new Padding(0, 1, 0, 0);
+            button.AutoEllipsis = true;
 
             button.MouseEnter += delegate
             {
