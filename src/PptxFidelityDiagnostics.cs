@@ -61,6 +61,11 @@ namespace PptxViewer
                 Path.Combine(
                     outputDirectory,
                     "smartart-layouts.png"));
+
+            ValidateSyntheticExtendedCharts(
+                Path.Combine(
+                    outputDirectory,
+                    "extended-charts.png"));
         }
 
         private static void ValidateSyntheticChart(
@@ -1643,6 +1648,178 @@ namespace PptxViewer
             xml.Append("</c:ser>");
 
             return xml.ToString();
+        }
+
+        private static void ValidateSyntheticExtendedCharts(
+            string outputPath)
+        {
+            Dictionary<string, Color> theme =
+                new Dictionary<string, Color>(
+                    StringComparer.OrdinalIgnoreCase);
+
+            theme["accent1"] =
+                Color.FromArgb(
+                    74,
+                    122,
+                    206);
+            theme["accent2"] =
+                Color.FromArgb(
+                    210,
+                    86,
+                    72);
+            theme["accent3"] =
+                Color.FromArgb(
+                    92,
+                    156,
+                    90);
+            theme["accent4"] =
+                Color.FromArgb(
+                    138,
+                    103,
+                    176);
+
+            XmlDocument doughnut =
+                new XmlDocument();
+
+            doughnut.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<c:chart><c:title><c:tx><c:rich><a:p><a:r><a:t>Doughnut</a:t></a:r></a:p></c:rich></c:tx></c:title>" +
+                "<c:plotArea><c:doughnutChart><c:firstSliceAng val=\"75\"/><c:holeSize val=\"66\"/>" +
+                "<c:dLbls><c:showCatName val=\"1\"/><c:showPercent val=\"1\"/><c:separator> </c:separator></c:dLbls>" +
+                BuildSyntheticChartSeries(
+                    0,
+                    "Mix",
+                    new string[] { "A", "B", "C", "D" },
+                    new double[] { 22.0, 31.0, 17.0, 30.0 }) +
+                "</c:doughnutChart></c:plotArea>" +
+                "<c:legend><c:legendPos val=\"b\"/></c:legend></c:chart></c:chartSpace>");
+
+            XmlDocument area =
+                new XmlDocument();
+
+            area.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<c:chart><c:title><c:tx><c:rich><a:p><a:r><a:t>Area</a:t></a:r></a:p></c:rich></c:tx></c:title>" +
+                "<c:plotArea><c:areaChart>" +
+                BuildSyntheticChartSeries(
+                    0,
+                    "North",
+                    new string[] { "Jan", "Feb", "Mar", "Apr" },
+                    new double[] { 18.0, 35.0, 27.0, 46.0 }) +
+                BuildSyntheticChartSeries(
+                    1,
+                    "South",
+                    new string[] { "Jan", "Feb", "Mar", "Apr" },
+                    new double[] { 12.0, 23.0, 42.0, 33.0 }) +
+                "</c:areaChart></c:plotArea>" +
+                "<c:legend><c:legendPos val=\"r\"/></c:legend></c:chart></c:chartSpace>");
+
+            XmlDocument scatter =
+                new XmlDocument();
+
+            scatter.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<c:chart><c:title><c:tx><c:rich><a:p><a:r><a:t>Scatter</a:t></a:r></a:p></c:rich></c:tx></c:title>" +
+                "<c:plotArea><c:scatterChart><c:scatterStyle val=\"lineMarker\"/>" +
+                "<c:ser><c:idx val=\"0\"/><c:order val=\"0\"/><c:tx><c:v>Trend</c:v></c:tx>" +
+                "<c:spPr><a:solidFill><a:srgbClr val=\"7B4FB3\"/></a:solidFill><a:ln w=\"38100\"><a:prstDash val=\"dash\"/></a:ln></c:spPr>" +
+                "<c:marker><c:symbol val=\"diamond\"/><c:size val=\"8\"/></c:marker>" +
+                "<c:xVal><c:numLit><c:pt idx=\"0\"><c:v>1</c:v></c:pt><c:pt idx=\"1\"><c:v>2</c:v></c:pt><c:pt idx=\"2\"><c:v>3</c:v></c:pt><c:pt idx=\"3\"><c:v>4</c:v></c:pt></c:numLit></c:xVal>" +
+                "<c:yVal><c:numLit><c:pt idx=\"0\"><c:v>1.5</c:v></c:pt><c:pt idx=\"1\"><c:v>3.2</c:v></c:pt><c:pt idx=\"2\"><c:v>2.4</c:v></c:pt><c:pt idx=\"3\"><c:v>4.6</c:v></c:pt></c:numLit></c:yVal>" +
+                "</c:ser></c:scatterChart></c:plotArea>" +
+                "<c:legend><c:legendPos val=\"t\"/></c:legend></c:chart></c:chartSpace>");
+
+            XmlDocument radar =
+                new XmlDocument();
+
+            radar.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<c:chart><c:title><c:tx><c:rich><a:p><a:r><a:t>Radar</a:t></a:r></a:p></c:rich></c:tx></c:title>" +
+                "<c:plotArea><c:radarChart>" +
+                BuildSyntheticChartSeries(
+                    0,
+                    "Score",
+                    new string[] { "Speed", "Power", "Range", "Skill", "Guard" },
+                    new double[] { 70.0, 82.0, 54.0, 91.0, 66.0 }) +
+                "</c:radarChart></c:plotArea></c:chart></c:chartSpace>");
+
+            using (Bitmap bitmap =
+                new Bitmap(
+                    1200,
+                    760,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics graphics =
+                Graphics.FromImage(
+                    bitmap))
+            {
+                graphics.Clear(
+                    Color.White);
+                graphics.SmoothingMode =
+                    SmoothingMode.AntiAlias;
+
+                DrawDoughnutChart(
+                    graphics,
+                    doughnut,
+                    new RectangleF(
+                        10f,
+                        10f,
+                        580f,
+                        360f),
+                    theme);
+
+                DrawAreaChart(
+                    graphics,
+                    area,
+                    new RectangleF(
+                        610f,
+                        10f,
+                        580f,
+                        360f),
+                    theme);
+
+                DrawScatterChart(
+                    graphics,
+                    scatter,
+                    new RectangleF(
+                        10f,
+                        390f,
+                        580f,
+                        360f),
+                    theme,
+                    false);
+
+                DrawRadarChart(
+                    graphics,
+                    radar,
+                    new RectangleF(
+                        610f,
+                        390f,
+                        580f,
+                        360f),
+                    theme);
+
+                int nonWhite;
+                int distinct;
+
+                AnalyzeDiagnosticBitmap(
+                    bitmap,
+                    out nonWhite,
+                    out distinct);
+
+                if (nonWhite < 650 ||
+                    distinct < 10)
+                {
+                    throw new InvalidOperationException(
+                        "Extended chart rendering did not produce enough visual detail.");
+                }
+
+                bitmap.Save(
+                    outputPath,
+                    ImageFormat.Png);
+            }
+
+            RequireDiagnosticFile(
+                outputPath);
         }
 
         private static void ValidateSyntheticSmartArt(
