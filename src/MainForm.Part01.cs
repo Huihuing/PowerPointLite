@@ -41,6 +41,8 @@ public sealed partial class MainForm : Form
         private List<bool> hiddenSlides = new List<bool>();
         private List<List<InternalPptxRenderer.InteractiveRegion>> interactiveRegions =
             new List<List<InternalPptxRenderer.InteractiveRegion>>();
+        private List<List<InternalPptxRenderer.ShapeRegion>> animationShapeRegions =
+            new List<List<InternalPptxRenderer.ShapeRegion>>();
         private List<InternalPptxRenderer.TransitionSpec> transitionSpecs =
             new List<InternalPptxRenderer.TransitionSpec>();
         private List<List<string>> animationSteps = new List<List<string>>();

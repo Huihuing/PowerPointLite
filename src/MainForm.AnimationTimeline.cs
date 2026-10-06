@@ -141,6 +141,14 @@ namespace PptxViewer
 
                 InternalPptxRenderer.AnimationStepSpec step =
                     timeline.Steps[animationRevealCount];
+
+                if (step != null &&
+                    !string.IsNullOrEmpty(
+                        step.TriggerShapeId))
+                {
+                    return true;
+                }
+
                 QueueEnhancedAnimationStep(
                     step,
                     animationRevealCount + 1,
@@ -160,6 +168,121 @@ namespace PptxViewer
                 animationRevealCount - 1,
                 false);
             return true;
+        }
+
+        private bool HasPendingEnhancedSpecificTrigger()
+        {
+            RefreshEnhancedAnimationTimelineMetadata();
+
+            InternalPptxRenderer.SlideAnimationTimeline timeline =
+                CurrentEnhancedAnimationTimeline();
+
+            if (timeline == null ||
+                animationRevealCount < 0 ||
+                animationRevealCount >=
+                    timeline.Steps.Count)
+            {
+                return false;
+            }
+
+            InternalPptxRenderer.AnimationStepSpec step =
+                timeline.Steps[
+                    animationRevealCount];
+
+            return step != null &&
+                step.RequiresClick &&
+                !string.IsNullOrEmpty(
+                    step.TriggerShapeId);
+        }
+
+        private bool TryAdvanceEnhancedAnimationTrigger(
+            Point point)
+        {
+            if (!internalSlideShowMode ||
+                currentIndex < 0 ||
+                viewer.ClientSize.Width <= 0 ||
+                viewer.ClientSize.Height <= 0)
+            {
+                return false;
+            }
+
+            EnsureEnhancedAnimationRuntime();
+            RefreshEnhancedAnimationTimelineMetadata();
+
+            InternalPptxRenderer.SlideAnimationTimeline timeline =
+                CurrentEnhancedAnimationTimeline();
+
+            if (timeline == null ||
+                animationRevealCount < 0 ||
+                animationRevealCount >=
+                    timeline.Steps.Count)
+            {
+                return false;
+            }
+
+            InternalPptxRenderer.AnimationStepSpec step =
+                timeline.Steps[
+                    animationRevealCount];
+
+            if (step == null ||
+                !step.RequiresClick ||
+                string.IsNullOrEmpty(
+                    step.TriggerShapeId))
+            {
+                return false;
+            }
+
+            if (enhancedAnimationAdvancing ||
+                enhancedPendingTarget >= 0)
+            {
+                return true;
+            }
+
+            if (currentIndex >=
+                    animationShapeRegions.Count)
+            {
+                return false;
+            }
+
+            float nx =
+                point.X /
+                (float)viewer.ClientSize.Width;
+            float ny =
+                point.Y /
+                (float)viewer.ClientSize.Height;
+
+            List<InternalPptxRenderer.ShapeRegion> regions =
+                animationShapeRegions[
+                    currentIndex];
+
+            for (int i =
+                     regions.Count - 1;
+                 i >= 0;
+                 i--)
+            {
+                InternalPptxRenderer.ShapeRegion region =
+                    regions[i];
+
+                if (region == null ||
+                    !string.Equals(
+                        region.ShapeId,
+                        step.TriggerShapeId,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    !region.Bounds.Contains(
+                        nx,
+                        ny))
+                {
+                    continue;
+                }
+
+                QueueEnhancedAnimationStep(
+                    step,
+                    animationRevealCount + 1,
+                    true);
+                return true;
+            }
+
+            return false;
         }
 
         private void PollEnhancedAnimationTimeline()

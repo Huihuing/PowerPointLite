@@ -160,6 +160,41 @@ namespace PptxViewer
             if (timelines == null || timelines.Count != 1)
                 throw new InvalidOperationException("Animation timeline slide count is incorrect.");
 
+            List<List<InternalPptxRenderer.ShapeRegion>> shapeRegions =
+                InternalPptxRenderer.ReadShapeRegions(
+                    packagePath);
+
+            bool foundTriggerShape =
+                false;
+
+            if (shapeRegions != null &&
+                shapeRegions.Count == 1)
+            {
+                for (int i = 0;
+                     i < shapeRegions[0].Count;
+                     i++)
+                {
+                    InternalPptxRenderer.ShapeRegion region =
+                        shapeRegions[0][i];
+
+                    if (region != null &&
+                        region.ShapeId == "3" &&
+                        region.Bounds.Width > 0f &&
+                        region.Bounds.Height > 0f)
+                    {
+                        foundTriggerShape =
+                            true;
+                        break;
+                    }
+                }
+            }
+
+            if (!foundTriggerShape)
+            {
+                throw new InvalidOperationException(
+                    "Animation trigger shape bounds were not preserved for hit testing.");
+            }
+
             InternalPptxRenderer.SlideAnimationTimeline timeline = timelines[0];
             if (timeline == null || timeline.Steps.Count != 2)
             {

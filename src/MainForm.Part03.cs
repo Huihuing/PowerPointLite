@@ -219,6 +219,7 @@ public sealed partial class MainForm : Form
         private void LoadInteractiveMetadata()
         {
             interactiveRegions = new List<List<InternalPptxRenderer.InteractiveRegion>>();
+            animationShapeRegions = new List<List<InternalPptxRenderer.ShapeRegion>>();
             transitionSpecs = new List<InternalPptxRenderer.TransitionSpec>();
             animationSteps = new List<List<string>>();
             animationRevealCount = 0;
@@ -239,6 +240,19 @@ public sealed partial class MainForm : Form
             catch (Exception ex)
             {
                 CrashReporter.WriteLine("Interactive metadata: " + ex.Message);
+            }
+
+            try
+            {
+                animationShapeRegions =
+                    InternalPptxRenderer.ReadShapeRegions(
+                        currentFile);
+            }
+            catch (Exception ex)
+            {
+                CrashReporter.WriteLine(
+                    "Animation shape metadata: " +
+                    ex.Message);
             }
 
             try
@@ -357,9 +371,23 @@ public sealed partial class MainForm : Form
                 return;
             }
 
+            bool hasSpecificTrigger =
+                internalSlideShowMode &&
+                HasPendingEnhancedSpecificTrigger();
+
+            if (hasSpecificTrigger &&
+                TryAdvanceEnhancedAnimationTrigger(
+                    e.Location))
+            {
+                return;
+            }
+
             InternalPptxRenderer.InteractiveRegion region = HitTestInteractiveRegion(e.Location);
             if (region == null)
             {
+                if (hasSpecificTrigger)
+                    return;
+
                 if (internalSlideShowMode &&
                     CurrentSlideAllowsMouseAdvance())
                 {

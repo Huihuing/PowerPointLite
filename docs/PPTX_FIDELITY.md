@@ -178,6 +178,7 @@ Microsoft PowerPoint (설치된 경우)
 slide load
 → entrance 대상의 초기 visibility 계산
 → click/automatic animation group 순서대로 진행
+→ 특정 trigger shape id가 있는 click step은 해당 shape bounds를 클릭했을 때만 실행
 → with-previous는 같은 group
 → after-previous는 앞 action 종료 시점 뒤에 배치
 → delay/duration을 내부 timer에 반영
@@ -214,7 +215,7 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 - exact PowerPoint easing curve parity
 - PowerPoint의 origin/pathEditMode 등 세부 motion-path 좌표계 semantics
 - scheme/HSL color animation과 복합 color transform
-- 특정 개체 클릭 trigger의 실제 hit-test 실행, media bookmark 등 고급 trigger
+- 회전/비정형 path 단위의 정밀 trigger hit-test, media bookmark 등 고급 trigger
 - nested sequence/parallel timing tree의 모든 PowerPoint edge case
 - Morph object matching
 

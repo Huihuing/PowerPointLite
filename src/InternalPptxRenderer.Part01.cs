@@ -40,6 +40,12 @@ internal static partial class InternalPptxRenderer
             public int SlideIndex = -1;
         }
 
+        public sealed class ShapeRegion
+        {
+            public RectangleF Bounds;
+            public string ShapeId = string.Empty;
+        }
+
         public sealed class TransitionSpec
         {
             public string Kind = "cut";
@@ -324,6 +330,77 @@ internal static partial class InternalPptxRenderer
             return result;
         }
 
+        public static List<List<ShapeRegion>> ReadShapeRegions(
+            string file)
+        {
+            List<List<ShapeRegion>> result =
+                new List<List<ShapeRegion>>();
+
+            using (ZipArchive zip =
+                ZipFile.OpenRead(file))
+            {
+                PresentationInfo info =
+                    ReadPresentationInfo(zip);
+
+                for (int i = 0;
+                     i < info.SlideParts.Count;
+                     i++)
+                {
+                    string slidePart =
+                        info.SlideParts[i];
+                    XmlDocument doc =
+                        LoadXml(
+                            zip,
+                            slidePart);
+                    List<ShapeRegion> regions =
+                        new List<ShapeRegion>();
+                    result.Add(regions);
+
+                    if (doc == null)
+                        continue;
+
+                    TransformContext root =
+                        new TransformContext
+                        {
+                            Ax =
+                                1.0 /
+                                info.WidthEmu,
+                            Bx = 0,
+                            Ay =
+                                1.0 /
+                                info.HeightEmu,
+                            By = 0
+                        };
+
+                    XmlNode spTree =
+                        FindFirst(
+                            doc,
+                            "spTree");
+
+                    if (spTree == null)
+                        continue;
+
+                    List<string> layers =
+                        GetSlideVisualLayers(
+                            zip,
+                            slidePart);
+                    Dictionary<string, RectangleF> placeholderRects =
+                        BuildPlaceholderRectangles(
+                            zip,
+                            layers,
+                            root);
+
+                    CollectShapeRegions(
+                        spTree,
+                        root,
+                        regions,
+                        placeholderRects);
+                }
+            }
+
+            return result;
+        }
+
         public static List<TransitionSpec> ReadTransitions(string file)
         {
             List<TransitionSpec> result = new List<TransitionSpec>();
@@ -521,5 +598,87 @@ internal static partial class InternalPptxRenderer
                 if (region != null) regions.Add(region);
             }
         }
+
+        private static void CollectShapeRegions(
+            XmlNode container,
+            TransformContext ctx,
+            List<ShapeRegion> regions,
+            Dictionary<string, RectangleF> placeholderRects)
+        {
+            if (container == null ||
+                regions == null)
+            {
+                return;
+            }
+
+            foreach (XmlNode child in container.ChildNodes)
+            {
+                string name =
+                    child.LocalName;
+
+                if (name == "grpSp")
+                {
+                    TransformContext group =
+                        BuildGroupContext(
+                            child,
+                            ctx);
+
+                    CollectShapeRegions(
+                        child,
+                        group,
+                        regions,
+                        placeholderRects);
+                    continue;
+                }
+
+                if (name != "sp" &&
+                    name != "pic" &&
+                    name != "graphicFrame" &&
+                    name != "cxnSp")
+                {
+                    continue;
+                }
+
+                RectangleF rect;
+
+                if (!TryGetRect(
+                        child,
+                        ctx,
+                        out rect) &&
+                    !TryGetPlaceholderRect(
+                        child,
+                        placeholderRects,
+                        out rect))
+                {
+                    continue;
+                }
+
+                XmlNode properties =
+                    FindFirst(
+                        child,
+                        "cNvPr");
+
+                string shapeId =
+                    properties == null
+                        ? string.Empty
+                        : GetAttr(
+                            properties,
+                            "id");
+
+                if (string.IsNullOrEmpty(
+                        shapeId))
+                {
+                    continue;
+                }
+
+                regions.Add(
+                    new ShapeRegion
+                    {
+                        Bounds = rect,
+                        ShapeId = shapeId
+                    });
+            }
+        }
+
     }
 }
