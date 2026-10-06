@@ -36,10 +36,16 @@ namespace PptxViewer
             public bool Tab;
         }
 
+        private sealed class RichTabStop
+        {
+            public float Position;
+            public string Alignment = "l";
+        }
+
         private sealed class RichTextLine
         {
             public readonly List<RichTextToken> Tokens = new List<RichTextToken>();
-            public readonly List<float> TabStops = new List<float>();
+            public readonly List<RichTabStop> TabStops = new List<RichTabStop>();
             public float Width;
             public float Height;
             public float LeftOffset;
@@ -400,10 +406,38 @@ namespace PptxViewer
                                     0));
 
                         if (position > 0f)
-                            result.TabStops.Add(position);
+                        {
+                            RichTabStop stop =
+                                new RichTabStop();
+
+                            stop.Position =
+                                position;
+
+                            string tabAlignment =
+                                GetAttr(
+                                    tab,
+                                    "algn");
+
+                            if (!string.IsNullOrEmpty(
+                                    tabAlignment))
+                            {
+                                stop.Alignment =
+                                    tabAlignment;
+                            }
+
+                            result.TabStops.Add(
+                                stop);
+                        }
                     }
 
-                    result.TabStops.Sort();
+                    result.TabStops.Sort(
+                        delegate(
+                            RichTabStop left,
+                            RichTabStop right)
+                        {
+                            return left.Position.CompareTo(
+                                right.Position);
+                        });
                 }
 
                 result.Before = ReadRichSpacingPixels(g, DirectChild(pPr, "spcBef"), displayBaseStyle.SizePt);
@@ -606,7 +640,7 @@ namespace PptxViewer
             bool firstLine,
             RichRunStyle baseStyle,
             Graphics g,
-            List<float> tabStops,
+            List<RichTabStop> tabStops,
             float defaultTabSize,
             bool rightToLeft)
         {
@@ -669,15 +703,16 @@ namespace PptxViewer
                  i < line.TabStops.Count;
                  i++)
             {
-                float stop =
+                RichTabStop stop =
                     line.TabStops[i];
 
-                if (stop >
+                if (stop != null &&
+                    stop.Position >
                     currentOffset + 0.5f)
                 {
                     return Math.Max(
                         1f,
-                        stop -
+                        stop.Position -
                         currentOffset);
                 }
             }
@@ -1047,6 +1082,188 @@ namespace PptxViewer
             line.Height = Math.Max(line.Height, measuredHeight);
         }
 
+        private static float CalculateRichAlignedTabAdvance(
+            Graphics g,
+            RichTextLine line,
+            int tabTokenIndex,
+            float currentOffset)
+        {
+            if (line == null)
+                return 1f;
+
+            RichTabStop selected =
+                null;
+
+            for (int i = 0;
+                 i < line.TabStops.Count;
+                 i++)
+            {
+                RichTabStop stop =
+                    line.TabStops[i];
+
+                if (stop != null &&
+                    stop.Position >
+                    currentOffset + 0.5f)
+                {
+                    selected =
+                        stop;
+                    break;
+                }
+            }
+
+            if (selected == null)
+            {
+                return CalculateRichTabAdvance(
+                    line,
+                    currentOffset);
+            }
+
+            string alignment =
+                selected.Alignment ??
+                "l";
+
+            if (alignment == "l")
+            {
+                return Math.Max(
+                    1f,
+                    selected.Position -
+                    currentOffset);
+            }
+
+            float segmentWidth;
+            float decimalPrefixWidth;
+            bool hasDecimal;
+
+            MeasureRichTabSegment(
+                g,
+                line,
+                tabTokenIndex + 1,
+                out segmentWidth,
+                out decimalPrefixWidth,
+                out hasDecimal);
+
+            float desiredStart =
+                selected.Position;
+
+            if (alignment == "ctr")
+            {
+                desiredStart -=
+                    segmentWidth /
+                    2f;
+            }
+            else if (alignment == "r")
+            {
+                desiredStart -=
+                    segmentWidth;
+            }
+            else if (alignment == "dec")
+            {
+                desiredStart -=
+                    hasDecimal
+                        ? decimalPrefixWidth
+                        : segmentWidth;
+            }
+
+            return Math.Max(
+                1f,
+                desiredStart -
+                currentOffset);
+        }
+
+        private static void MeasureRichTabSegment(
+            Graphics g,
+            RichTextLine line,
+            int startIndex,
+            out float totalWidth,
+            out float decimalPrefixWidth,
+            out bool hasDecimal)
+        {
+            totalWidth = 0f;
+            decimalPrefixWidth = 0f;
+            hasDecimal = false;
+
+            if (line == null)
+                return;
+
+            for (int i = startIndex;
+                 i < line.Tokens.Count;
+                 i++)
+            {
+                RichTextToken token =
+                    line.Tokens[i];
+
+                if (token == null ||
+                    token.Tab ||
+                    token.Break)
+                {
+                    break;
+                }
+
+                if (token.Style == null ||
+                    string.IsNullOrEmpty(
+                        token.Text))
+                {
+                    continue;
+                }
+
+                if (!hasDecimal)
+                {
+                    int decimalIndex =
+                        token.Text.IndexOf('.');
+
+                    if (decimalIndex >= 0)
+                    {
+                        string prefix =
+                            token.Text.Substring(
+                                0,
+                                decimalIndex);
+
+                        RichTextToken prefixToken =
+                            new RichTextToken();
+
+                        prefixToken.Text =
+                            prefix;
+                        prefixToken.Style =
+                            token.Style;
+
+                        float prefixWidth;
+                        float prefixHeight;
+
+                        MeasureRichToken(
+                            g,
+                            prefixToken,
+                            out prefixWidth,
+                            out prefixHeight);
+
+                        decimalPrefixWidth =
+                            totalWidth +
+                            prefixWidth;
+
+                        hasDecimal =
+                            true;
+                    }
+                }
+
+                float width;
+                float height;
+
+                MeasureRichToken(
+                    g,
+                    token,
+                    out width,
+                    out height);
+
+                totalWidth +=
+                    width;
+            }
+
+            if (!hasDecimal)
+            {
+                decimalPrefixWidth =
+                    totalWidth;
+            }
+        }
+
         private static void DrawRichTextLine(
             Graphics g,
             RichTextLine line,
@@ -1074,8 +1291,10 @@ namespace PptxViewer
                 if (token.Tab)
                 {
                     float advance =
-                        CalculateRichTabAdvance(
+                        CalculateRichAlignedTabAdvance(
+                            g,
                             line,
+                            i,
                             line.LeftOffset +
                             consumed);
 
