@@ -17,6 +17,7 @@ namespace PptxViewer
             public string ShapeId = string.Empty;
             public string EffectClass = "unknown";
             public string Trigger = "onClick";
+            public string TriggerShapeId = string.Empty;
             public string VisualKind = "fade";
             public string VisualDirection = "fromLeft";
             public string MotionPath = string.Empty;
@@ -46,6 +47,7 @@ namespace PptxViewer
         public sealed class AnimationStepSpec
         {
             public bool RequiresClick = true;
+            public string TriggerShapeId = string.Empty;
             public int AutoStartDelayMs;
             public int TotalDurationMs = 300;
             public string VisualKind = "fade";
@@ -216,6 +218,9 @@ namespace PptxViewer
                 action.PresetId = GetAttr(timingNode, "presetID") ?? string.Empty;
                 action.PresetSubtype = GetAttr(timingNode, "presetSubtype") ?? string.Empty;
                 action.Trigger = ReadAnimationTrigger(timingNode);
+                action.TriggerShapeId =
+                    ReadAnimationTriggerShapeId(
+                        timingNode);
                 action.DelayMs = ReadAnimationDelay(timingNode);
                 action.DurationMs = ReadAnimationDuration(timingNode);
                 action.RepeatCount = ReadAnimationRepeatCount(timingNode);
@@ -962,6 +967,82 @@ namespace PptxViewer
             return "emphasis";
         }
 
+        private static string ReadAnimationTriggerShapeId(
+            XmlNode timingNode)
+        {
+            if (timingNode == null)
+                return string.Empty;
+
+            XmlNode stCondLst =
+                DirectChild(
+                    timingNode,
+                    "stCondLst");
+
+            if (stCondLst == null)
+                return string.Empty;
+
+            for (int i = 0;
+                 i < stCondLst.ChildNodes.Count;
+                 i++)
+            {
+                XmlNode condition =
+                    stCondLst.ChildNodes[i];
+
+                if (condition == null ||
+                    condition.LocalName != "cond")
+                {
+                    continue;
+                }
+
+                string evt =
+                    GetAttr(
+                        condition,
+                        "evt") ??
+                    string.Empty;
+
+                if (!string.Equals(
+                        evt,
+                        "onClick",
+                        StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(
+                        evt,
+                        "onNext",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                XmlNode targetElement =
+                    DirectChild(
+                        condition,
+                        "tgtEl");
+
+                if (targetElement == null)
+                    continue;
+
+                XmlNode shapeTarget =
+                    DirectChild(
+                        targetElement,
+                        "spTgt");
+
+                if (shapeTarget == null)
+                    continue;
+
+                string shapeId =
+                    GetAttr(
+                        shapeTarget,
+                        "spid");
+
+                if (!string.IsNullOrEmpty(
+                        shapeId))
+                {
+                    return shapeId;
+                }
+            }
+
+            return string.Empty;
+        }
+
         private static string ReadAnimationTrigger(XmlNode timingNode)
         {
             string nodeType = GetAttr(timingNode, "nodeType") ?? string.Empty;
@@ -1145,6 +1226,10 @@ namespace PptxViewer
                 {
                     current = new AnimationStepSpec();
                     current.RequiresClick = action.Trigger == "onClick";
+                    current.TriggerShapeId =
+                        action.Trigger == "onClick"
+                            ? action.TriggerShapeId
+                            : string.Empty;
                     current.AutoStartDelayMs = action.DelayMs;
                     current.TotalDurationMs = 0;
                     current.VisualKind = action.VisualKind;

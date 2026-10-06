@@ -107,7 +107,7 @@ namespace PptxViewer
 
                 // Step 1: click entrance.
                 "<p:par><p:cTn id=\"10\" dur=\"450\" nodeType=\"clickEffect\" presetClass=\"entr\" presetID=\"1\">" +
-                "<p:stCondLst><p:cond evt=\"onClick\" delay=\"0\"/></p:stCondLst>" +
+                "<p:stCondLst><p:cond evt=\"onClick\" delay=\"0\"><p:tgtEl><p:spTgt spid=\"3\"/></p:tgtEl></p:cond></p:stCondLst>" +
                 "<p:childTnLst><p:animEffect transition=\"in\" filter=\"fade\">" +
                 "<p:cBhvr><p:cTn id=\"11\" dur=\"450\"/><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cBhvr>" +
                 "</p:animEffect></p:childTnLst></p:cTn></p:par>" +
@@ -170,8 +170,14 @@ namespace PptxViewer
             InternalPptxRenderer.AnimationStepSpec first = timeline.Steps[0];
             InternalPptxRenderer.AnimationStepSpec second = timeline.Steps[1];
 
-            if (!first.RequiresClick || first.Actions.Count != 3)
-                throw new InvalidOperationException("The first animation step was not grouped correctly.");
+            if (!first.RequiresClick ||
+                first.Actions.Count != 3 ||
+                first.TriggerShapeId != "3" ||
+                first.Actions[0].TriggerShapeId != "3")
+            {
+                throw new InvalidOperationException(
+                    "The first animation step did not preserve its specific click-trigger shape.");
+            }
 
             RequireActionClass(first, "entrance");
             RequireActionClass(first, "emphasis");
@@ -217,6 +223,8 @@ namespace PptxViewer
             ValidateExtendedAnimationColors();
 
             if (!second.RequiresClick ||
+                !string.IsNullOrEmpty(
+                    second.TriggerShapeId) ||
                 second.Actions.Count != 3)
             {
                 throw new InvalidOperationException(

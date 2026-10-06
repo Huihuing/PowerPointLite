@@ -157,6 +157,7 @@ Microsoft PowerPoint (설치된 경우)
 - entrance / exit / emphasis / motion 분류
 - `presetClass`, `presetID`, `presetSubtype`
 - on-click
+- on-click 조건의 특정 trigger shape id 보존 (`cond/tgtEl/spTgt`)
 - with-previous
 - after-previous
 - start delay
@@ -213,7 +214,7 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 - exact PowerPoint easing curve parity
 - PowerPoint의 origin/pathEditMode 등 세부 motion-path 좌표계 semantics
 - scheme/HSL color animation과 복합 color transform
-- trigger-on-specific-object, media bookmark 등 고급 trigger
+- 특정 개체 클릭 trigger의 실제 hit-test 실행, media bookmark 등 고급 trigger
 - nested sequence/parallel timing tree의 모든 PowerPoint edge case
 - Morph object matching
 
