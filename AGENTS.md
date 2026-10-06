@@ -248,6 +248,8 @@ RUN_FONT_LICENSE_SELFTEST.cmd
 
 `RUN_ANIMATION_SELFTEST.cmd` builds a project-owned synthetic PPTX timing tree and validates click entrance, with-previous emphasis, after-previous exit, delayed motion, timeline grouping and stage rendering. It is structural validation; exact PowerPoint visual/easing parity still requires manual comparison.
 
+`RUN_PPTX_FIDELITY_SELFTEST.cmd` renders project-owned synthetic chart, SmartArt and rich-text fixtures. It exercises negative chart values/value-axis settings, multiple SmartArt layout families, normAutofit/spAutoFit, tab stops and basic RTL layout without committing third-party documents.
+
 Structural self-tests do not prove real Microsoft Office / LibreOffice / Hancom interoperability.
 
 If the current environment cannot run Windows `csc.exe`, do not claim `BUILD SUCCESS`.

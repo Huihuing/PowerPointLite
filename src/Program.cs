@@ -189,12 +189,12 @@ namespace PptxViewer
                         AppDomain.CurrentDomain.BaseDirectory,
                         "PPTX_FIDELITY_SELFTEST_OUTPUT");
 
-            InternalPptxRenderer.ValidateChartAndSmartArtRendering(
+            InternalPptxRenderer.ValidatePptxFidelityRendering(
                 outputDirectory);
 
             Environment.ExitCode = 0;
             CrashReporter.WriteLine(
-                "PPTX chart/SmartArt fidelity self-test passed: " +
+                "PPTX renderer fidelity self-test passed: " +
                 outputDirectory);
             return true;
         }

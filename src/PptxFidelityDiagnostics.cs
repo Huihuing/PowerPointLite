@@ -9,6 +9,18 @@ namespace PptxViewer
 {
     internal static partial class InternalPptxRenderer
     {
+        public static void ValidatePptxFidelityRendering(
+            string outputDirectory)
+        {
+            ValidateChartAndSmartArtRendering(
+                outputDirectory);
+
+            ValidateSyntheticRichText(
+                Path.Combine(
+                    Path.GetFullPath(outputDirectory),
+                    "rich-text-layout.png"));
+        }
+
         public static void ValidateChartAndSmartArtRendering(
             string outputDirectory)
         {
@@ -130,6 +142,256 @@ namespace PptxViewer
             }
 
             RequireDiagnosticFile(outputPath);
+        }
+
+        private static void ValidateSyntheticRichText(
+            string outputPath)
+        {
+            Dictionary<string, Color> theme =
+                new Dictionary<string, Color>(
+                    StringComparer.OrdinalIgnoreCase);
+
+            using (Bitmap bitmap =
+                new Bitmap(
+                    1100,
+                    640,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics graphics =
+                Graphics.FromImage(bitmap))
+            {
+                graphics.Clear(Color.White);
+                graphics.SmoothingMode =
+                    System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+                DrawDiagnosticTextFrame(
+                    graphics,
+                    new RectangleF(
+                        20f,
+                        20f,
+                        650f,
+                        100f),
+                    BuildSyntheticTabbedShape(),
+                    theme);
+
+                DrawDiagnosticTextFrame(
+                    graphics,
+                    new RectangleF(
+                        20f,
+                        145f,
+                        650f,
+                        85f),
+                    BuildSyntheticRtlShape(),
+                    theme);
+
+                RectangleF autoFitRect =
+                    new RectangleF(
+                        20f,
+                        270f,
+                        650f,
+                        72f);
+
+                DrawDiagnosticTextFrame(
+                    graphics,
+                    autoFitRect,
+                    BuildSyntheticShapeAutoFit(),
+                    theme);
+
+                DrawDiagnosticTextFrame(
+                    graphics,
+                    new RectangleF(
+                        710f,
+                        20f,
+                        360f,
+                        210f),
+                    BuildSyntheticNormalAutoFit(),
+                    theme);
+
+                int nonWhite;
+                int distinct;
+                AnalyzeDiagnosticBitmap(
+                    bitmap,
+                    out nonWhite,
+                    out distinct);
+
+                if (nonWhite < 220 ||
+                    distinct < 3)
+                {
+                    throw new InvalidOperationException(
+                        "Synthetic rich-text rendering did not produce enough visual detail.");
+                }
+
+                int belowAutoFit =
+                    CountNonWhiteDiagnosticPixels(
+                        bitmap,
+                        new Rectangle(
+                            20,
+                            (int)Math.Ceiling(
+                                autoFitRect.Bottom + 2f),
+                            650,
+                            155));
+
+                if (belowAutoFit < 4)
+                {
+                    throw new InvalidOperationException(
+                        "spAutoFit approximation did not extend overflowing text beyond the original text rectangle.");
+                }
+
+                int tabRightSide =
+                    CountNonWhiteDiagnosticPixels(
+                        bitmap,
+                        new Rectangle(
+                            210,
+                            20,
+                            460,
+                            100));
+
+                if (tabRightSide < 4)
+                {
+                    throw new InvalidOperationException(
+                        "Tab-stop rendering did not place later text runs across the line.");
+                }
+
+                bitmap.Save(
+                    outputPath,
+                    ImageFormat.Png);
+            }
+
+            RequireDiagnosticFile(outputPath);
+        }
+
+        private static void DrawDiagnosticTextFrame(
+            Graphics graphics,
+            RectangleF rect,
+            XmlDocument shapeDocument,
+            Dictionary<string, Color> theme)
+        {
+            using (Pen border =
+                new Pen(
+                    Color.FromArgb(
+                        225,
+                        228,
+                        232),
+                    1f))
+            {
+                graphics.DrawRectangle(
+                    border,
+                    rect.X,
+                    rect.Y,
+                    rect.Width,
+                    rect.Height);
+            }
+
+            DrawRichShapeText(
+                graphics,
+                shapeDocument.DocumentElement,
+                rect,
+                theme,
+                7);
+        }
+
+        private static XmlDocument BuildSyntheticTabbedShape()
+        {
+            return LoadSyntheticTextShape(
+                "<a:bodyPr lIns=\"45720\" rIns=\"45720\" tIns=\"22860\" bIns=\"22860\" defTabSz=\"914400\"/>" +
+                "<a:p><a:pPr><a:tabLst>" +
+                "<a:tab pos=\"1371600\"/><a:tab pos=\"2743200\"/>" +
+                "</a:tabLst></a:pPr>" +
+                "<a:r><a:rPr sz=\"1800\" b=\"1\"/><a:t>Alpha</a:t></a:r>" +
+                "<a:tab/>" +
+                "<a:r><a:rPr sz=\"1800\"/><a:t>Beta</a:t></a:r>" +
+                "<a:tab/>" +
+                "<a:r><a:rPr sz=\"1800\"/><a:t>Gamma</a:t></a:r>" +
+                "</a:p>");
+        }
+
+        private static XmlDocument BuildSyntheticRtlShape()
+        {
+            return LoadSyntheticTextShape(
+                "<a:bodyPr lIns=\"45720\" rIns=\"45720\" tIns=\"22860\" bIns=\"22860\"/>" +
+                "<a:p><a:pPr rtl=\"1\" algn=\"r\"/>" +
+                "<a:r><a:rPr sz=\"1900\"/><a:t>RTL paragraph 123</a:t></a:r>" +
+                "</a:p>");
+        }
+
+        private static XmlDocument BuildSyntheticShapeAutoFit()
+        {
+            return LoadSyntheticTextShape(
+                "<a:bodyPr lIns=\"45720\" rIns=\"45720\" tIns=\"22860\" bIns=\"22860\"><a:spAutoFit/></a:bodyPr>" +
+                "<a:p><a:r><a:rPr sz=\"1700\"/><a:t>Auto fit line one</a:t></a:r>" +
+                "<a:br/><a:r><a:rPr sz=\"1700\"/><a:t>Auto fit line two</a:t></a:r>" +
+                "<a:br/><a:r><a:rPr sz=\"1700\"/><a:t>Auto fit line three</a:t></a:r>" +
+                "<a:br/><a:r><a:rPr sz=\"1700\"/><a:t>Auto fit line four</a:t></a:r>" +
+                "</a:p>");
+        }
+
+        private static XmlDocument BuildSyntheticNormalAutoFit()
+        {
+            return LoadSyntheticTextShape(
+                "<a:bodyPr lIns=\"45720\" rIns=\"45720\" tIns=\"22860\" bIns=\"22860\" wrap=\"square\">" +
+                "<a:normAutofit fontScale=\"92000\" lnSpcReduction=\"10000\"/></a:bodyPr>" +
+                "<a:p><a:pPr algn=\"ctr\" spcBef=\"0\"/>" +
+                "<a:r><a:rPr sz=\"2400\" b=\"1\"/><a:t>This deliberately long text should wrap and shrink to stay inside the smaller box.</a:t></a:r>" +
+                "</a:p>");
+        }
+
+        private static XmlDocument LoadSyntheticTextShape(
+            string textBodyContent)
+        {
+            XmlDocument document =
+                new XmlDocument();
+
+            document.LoadXml(
+                "<p:sp xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" " +
+                "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<p:txBody>" +
+                textBodyContent +
+                "</p:txBody>" +
+                "</p:sp>");
+
+            return document;
+        }
+
+        private static int CountNonWhiteDiagnosticPixels(
+            Bitmap bitmap,
+            Rectangle area)
+        {
+            if (bitmap == null)
+                return 0;
+
+            Rectangle bounds =
+                Rectangle.Intersect(
+                    new Rectangle(
+                        0,
+                        0,
+                        bitmap.Width,
+                        bitmap.Height),
+                    area);
+
+            int count = 0;
+
+            for (int y = bounds.Top;
+                 y < bounds.Bottom;
+                 y += 4)
+            {
+                for (int x = bounds.Left;
+                     x < bounds.Right;
+                     x += 4)
+                {
+                    Color color =
+                        bitmap.GetPixel(
+                            x,
+                            y);
+
+                    if (color.R < 245 ||
+                        color.G < 245 ||
+                        color.B < 245)
+                    {
+                        count++;
+                    }
+                }
+            }
+
+            return count;
         }
 
         private static string BuildSyntheticChartSeries(

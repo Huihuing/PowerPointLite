@@ -12,7 +12,7 @@ if not exist "PowerPointLite.exe" (
 if exist "PPTX_FIDELITY_SELFTEST_OUTPUT" rmdir /s /q "PPTX_FIDELITY_SELFTEST_OUTPUT"
 mkdir "PPTX_FIDELITY_SELFTEST_OUTPUT"
 
-echo [RUN] PPTX chart / SmartArt fidelity self-test
+echo [RUN] PPTX renderer fidelity self-test
 "PowerPointLite.exe" --pptx-fidelity-selftest "%CD%\PPTX_FIDELITY_SELFTEST_OUTPUT"
 if errorlevel 1 (
   echo [FAIL] PPTX chart / SmartArt fidelity self-test
