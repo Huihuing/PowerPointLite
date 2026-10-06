@@ -11,7 +11,7 @@ if not exist "PowerPointLite.exe" (
 
 echo ==========================================
 echo PowerPointLite structural self-tests
-echo PPTX / Animation / SVG / DOCX / XLSX / HWPX / HWP
+echo PPTX / Animation / SVG / Chart-SmartArt / DOCX / XLSX / HWPX / HWP
 echo ODT / ODS / ODP / PDF / Conversion
 echo Font licensing / document safety
 echo ==========================================
@@ -39,6 +39,17 @@ if errorlevel 1 (
   goto :failed
 )
 echo [OK] SVG rendering process completed
+echo.
+
+if exist "PPTX_FIDELITY_SELFTEST_OUTPUT" rmdir /s /q "PPTX_FIDELITY_SELFTEST_OUTPUT"
+mkdir "PPTX_FIDELITY_SELFTEST_OUTPUT"
+echo [RUN] PPTX chart / SmartArt fidelity
+"PowerPointLite.exe" --pptx-fidelity-selftest "%CD%\PPTX_FIDELITY_SELFTEST_OUTPUT"
+if errorlevel 1 (
+  echo [FAIL] PPTX chart / SmartArt fidelity
+  goto :failed
+)
+echo [OK] PPTX chart / SmartArt fidelity process completed
 echo.
 
 call :run --docx-selftest "TEST_DOCX_OUTPUT.docx" "DOCX"

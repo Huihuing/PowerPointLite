@@ -135,6 +135,7 @@ src/PptxWriterDiagnostics.cs
 src/PptxRichTextDiagnostics.cs
 src/AnimationTimingDiagnostics.cs
 src/SvgRenderingDiagnostics.cs
+src/PptxFidelityDiagnostics.cs
 ```
 
 Text documents:
@@ -230,6 +231,7 @@ RUN_ALL_FORMAT_SELFTESTS.cmd
 RUN_WRITER_SELFTEST.cmd
 RUN_ANIMATION_SELFTEST.cmd
 RUN_SVG_SELFTEST.cmd
+RUN_PPTX_FIDELITY_SELFTEST.cmd
 RUN_DOCX_SELFTEST.cmd
 RUN_XLSX_SELFTEST.cmd
 RUN_HWPX_SELFTEST.cmd

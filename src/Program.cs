@@ -45,6 +45,8 @@ namespace PptxViewer
                     return;
                 if (TryRunSvgSelfTest(args))
                     return;
+                if (TryRunPptxFidelitySelfTest(args))
+                    return;
                 if (TryRunDocxSelfTest(args))
                     return;
                 if (TryRunXlsxSelfTest(args))
@@ -97,6 +99,7 @@ namespace PptxViewer
             return string.Equals(args[0], "--writer-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--animation-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--svg-selftest", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "--pptx-fidelity-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--docx-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--xlsx-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--hwpx-selftest", StringComparison.OrdinalIgnoreCase) ||
@@ -169,6 +172,30 @@ namespace PptxViewer
             CrashReporter.WriteLine(
                 "SVG rendering self-test passed: " +
                 outputPath);
+            return true;
+        }
+
+        private static bool TryRunPptxFidelitySelfTest(string[] args)
+        {
+            if (!MatchesCommand(args, "--pptx-fidelity-selftest"))
+                return false;
+
+            string outputDirectory =
+                args != null &&
+                args.Length > 1 &&
+                !string.IsNullOrEmpty(args[1])
+                    ? Path.GetFullPath(args[1])
+                    : Path.Combine(
+                        AppDomain.CurrentDomain.BaseDirectory,
+                        "PPTX_FIDELITY_SELFTEST_OUTPUT");
+
+            InternalPptxRenderer.ValidateChartAndSmartArtRendering(
+                outputDirectory);
+
+            Environment.ExitCode = 0;
+            CrashReporter.WriteLine(
+                "PPTX chart/SmartArt fidelity self-test passed: " +
+                outputDirectory);
             return true;
         }
 
