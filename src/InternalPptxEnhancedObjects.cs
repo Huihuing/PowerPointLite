@@ -1971,6 +1971,232 @@ namespace PptxViewer
                 return referencedPath;
             }
 
+            if (name == "path")
+            {
+                return BuildSvgPath(
+                    GetAttr(node, "d"),
+                    target,
+                    minX,
+                    minY,
+                    sx,
+                    sy);
+            }
+
+            GraphicsPath path =
+                new GraphicsPath();
+
+            if (name == "rect")
+            {
+                float x =
+                    SvgX(
+                        target,
+                        minX,
+                        sx,
+                        ParseSvgFloat(
+                            GetAttr(node, "x"),
+                            0f));
+
+                float y =
+                    SvgY(
+                        target,
+                        minY,
+                        sy,
+                        ParseSvgFloat(
+                            GetAttr(node, "y"),
+                            0f));
+
+                float width =
+                    Math.Max(
+                        0f,
+                        ParseSvgFloat(
+                            GetAttr(node, "width"),
+                            0f) *
+                        sx);
+
+                float height =
+                    Math.Max(
+                        0f,
+                        ParseSvgFloat(
+                            GetAttr(node, "height"),
+                            0f) *
+                        sy);
+
+                float rx =
+                    Math.Max(
+                        0f,
+                        ParseSvgFloat(
+                            GetAttr(node, "rx"),
+                            0f) *
+                        sx);
+
+                float ry =
+                    Math.Max(
+                        0f,
+                        ParseSvgFloat(
+                            GetAttr(node, "ry"),
+                            0f) *
+                        sy);
+
+                RectangleF rect =
+                    new RectangleF(
+                        x,
+                        y,
+                        width,
+                        height);
+
+                if (rx > 0f || ry > 0f)
+                {
+                    float radius =
+                        Math.Min(
+                            Math.Max(
+                                rx,
+                                ry),
+                            Math.Min(
+                                width,
+                                height) /
+                            2f);
+
+                    using (GraphicsPath rounded =
+                        RoundedRectanglePath(
+                            rect,
+                            radius))
+                    {
+                        path.AddPath(
+                            rounded,
+                            false);
+                    }
+                }
+                else
+                {
+                    path.AddRectangle(rect);
+                }
+
+                return path;
+            }
+
+            if (name == "circle" ||
+                name == "ellipse")
+            {
+                float cx =
+                    SvgX(
+                        target,
+                        minX,
+                        sx,
+                        ParseSvgFloat(
+                            GetAttr(node, "cx"),
+                            0f));
+
+                float cy =
+                    SvgY(
+                        target,
+                        minY,
+                        sy,
+                        ParseSvgFloat(
+                            GetAttr(node, "cy"),
+                            0f));
+
+                float rx =
+                    name == "circle"
+                        ? ParseSvgFloat(
+                            GetAttr(node, "r"),
+                            0f) *
+                            Math.Min(
+                                sx,
+                                sy)
+                        : ParseSvgFloat(
+                            GetAttr(node, "rx"),
+                            0f) *
+                            sx;
+
+                float ry =
+                    name == "circle"
+                        ? rx
+                        : ParseSvgFloat(
+                            GetAttr(node, "ry"),
+                            0f) *
+                            sy;
+
+                path.AddEllipse(
+                    new RectangleF(
+                        cx - rx,
+                        cy - ry,
+                        rx * 2f,
+                        ry * 2f));
+
+                return path;
+            }
+
+            if (name == "line")
+            {
+                path.AddLine(
+                    SvgX(
+                        target,
+                        minX,
+                        sx,
+                        ParseSvgFloat(
+                            GetAttr(node, "x1"),
+                            0f)),
+                    SvgY(
+                        target,
+                        minY,
+                        sy,
+                        ParseSvgFloat(
+                            GetAttr(node, "y1"),
+                            0f)),
+                    SvgX(
+                        target,
+                        minX,
+                        sx,
+                        ParseSvgFloat(
+                            GetAttr(node, "x2"),
+                            0f)),
+                    SvgY(
+                        target,
+                        minY,
+                        sy,
+                        ParseSvgFloat(
+                            GetAttr(node, "y2"),
+                            0f)));
+
+                return path;
+            }
+
+            if (name == "polygon" ||
+                name == "polyline")
+            {
+                List<PointF> points =
+                    ParseSvgPoints(
+                        GetAttr(
+                            node,
+                            "points"),
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy);
+
+                if (points.Count >= 2)
+                {
+                    if (name == "polygon" &&
+                        points.Count >= 3)
+                    {
+                        path.AddPolygon(
+                            points.ToArray());
+                    }
+                    else
+                    {
+                        path.AddLines(
+                            points.ToArray());
+                    }
+                }
+
+                return path;
+            }
+
+            path.Dispose();
+            return null;
+        }
+
         private static GraphicsPath BuildEnhancedSvgReferencePath(
             XmlNode node,
             RectangleF target,
@@ -2242,231 +2468,6 @@ namespace PptxViewer
             return result;
         }
 
-            if (name == "path")
-            {
-                return BuildSvgPath(
-                    GetAttr(node, "d"),
-                    target,
-                    minX,
-                    minY,
-                    sx,
-                    sy);
-            }
-
-            GraphicsPath path =
-                new GraphicsPath();
-
-            if (name == "rect")
-            {
-                float x =
-                    SvgX(
-                        target,
-                        minX,
-                        sx,
-                        ParseSvgFloat(
-                            GetAttr(node, "x"),
-                            0f));
-
-                float y =
-                    SvgY(
-                        target,
-                        minY,
-                        sy,
-                        ParseSvgFloat(
-                            GetAttr(node, "y"),
-                            0f));
-
-                float width =
-                    Math.Max(
-                        0f,
-                        ParseSvgFloat(
-                            GetAttr(node, "width"),
-                            0f) *
-                        sx);
-
-                float height =
-                    Math.Max(
-                        0f,
-                        ParseSvgFloat(
-                            GetAttr(node, "height"),
-                            0f) *
-                        sy);
-
-                float rx =
-                    Math.Max(
-                        0f,
-                        ParseSvgFloat(
-                            GetAttr(node, "rx"),
-                            0f) *
-                        sx);
-
-                float ry =
-                    Math.Max(
-                        0f,
-                        ParseSvgFloat(
-                            GetAttr(node, "ry"),
-                            0f) *
-                        sy);
-
-                RectangleF rect =
-                    new RectangleF(
-                        x,
-                        y,
-                        width,
-                        height);
-
-                if (rx > 0f || ry > 0f)
-                {
-                    float radius =
-                        Math.Min(
-                            Math.Max(
-                                rx,
-                                ry),
-                            Math.Min(
-                                width,
-                                height) /
-                            2f);
-
-                    using (GraphicsPath rounded =
-                        RoundedRectanglePath(
-                            rect,
-                            radius))
-                    {
-                        path.AddPath(
-                            rounded,
-                            false);
-                    }
-                }
-                else
-                {
-                    path.AddRectangle(rect);
-                }
-
-                return path;
-            }
-
-            if (name == "circle" ||
-                name == "ellipse")
-            {
-                float cx =
-                    SvgX(
-                        target,
-                        minX,
-                        sx,
-                        ParseSvgFloat(
-                            GetAttr(node, "cx"),
-                            0f));
-
-                float cy =
-                    SvgY(
-                        target,
-                        minY,
-                        sy,
-                        ParseSvgFloat(
-                            GetAttr(node, "cy"),
-                            0f));
-
-                float rx =
-                    name == "circle"
-                        ? ParseSvgFloat(
-                            GetAttr(node, "r"),
-                            0f) *
-                            Math.Min(
-                                sx,
-                                sy)
-                        : ParseSvgFloat(
-                            GetAttr(node, "rx"),
-                            0f) *
-                            sx;
-
-                float ry =
-                    name == "circle"
-                        ? rx
-                        : ParseSvgFloat(
-                            GetAttr(node, "ry"),
-                            0f) *
-                            sy;
-
-                path.AddEllipse(
-                    new RectangleF(
-                        cx - rx,
-                        cy - ry,
-                        rx * 2f,
-                        ry * 2f));
-
-                return path;
-            }
-
-            if (name == "line")
-            {
-                path.AddLine(
-                    SvgX(
-                        target,
-                        minX,
-                        sx,
-                        ParseSvgFloat(
-                            GetAttr(node, "x1"),
-                            0f)),
-                    SvgY(
-                        target,
-                        minY,
-                        sy,
-                        ParseSvgFloat(
-                            GetAttr(node, "y1"),
-                            0f)),
-                    SvgX(
-                        target,
-                        minX,
-                        sx,
-                        ParseSvgFloat(
-                            GetAttr(node, "x2"),
-                            0f)),
-                    SvgY(
-                        target,
-                        minY,
-                        sy,
-                        ParseSvgFloat(
-                            GetAttr(node, "y2"),
-                            0f)));
-
-                return path;
-            }
-
-            if (name == "polygon" ||
-                name == "polyline")
-            {
-                List<PointF> points =
-                    ParseSvgPoints(
-                        GetAttr(
-                            node,
-                            "points"),
-                        target,
-                        minX,
-                        minY,
-                        sx,
-                        sy);
-
-                if (points.Count >= 2)
-                {
-                    if (name == "polygon" &&
-                        points.Count >= 3)
-                    {
-                        path.AddPolygon(
-                            points.ToArray());
-                    }
-                    else
-                    {
-                        path.AddLines(
-                            points.ToArray());
-                    }
-                }
-
-                return path;
-            }
-
-            path.Dispose();
-            return null;
-        }
 
         private static void DrawEnhancedSvgText(
             Graphics g,
