@@ -73,6 +73,7 @@ Microsoft PowerPoint (설치된 경우)
 - softEdge 외곽 fade 근사
 - reflection mirrored alpha-gradient 근사
 - sp3d bevelT/bevelB의 highlight/shade 근사
+- sp3d extrusionH depth layer + scene3d camera/lightRig 방향 근사
 - group coordinate transform과 중첩 group
 - group rotate / horizontal flip / vertical flip의 graphics transform 근사
 - table
@@ -98,6 +99,10 @@ Microsoft PowerPoint (설치된 경우)
   - valAx/catAx 축 제목 기본 렌더
   - valAx numFmt의 기본 소수/천단위/퍼센트 표시
   - line chart series 선 굵기/prstDash 및 circle/square/diamond/triangle/x/plus marker
+  - bar/column grouping: clustered / stacked / percentStacked
+  - gapWidth / overlap 기반 bar thickness·series overlap 근사
+  - pie/doughnut firstSliceAng
+  - doughnut holeSize
 - SmartArt / diagram
   - data model의 node / connection을 읽어 hierarchy로 표시
   - 구조를 알 수 없는 경우 기존 static approximation으로 fallback
@@ -174,7 +179,7 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 - theme effect style 참조 전체 및 복합 shadow/effect 조합
 - SVG filter 및 복잡한 mask luminance/gradient 등 고급 SVG 기능
 - artisticBlur 외의 artistic preset 등 고급 image artistic effects
-- 3D extrusion / material / lighting 및 bevel profile의 정확한 PowerPoint parity
+- 3D material/lighting, camera projection 및 bevel/extrusion profile의 정확한 PowerPoint parity
 - custom geometry의 복잡한 nested guide 의존성, 모든 preset formula/adjust-handle semantics
 - exact PowerPoint easing curve parity
 - PowerPoint의 origin/pathEditMode 등 세부 motion-path 좌표계 semantics
