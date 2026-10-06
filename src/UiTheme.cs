@@ -465,10 +465,73 @@ namespace PptxViewer
             shortcut.Top = 6;
             shortcut.Width = 210;
             shortcut.Height = 20;
-            shortcut.Left = Math.Max(746, toolbar.ClientSize.Width - shortcut.Width - 12);
             shortcut.TextAlign = ContentAlignment.MiddleRight;
             shortcut.ForeColor = ApplicationTheme.SecondaryText;
+            shortcut.AutoEllipsis = true;
             strip.Controls.Add(shortcut);
+
+            Action layoutStrip = delegate
+            {
+                int availableWidth =
+                    strip.ClientSize.Width;
+
+                int measuredWorkspace =
+                    TextRenderer.MeasureText(
+                        workspace.Text ?? string.Empty,
+                        workspace.Font).Width +
+                    20;
+
+                workspace.Width =
+                    Math.Max(
+                        112,
+                        Math.Min(
+                            176,
+                            measuredWorkspace));
+
+                shortcut.Visible =
+                    availableWidth >=
+                    720;
+
+                if (shortcut.Visible)
+                {
+                    shortcut.Left =
+                        Math.Max(
+                            workspace.Right + 12,
+                            availableWidth -
+                            shortcut.Width -
+                            12);
+                }
+                else
+                {
+                    shortcut.Left =
+                        Math.Max(
+                            workspace.Right + 12,
+                            availableWidth -
+                            shortcut.Width -
+                            12);
+                }
+
+                formats.Left =
+                    workspace.Right +
+                    12;
+
+                int formatRight =
+                    shortcut.Visible
+                        ? shortcut.Left - 10
+                        : availableWidth - 12;
+
+                formats.Width =
+                    Math.Max(
+                        0,
+                        formatRight -
+                        formats.Left);
+
+                formats.Visible =
+                    availableWidth >= 600 &&
+                    formats.Width >= 110;
+                formats.AutoEllipsis =
+                    true;
+            };
 
             EventHandler applyLanguage = delegate
             {
@@ -481,6 +544,8 @@ namespace PptxViewer
                 shortcut.Text = korean
                     ? "작업 공간  Ctrl+Alt+N"
                     : "Workspace  Ctrl+Alt+N";
+
+                layoutStrip();
             };
 
             applyLanguage(null, EventArgs.Empty);
@@ -493,13 +558,12 @@ namespace PptxViewer
 
             strip.Resize += delegate
             {
-                shortcut.Left = Math.Max(
-                    746,
-                    strip.ClientSize.Width - shortcut.Width - 12);
+                layoutStrip();
             };
 
             toolbar.Controls.Add(strip);
             strip.BringToFront();
+            layoutStrip();
         }
     }
 }
