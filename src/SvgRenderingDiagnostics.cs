@@ -57,6 +57,7 @@ namespace PptxViewer
                 "<filter id=\"desaturate\"><feColorMatrix in=\"SourceGraphic\" type=\"saturate\" values=\"0\"/></filter>" +
                 "<filter id=\"hueRotate\"><feColorMatrix in=\"SourceGraphic\" type=\"hueRotate\" values=\"240\"/></filter>" +
                 "<filter id=\"lumaAlpha\"><feColorMatrix in=\"SourceGraphic\" type=\"luminanceToAlpha\"/></filter>" +
+                "<rect id=\"offsetBlurBlendRect\" x=\"2\" y=\"12\" width=\"8\" height=\"6\" fill=\"#d64545\" filter=\"url(#offsetBlurBlend)\"/>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<g color=\"hsl(326deg 53% 50% / 100%)\"><use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" color=\"inherit\" fill=\"currentColor\"/></g>" +
@@ -72,7 +73,6 @@ namespace PptxViewer
                 "<rect id=\"shadowRect\" x=\"78\" y=\"8\" width=\"6\" height=\"8\" fill=\"#f5c842\" filter=\"url(#dropShadow)\"/>" +
                 "<rect id=\"offsetRect\" x=\"60\" y=\"2\" width=\"6\" height=\"6\" fill=\"#20b9c7\" filter=\"url(#offsetOnly)\"/>" +
                 "<rect id=\"offsetBlurChainRect\" x=\"2\" y=\"2\" width=\"8\" height=\"6\" fill=\"#d64545\" filter=\"url(#offsetBlurChain)\"/>" +
-                "<rect id=\"offsetBlurBlendRect\" x=\"2\" y=\"12\" width=\"8\" height=\"6\" fill=\"#d64545\" filter=\"url(#offsetBlurBlend)\"/>" +
                 "<rect id=\"colorMatrixRect\" x=\"14\" y=\"2\" width=\"8\" height=\"6\" fill=\"#e04030\" filter=\"url(#swapRedBlue)\"/>" +
                 "<rect id=\"saturateRect\" x=\"24\" y=\"2\" width=\"8\" height=\"6\" fill=\"#e04030\" filter=\"url(#desaturate)\"/>" +
                 "<rect id=\"hueRotateRect\" x=\"34\" y=\"2\" width=\"8\" height=\"6\" fill=\"#ff0000\" filter=\"url(#hueRotate)\"/>" +
