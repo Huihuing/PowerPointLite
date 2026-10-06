@@ -1727,6 +1727,13 @@ namespace PptxViewer
                             sx,
                             sy);
 
+                        ApplySvgOffsetFilterApproximation(
+                            g,
+                            node,
+                            parent.OwnerDocument,
+                            sx,
+                            sy);
+
                         using (Brush fillBrush =
                             CreateSvgFillBrush(
                                 node,
@@ -3668,6 +3675,159 @@ namespace PptxViewer
             }
 
             return true;
+        }
+
+        private static bool TryReadStandaloneSvgOffset(
+            XmlNode node,
+            XmlDocument document,
+            float sx,
+            float sy,
+            out float offsetX,
+            out float offsetY)
+        {
+            offsetX = 0f;
+            offsetY = 0f;
+
+            if (node == null ||
+                document == null)
+            {
+                return false;
+            }
+
+            string filterId =
+                ExtractSvgUrlId(
+                    GetSvgStyleInherited(
+                        node,
+                        "filter"));
+
+            if (string.IsNullOrEmpty(
+                    filterId))
+            {
+                return false;
+            }
+
+            XmlNode filter =
+                FindSvgNodeById(
+                    document,
+                    filterId);
+
+            if (filter == null ||
+                filter.LocalName !=
+                    "filter")
+            {
+                return false;
+            }
+
+            XmlNode offset =
+                null;
+            int primitiveCount =
+                0;
+
+            for (int i = 0;
+                 i < filter.ChildNodes.Count;
+                 i++)
+            {
+                XmlNode child =
+                    filter.ChildNodes[i];
+
+                if (child == null ||
+                    child.NodeType !=
+                        XmlNodeType.Element)
+                {
+                    continue;
+                }
+
+                string name =
+                    child.LocalName;
+
+                if (name == "animate" ||
+                    name == "set")
+                {
+                    continue;
+                }
+
+                primitiveCount++;
+
+                if (name == "feOffset")
+                {
+                    offset =
+                        child;
+                }
+            }
+
+            if (primitiveCount != 1 ||
+                offset == null)
+            {
+                return false;
+            }
+
+            string input =
+                GetAttr(
+                    offset,
+                    "in");
+
+            if (!string.IsNullOrEmpty(
+                    input) &&
+                !string.Equals(
+                    input,
+                    "SourceGraphic",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            offsetX =
+                ParseSvgFloat(
+                    GetAttr(
+                        offset,
+                        "dx"),
+                    0f) *
+                sx;
+
+            offsetY =
+                ParseSvgFloat(
+                    GetAttr(
+                        offset,
+                        "dy"),
+                    0f) *
+                sy;
+
+            return Math.Abs(offsetX) >
+                    0.001f ||
+                Math.Abs(offsetY) >
+                    0.001f;
+        }
+
+        private static void ApplySvgOffsetFilterApproximation(
+            Graphics g,
+            XmlNode node,
+            XmlDocument document,
+            float sx,
+            float sy)
+        {
+            if (g == null)
+            {
+                return;
+            }
+
+            float offsetX;
+            float offsetY;
+
+            if (!TryReadStandaloneSvgOffset(
+                    node,
+                    document,
+                    sx,
+                    sy,
+                    out offsetX,
+                    out offsetY))
+            {
+                return;
+            }
+
+            g.TranslateTransform(
+                offsetX,
+                offsetY,
+                MatrixOrder.Append);
         }
 
         private static bool TryReadSvgDropShadow(
