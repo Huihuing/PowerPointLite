@@ -5695,18 +5695,27 @@ namespace PptxViewer
                             blend,
                             "operator");
 
-                    if (!string.IsNullOrEmpty(
-                            op) &&
-                        !string.Equals(
+                    if (string.IsNullOrEmpty(
+                            op))
+                    {
+                        op =
+                            "over";
+                    }
+
+                    if (!string.Equals(
                             op,
                             "over",
+                            StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(
+                            op,
+                            "in",
                             StringComparison.OrdinalIgnoreCase))
                     {
                         return false;
                     }
 
                     blendMode =
-                        "over";
+                        op.ToLowerInvariant();
                 }
 
                 string secondResult =
@@ -5747,6 +5756,15 @@ namespace PptxViewer
                         StringComparison.OrdinalIgnoreCase);
 
                 if (!firstIsChain &&
+                    !secondIsChain)
+                {
+                    return false;
+                }
+
+                if (string.Equals(
+                        blendMode,
+                        "in",
+                        StringComparison.OrdinalIgnoreCase) &&
                     !secondIsChain)
                 {
                     return false;
@@ -5954,6 +5972,26 @@ namespace PptxViewer
                     Math.Min(
                         Math.Abs(sx),
                         Math.Abs(sy)));
+
+            if (blendSourceGraphic &&
+                string.Equals(
+                    blendMode,
+                    "in",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                DrawSvgCompositeInApproximation(
+                    g,
+                    path,
+                    offsetX,
+                    offsetY,
+                    hasSolidFill,
+                    fillAlpha,
+                    fill,
+                    strokeAlpha,
+                    stroke,
+                    strokeWidth);
+                return true;
+            }
 
             if (blurX <= 0.05f &&
                 blurY <= 0.05f)
@@ -6260,6 +6298,91 @@ namespace PptxViewer
             }
 
             return true;
+        }
+
+        private static void DrawSvgCompositeInApproximation(
+            Graphics g,
+            GraphicsPath sourcePath,
+            float offsetX,
+            float offsetY,
+            bool hasSolidFill,
+            int fillAlpha,
+            Color fill,
+            int strokeAlpha,
+            Color stroke,
+            float strokeWidth)
+        {
+            if (g == null ||
+                sourcePath == null ||
+                sourcePath.PointCount == 0)
+            {
+                return;
+            }
+
+            using (GraphicsPath shifted =
+                (GraphicsPath)sourcePath.Clone())
+            using (Matrix translation =
+                new Matrix())
+            {
+                translation.Translate(
+                    offsetX,
+                    offsetY);
+                shifted.Transform(
+                    translation);
+
+                using (Region overlap =
+                    new Region(
+                        sourcePath))
+                {
+                    overlap.Intersect(
+                        shifted);
+
+                    GraphicsState state =
+                        g.Save();
+
+                    try
+                    {
+                        g.SetClip(
+                            overlap,
+                            CombineMode.Intersect);
+
+                        if (hasSolidFill &&
+                            fillAlpha > 0)
+                        {
+                            using (Brush brush =
+                                new SolidBrush(
+                                    Color.FromArgb(
+                                        fillAlpha,
+                                        fill)))
+                            {
+                                g.FillPath(
+                                    brush,
+                                    sourcePath);
+                            }
+                        }
+
+                        if (strokeAlpha > 0)
+                        {
+                            using (Pen pen =
+                                new Pen(
+                                    Color.FromArgb(
+                                        strokeAlpha,
+                                        stroke),
+                                    strokeWidth))
+                            {
+                                g.DrawPath(
+                                    pen,
+                                    sourcePath);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        g.Restore(
+                            state);
+                    }
+                }
+            }
         }
 
         private static void DrawSvgBlendOverlapApproximation(
