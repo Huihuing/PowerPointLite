@@ -12,7 +12,9 @@ namespace PptxViewer
         public static readonly Color Surface = Color.FromArgb(37, 41, 47);
         public static readonly Color SurfaceHover = Color.FromArgb(47, 52, 60);
         public static readonly Color SurfacePressed = Color.FromArgb(55, 61, 71);
-        public static readonly Color Canvas = Color.FromArgb(14, 16, 19);
+        public static readonly Color Canvas = Color.FromArgb(31, 34, 39);
+        public static readonly Color CanvasEdge = Color.FromArgb(78, 84, 95);
+        public static readonly Color CanvasShadow = Color.FromArgb(82, 0, 0, 0);
         public static readonly Color Divider = Color.FromArgb(57, 62, 72);
         public static readonly Color PrimaryText = Color.FromArgb(243, 245, 248);
         public static readonly Color SecondaryText = Color.FromArgb(166, 173, 184);
@@ -149,13 +151,59 @@ namespace PptxViewer
             mainSplit.BackColor = ApplicationTheme.Divider;
             thumbnails.BackColor = ApplicationTheme.Sidebar;
             viewerPanel.BackColor = ApplicationTheme.Canvas;
-            viewer.BackColor = Color.Black;
+            viewer.BackColor = Color.FromArgb(8, 9, 11);
+            viewer.BorderStyle = BorderStyle.None;
 
-            status.Height = 27;
+            viewerPanel.Paint += delegate(object sender, PaintEventArgs e)
+            {
+                if (viewer == null ||
+                    viewer.Image == null ||
+                    viewer.Width <= 0 ||
+                    viewer.Height <= 0)
+                {
+                    return;
+                }
+
+                Rectangle slideBounds = viewer.Bounds;
+                Rectangle shadowBounds = slideBounds;
+                shadowBounds.Inflate(5, 5);
+                shadowBounds.Offset(2, 3);
+
+                using (Pen shadow = new Pen(
+                    ApplicationTheme.CanvasShadow,
+                    4f))
+                using (Pen edge = new Pen(
+                    ApplicationTheme.CanvasEdge,
+                    1f))
+                {
+                    e.Graphics.DrawRectangle(
+                        shadow,
+                        shadowBounds);
+                    e.Graphics.DrawRectangle(
+                        edge,
+                        new Rectangle(
+                            slideBounds.Left - 1,
+                            slideBounds.Top - 1,
+                            slideBounds.Width + 1,
+                            slideBounds.Height + 1));
+                }
+            };
+
+            EventHandler invalidateCanvas = delegate
+            {
+                viewerPanel.Invalidate();
+            };
+
+            viewer.LocationChanged += invalidateCanvas;
+            viewer.SizeChanged += invalidateCanvas;
+            viewer.ImageChanged += invalidateCanvas;
+            viewerPanel.Resize += invalidateCanvas;
+
+            status.Height = 30;
             status.BackColor = ApplicationTheme.Toolbar;
             status.ForeColor = ApplicationTheme.SecondaryText;
             status.TextAlign = ContentAlignment.MiddleLeft;
-            status.Padding = new Padding(12, 0, 10, 0);
+            status.Padding = new Padding(14, 0, 12, 0);
             status.Paint += delegate(object sender, PaintEventArgs e)
             {
                 using (Pen divider = new Pen(ApplicationTheme.Divider))
