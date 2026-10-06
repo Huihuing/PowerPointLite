@@ -1083,6 +1083,13 @@ internal static partial class InternalPptxRenderer
                 return;
             }
 
+            DrawThreeDimensionalExtrusionApproximation(
+                g,
+                spPr,
+                path,
+                rect,
+                theme);
+
             DrawPresetShadowEffect(
                 g,
                 spPr,
@@ -1115,6 +1122,327 @@ internal static partial class InternalPptxRenderer
                 path,
                 rect,
                 theme);
+        }
+
+        private static void DrawThreeDimensionalExtrusionApproximation(
+            Graphics g,
+            XmlNode spPr,
+            GraphicsPath path,
+            RectangleF rect,
+            Dictionary<string, Color> theme)
+        {
+            XmlNode shape3d =
+                FindFirst(
+                    spPr,
+                    "sp3d");
+
+            if (shape3d == null)
+                return;
+
+            long extrusionHeight =
+                GetLong(
+                    shape3d,
+                    "extrusionH",
+                    0);
+
+            if (extrusionHeight <= 0)
+                return;
+
+            float depth =
+                Math.Max(
+                    1f,
+                    Math.Min(
+                        28f,
+                        EmuEffectToPixels(
+                            extrusionHeight)));
+
+            float dx;
+            float dy;
+            ReadThreeDimensionalProjectionVector(
+                spPr,
+                out dx,
+                out dy);
+
+            float length =
+                (float)Math.Sqrt(
+                    dx * dx +
+                    dy * dy);
+
+            if (length < 0.001f)
+            {
+                dx = 0.7071f;
+                dy = 0.7071f;
+            }
+            else
+            {
+                dx /= length;
+                dy /= length;
+            }
+
+            Color baseColor =
+                ReadSolidFill(
+                    spPr,
+                    theme) ??
+                Color.FromArgb(
+                    150,
+                    150,
+                    150);
+
+            XmlNode extrusionColorNode =
+                DirectChild(
+                    shape3d,
+                    "extrusionClr");
+
+            Color extrusionColor =
+                extrusionColorNode != null
+                    ? ReadColorFromFill(
+                        extrusionColorNode,
+                        theme) ??
+                      DarkenThreeDimensionalColor(
+                          baseColor,
+                          0.42f)
+                    : DarkenThreeDimensionalColor(
+                        baseColor,
+                        0.42f);
+
+            const int layers = 7;
+
+            for (int i = layers;
+                 i >= 1;
+                 i--)
+            {
+                float ratio =
+                    i /
+                    (float)layers;
+
+                float offsetX =
+                    dx *
+                    depth *
+                    ratio;
+                float offsetY =
+                    dy *
+                    depth *
+                    ratio;
+
+                int shade =
+                    Math.Max(
+                        0,
+                        Math.Min(
+                            255,
+                            (int)Math.Round(
+                                36f *
+                                (1f -
+                                 ratio))));
+
+                Color layerColor =
+                    Color.FromArgb(
+                        Math.Max(
+                            70,
+                            Math.Min(
+                                235,
+                                extrusionColor.A)),
+                        Math.Min(
+                            255,
+                            extrusionColor.R +
+                            shade),
+                        Math.Min(
+                            255,
+                            extrusionColor.G +
+                            shade),
+                        Math.Min(
+                            255,
+                            extrusionColor.B +
+                            shade));
+
+                using (GraphicsPath layer =
+                    (GraphicsPath)path.Clone())
+                using (Matrix transform =
+                    new Matrix())
+                using (Brush brush =
+                    new SolidBrush(
+                        layerColor))
+                {
+                    transform.Translate(
+                        offsetX,
+                        offsetY);
+
+                    layer.Transform(
+                        transform);
+
+                    g.FillPath(
+                        brush,
+                        layer);
+                }
+            }
+        }
+
+        private static void ReadThreeDimensionalProjectionVector(
+            XmlNode spPr,
+            out float dx,
+            out float dy)
+        {
+            dx = 0.7071f;
+            dy = 0.7071f;
+
+            XmlNode camera =
+                FindFirst(
+                    spPr,
+                    "camera");
+
+            if (camera == null)
+                return;
+
+            XmlNode rotation =
+                DirectChild(
+                    camera,
+                    "rot");
+
+            if (rotation == null)
+                return;
+
+            float latitude =
+                GetLong(
+                    rotation,
+                    "lat",
+                    0) /
+                60000f;
+
+            float longitude =
+                GetLong(
+                    rotation,
+                    "lon",
+                    0) /
+                60000f;
+
+            float latRadians =
+                latitude *
+                (float)Math.PI /
+                180f;
+
+            float lonRadians =
+                longitude *
+                (float)Math.PI /
+                180f;
+
+            float candidateX =
+                -(float)Math.Sin(
+                    lonRadians);
+            float candidateY =
+                (float)Math.Sin(
+                    latRadians);
+
+            if (Math.Abs(candidateX) <
+                    0.08f &&
+                Math.Abs(candidateY) <
+                    0.08f)
+            {
+                return;
+            }
+
+            dx = candidateX;
+            dy = candidateY;
+        }
+
+        private static Color DarkenThreeDimensionalColor(
+            Color color,
+            float amount)
+        {
+            amount =
+                Math.Max(
+                    0f,
+                    Math.Min(
+                        1f,
+                        amount));
+
+            return Color.FromArgb(
+                color.A,
+                Math.Max(
+                    0,
+                    (int)Math.Round(
+                        color.R *
+                        (1f -
+                         amount))),
+                Math.Max(
+                    0,
+                    (int)Math.Round(
+                        color.G *
+                        (1f -
+                         amount))),
+                Math.Max(
+                    0,
+                    (int)Math.Round(
+                        color.B *
+                        (1f -
+                         amount))));
+        }
+
+        private static void ReadThreeDimensionalLightVector(
+            XmlNode spPr,
+            out float x,
+            out float y)
+        {
+            x = -1f;
+            y = -1f;
+
+            XmlNode lightRig =
+                FindFirst(
+                    spPr,
+                    "lightRig");
+
+            if (lightRig == null)
+                return;
+
+            string direction =
+                GetAttr(
+                    lightRig,
+                    "dir");
+
+            if (string.IsNullOrEmpty(direction))
+                return;
+
+            direction =
+                direction.ToLowerInvariant();
+
+            if (direction == "t")
+            {
+                x = 0f;
+                y = -1f;
+            }
+            else if (direction == "tr")
+            {
+                x = 1f;
+                y = -1f;
+            }
+            else if (direction == "r")
+            {
+                x = 1f;
+                y = 0f;
+            }
+            else if (direction == "br")
+            {
+                x = 1f;
+                y = 1f;
+            }
+            else if (direction == "b")
+            {
+                x = 0f;
+                y = 1f;
+            }
+            else if (direction == "bl")
+            {
+                x = -1f;
+                y = 1f;
+            }
+            else if (direction == "l")
+            {
+                x = -1f;
+                y = 0f;
+            }
+            else
+            {
+                x = -1f;
+                y = -1f;
+            }
         }
 
         private static void DrawPresetShadowEffect(
@@ -1458,6 +1786,29 @@ internal static partial class InternalPptxRenderer
                             topSize,
                             bottomSize)));
 
+            float lightX;
+            float lightY;
+            ReadThreeDimensionalLightVector(
+                spPr,
+                out lightX,
+                out lightY);
+
+            float lightLength =
+                (float)Math.Sqrt(
+                    lightX * lightX +
+                    lightY * lightY);
+
+            if (lightLength < 0.001f)
+            {
+                lightX = -0.7071f;
+                lightY = -0.7071f;
+            }
+            else
+            {
+                lightX /= lightLength;
+                lightY /= lightLength;
+            }
+
             GraphicsState state =
                 g.Save();
 
@@ -1485,10 +1836,12 @@ internal static partial class InternalPptxRenderer
                                 size)))
                     {
                         highlightTransform.Translate(
-                            -size *
-                            0.28f,
-                            -size *
-                            0.28f);
+                            lightX *
+                            size *
+                            0.34f,
+                            lightY *
+                            size *
+                            0.34f);
                         highlightPath.Transform(
                             highlightTransform);
                         highlight.LineJoin =
@@ -1527,10 +1880,12 @@ internal static partial class InternalPptxRenderer
                                 size)))
                     {
                         shadeTransform.Translate(
+                            -lightX *
                             size *
-                            0.28f,
+                            0.34f,
+                            -lightY *
                             size *
-                            0.28f);
+                            0.34f);
                         shadePath.Transform(
                             shadeTransform);
                         shade.LineJoin =
