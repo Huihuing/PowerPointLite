@@ -200,9 +200,10 @@ slide load
 → click/automatic animation group 순서대로 진행
 → 특정 trigger shape id가 있는 click step은 해당 shape bounds를 클릭했을 때만 실행
 → PictureBox Zoom 레터박스를 제외한 실제 슬라이드 표시 영역 기준으로 클릭 좌표 정규화
-→ xfrm rot가 있는 trigger shape는 중심 기준 역회전 좌표로 회전 사각형 hit-test
-→ prstGeom=ellipse trigger는 역회전 후 타원 방정식으로 실제 타원 내부만 hit
+→ xfrm rot가 있는 trigger shape는 중심 기준으로 클릭 좌표를 역회전한 뒤 해당 geometry 내부를 판정
+→ prstGeom=ellipse trigger는 타원 방정식으로 실제 타원 내부만 hit
 → prstGeom=roundRect는 기본 corner radius 근사로 둥근 모서리 바깥 클릭 제외
+→ prstGeom=diamond는 정규화 마름모 영역, triangle은 꼭짓점-밑변 선형 영역으로 정밀 hit-test
 → with-previous는 같은 group
 → after-previous는 앞 action 종료 시점 뒤에 배치
 → delay/duration을 내부 timer에 반영
