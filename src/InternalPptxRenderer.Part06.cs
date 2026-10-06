@@ -590,6 +590,10 @@ internal static partial class InternalPptxRenderer
                     theme),
                 ReadChartMinorGridlineStyle(
                     chartDoc,
+                    theme),
+                ReadChartAxisLabelStyle(
+                    chartDoc,
+                    "valAx",
                     theme));
 
             double range =
@@ -1140,7 +1144,11 @@ internal static partial class InternalPptxRenderer
                     kind,
                     categoryTickLabelPosition,
                     ReadChartCategoryLabelSkip(
-                        chartDoc));
+                        chartDoc),
+                    ReadChartAxisLabelStyle(
+                        chartDoc,
+                        "catAx",
+                        theme));
             }
 
             DrawChartAxisTitles(
@@ -2729,7 +2737,8 @@ internal static partial class InternalPptxRenderer
             bool showLabels,
             string tickLabelPosition,
             ChartLineStyle gridStyle,
-            ChartLineStyle minorGridStyle)
+            ChartLineStyle minorGridStyle,
+            ChartLabelOptions textStyle = null)
         {
             if (scale == null)
                 return;
@@ -2810,19 +2819,25 @@ internal static partial class InternalPptxRenderer
                 new Pen(
                     gridStyle.Color,
                     gridStyle.Width))
-            using (Font font = SafeFont(
-                "Arial",
-                Math.Max(
-                    6f,
-                    Math.Min(
-                        9f,
-                        plot.Height / 38f))))
+            using (Font font =
+                SafeChartTextFont(
+                    "Arial",
+                    Math.Max(
+                        6f,
+                        Math.Min(
+                            9f,
+                            plot.Height / 38f)),
+                    FontStyle.Regular,
+                    textStyle))
             using (Brush text =
                 new SolidBrush(
-                    Color.FromArgb(
-                        105,
-                        105,
-                        105)))
+                    textStyle != null &&
+                    textStyle.TextColor.HasValue
+                        ? textStyle.TextColor.Value
+                        : Color.FromArgb(
+                            105,
+                            105,
+                            105)))
             {
                 grid.DashStyle =
                     gridStyle.DashStyle;
@@ -3867,13 +3882,31 @@ internal static partial class InternalPptxRenderer
             int categoryCount,
             string kind,
             string tickLabelPosition,
-            int labelSkip)
+            int labelSkip,
+            ChartLabelOptions textStyle = null)
         {
             if (firstSeries == null || firstSeries.Categories.Count == 0)
                 return;
 
-            using (Font font = SafeFont("Arial", Math.Max(6f, Math.Min(9f, plot.Height / 35f))))
-            using (Brush brush = new SolidBrush(Color.FromArgb(80, 80, 80)))
+            using (Font font =
+                SafeChartTextFont(
+                    "Arial",
+                    Math.Max(
+                        6f,
+                        Math.Min(
+                            9f,
+                            plot.Height / 35f)),
+                    FontStyle.Regular,
+                    textStyle))
+            using (Brush brush =
+                new SolidBrush(
+                    textStyle != null &&
+                    textStyle.TextColor.HasValue
+                        ? textStyle.TextColor.Value
+                        : Color.FromArgb(
+                            80,
+                            80,
+                            80)))
             using (StringFormat sf = new StringFormat())
             {
                 sf.Alignment = StringAlignment.Center;
@@ -5240,6 +5273,101 @@ internal static partial class InternalPptxRenderer
                     toX,
                     y);
             }
+        }
+
+        private static ChartLabelOptions ReadChartAxisLabelStyle(
+            XmlDocument chartDoc,
+            string axisName,
+            Dictionary<string, Color> theme)
+        {
+            ChartLabelOptions result =
+                new ChartLabelOptions();
+
+            if (chartDoc == null ||
+                string.IsNullOrEmpty(
+                    axisName))
+            {
+                return result;
+            }
+
+            XmlNode axis =
+                FindFirst(
+                    chartDoc,
+                    axisName);
+
+            if (axis == null)
+                return result;
+
+            result.TextColor =
+                ReadChartDataLabelTextColor(
+                    axis,
+                    theme);
+
+            ReadChartDataLabelFontStyle(
+                axis,
+                out result.FontSize,
+                out result.Bold,
+                out result.Italic,
+                out result.FontFamily);
+
+            return result;
+        }
+
+        private static Font SafeChartTextFont(
+            string fallbackFamily,
+            float fallbackSize,
+            FontStyle fallbackStyle,
+            ChartLabelOptions style)
+        {
+            string family =
+                fallbackFamily;
+            float size =
+                fallbackSize;
+            FontStyle fontStyle =
+                fallbackStyle;
+
+            if (style != null)
+            {
+                if (!string.IsNullOrEmpty(
+                        style.FontFamily))
+                {
+                    family =
+                        style.FontFamily;
+                }
+
+                if (style.FontSize.HasValue)
+                {
+                    size =
+                        style.FontSize.Value;
+                }
+
+                if (style.Bold.HasValue)
+                {
+                    if (style.Bold.Value)
+                        fontStyle |=
+                            FontStyle.Bold;
+                    else
+                        fontStyle &=
+                            ~FontStyle.Bold;
+                }
+
+                if (style.Italic.HasValue)
+                {
+                    if (style.Italic.Value)
+                        fontStyle |=
+                            FontStyle.Italic;
+                    else
+                        fontStyle &=
+                            ~FontStyle.Italic;
+                }
+            }
+
+            return SafeFont(
+                family,
+                Math.Max(
+                    1f,
+                    size),
+                fontStyle);
         }
 
         private static string ReadChartAxisTickLabelPosition(
