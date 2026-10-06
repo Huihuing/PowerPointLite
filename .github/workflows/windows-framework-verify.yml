@@ -1,4 +1,4 @@
-name: Windows Framework verification
+name: Windows .NET Framework verification
 
 on:
   push:
@@ -16,60 +16,41 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: windows-framework-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   verify:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
+    env:
+      PPLT_NO_PAUSE: "1"
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Locate Framework compiler
+      - name: Source compatibility audit
         shell: cmd
-        run: |
-          if exist "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" (
-            echo Using %WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe
-            exit /b 0
-          )
-          if exist "%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe" (
-            echo Using %WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe
-            exit /b 0
-          )
-          echo .NET Framework csc.exe was not found.
-          exit /b 2
+        run: RUN_SOURCE_AUDIT.cmd --quiet
 
-      - name: Run pre-merge checks
+      - name: Build with Windows .NET Framework csc
         shell: cmd
-        run: |
-          set PPLT_NO_PAUSE=1
-          call RUN_PREMERGE_CHECKS.cmd
+        run: BUILD_EXE.cmd --quiet
 
-      - name: Upload portable build and diagnostics
-        if: always()
+      - name: Run structural self-tests
+        shell: cmd
+        run: RUN_ALL_FORMAT_SELFTESTS.cmd
+
+      - name: Upload verified portable build
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: PowerPointLite-windows-${{ github.sha }}
-          if-no-files-found: warn
-          retention-days: 7
+          name: PowerPointLite-windows-framework
+          if-no-files-found: error
+          retention-days: 14
           path: |
             PowerPointLite.exe
             PowerPointLite.exe.config
             TEST_WRITER_OUTPUT.pptx
             TEST_RICHTEXT_OUTPUT.pptx
-            TEST_DOCX_OUTPUT.docx
-            TEST_XLSX_OUTPUT.xlsx
-            TEST_HWPX_OUTPUT.hwpx
-            TEST_ODT_OUTPUT.odt
-            TEST_ODS_OUTPUT.ods
-            TEST_ODP_OUTPUT.odp
             TEST_SVG_RENDER.png
-            ANIMATION_SELFTEST_OUTPUT/**
             PPTX_FIDELITY_SELFTEST_OUTPUT/**
-            PDF_SELFTEST_OUTPUT/**
-            CONVERSION_SELFTEST_OUTPUT/**
-            DOCUMENT_SAFETY_SELFTEST_OUTPUT/**
+            ANIMATION_SELFTEST_OUTPUT/**
