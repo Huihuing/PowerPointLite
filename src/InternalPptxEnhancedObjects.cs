@@ -13054,10 +13054,60 @@ namespace PptxViewer
                                     2f);
                         }
 
-                        g.DrawLine(
-                            connector,
-                            from,
-                            to);
+                        if (layoutKind == "hierarchy")
+                        {
+                            if (destinationIsAssistant)
+                            {
+                                float middleX =
+                                    from.X +
+                                    (to.X -
+                                     from.X) /
+                                    2f;
+
+                                g.DrawLines(
+                                    connector,
+                                    new PointF[]
+                                    {
+                                        from,
+                                        new PointF(
+                                            middleX,
+                                            from.Y),
+                                        new PointF(
+                                            middleX,
+                                            to.Y),
+                                        to
+                                    });
+                            }
+                            else
+                            {
+                                float middleY =
+                                    from.Y +
+                                    (to.Y -
+                                     from.Y) /
+                                    2f;
+
+                                g.DrawLines(
+                                    connector,
+                                    new PointF[]
+                                    {
+                                        from,
+                                        new PointF(
+                                            from.X,
+                                            middleY),
+                                        new PointF(
+                                            to.X,
+                                            middleY),
+                                        to
+                                    });
+                            }
+                        }
+                        else
+                        {
+                            g.DrawLine(
+                                connector,
+                                from,
+                                to);
+                        }
                     }
                 }
             }

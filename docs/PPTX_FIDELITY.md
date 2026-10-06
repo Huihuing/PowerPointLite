@@ -130,6 +130,7 @@ Microsoft PowerPoint (설치된 경우)
   - layout definition 기반 hierarchy / process / vertical process / cycle / radial / matrix / pyramid / list / venn 배치 근사
   - layout별 connector 방향과 node shape 기본 차등 표현
   - hierarchy의 type="asst" assistant node 보존, 부모 좌우 보조 박스 배치 및 side connector 근사
+  - hierarchy parent-child 및 assistant connector를 직각 elbow routing으로 근사
   - 구조를 알 수 없는 경우 기존 static approximation으로 fallback
 - hyperlink / slide navigation / media extraction
 - speaker notes
@@ -199,7 +200,7 @@ slide load
 
 Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것이 아니다. 다음 항목은 구조와 의미를 가능한 범위에서 유지하되 화면 결과가 PowerPoint와 정확히 같지 않을 수 있다.
 
-- SmartArt 고유 layout algorithm의 정밀 spacing, 다중 assistant 배치 우선순위 및 복잡한 routing semantics
+- SmartArt 고유 layout algorithm의 정밀 spacing, 다중 assistant 배치 우선순위 및 공식 connector routing semantics 전체
 - chart의 모든 axis/style/data-label/3D 조합
 - theme effect style 참조 전체 및 복합 shadow/effect 조합
 - feBlend/feComposite 및 feColorMatrix가 다른 primitive와 연결된 3단계 이상 SVG filter chain, 복잡한 mask luminance/gradient 등 고급 SVG 기능

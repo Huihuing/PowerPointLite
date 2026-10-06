@@ -1861,6 +1861,10 @@ namespace PptxViewer
             hierarchyRoot.Id = "root";
             hierarchyRoot.Label = "Root";
             hierarchyRoot.Depth = 0;
+            hierarchyRoot.Children.Add(
+                "child");
+            hierarchyRoot.Children.Add(
+                "assistant");
 
             SmartNode hierarchyChild =
                 new SmartNode();
@@ -1899,9 +1903,14 @@ namespace PptxViewer
             RectangleF rootPosition;
             RectangleF assistantPosition;
 
+            RectangleF childPosition;
+
             if (!hierarchyPositions.TryGetValue(
                     "root",
                     out rootPosition) ||
+                !hierarchyPositions.TryGetValue(
+                    "child",
+                    out childPosition) ||
                 !hierarchyPositions.TryGetValue(
                     "assistant",
                     out assistantPosition) ||
@@ -1914,6 +1923,125 @@ namespace PptxViewer
             {
                 throw new InvalidOperationException(
                     "SmartArt hierarchy assistant was not positioned beside its parent.");
+            }
+
+            Dictionary<string, SmartNode> hierarchyNodeMap =
+                new Dictionary<string, SmartNode>(
+                    StringComparer.Ordinal);
+            hierarchyNodeMap[
+                hierarchyRoot.Id] =
+                hierarchyRoot;
+            hierarchyNodeMap[
+                hierarchyChild.Id] =
+                hierarchyChild;
+            hierarchyNodeMap[
+                hierarchyAssistant.Id] =
+                hierarchyAssistant;
+
+            using (Bitmap connectorBitmap =
+                new Bitmap(
+                    420,
+                    260,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics connectorGraphics =
+                Graphics.FromImage(
+                    connectorBitmap))
+            {
+                connectorGraphics.Clear(
+                    Color.White);
+
+                DrawSmartArtConnectors(
+                    connectorGraphics,
+                    "hierarchy",
+                    hierarchyNodes,
+                    hierarchyNodeMap,
+                    hierarchyPositions,
+                    new Color[]
+                    {
+                        Color.FromArgb(
+                            76,
+                            123,
+                            205)
+                    });
+
+                float regularMidY =
+                    rootPosition.Bottom +
+                    (childPosition.Top -
+                     rootPosition.Bottom) /
+                    2f;
+
+                Color verticalElbowPixel =
+                    connectorBitmap.GetPixel(
+                        Math.Max(
+                            0,
+                            Math.Min(
+                                connectorBitmap.Width - 1,
+                                (int)Math.Round(
+                                    rootPosition.Left +
+                                    rootPosition.Width /
+                                    2f))),
+                        Math.Max(
+                            0,
+                            Math.Min(
+                                connectorBitmap.Height - 1,
+                                (int)Math.Round(
+                                    regularMidY))));
+
+                bool assistantOnLeft =
+                    assistantPosition.Left <
+                    rootPosition.Left;
+                float assistantFromX =
+                    assistantOnLeft
+                        ? rootPosition.Left
+                        : rootPosition.Right;
+                float assistantToX =
+                    assistantOnLeft
+                        ? assistantPosition.Right
+                        : assistantPosition.Left;
+                float assistantMidX =
+                    assistantFromX +
+                    (assistantToX -
+                     assistantFromX) /
+                    2f;
+
+                Color assistantElbowPixel =
+                    connectorBitmap.GetPixel(
+                        Math.Max(
+                            0,
+                            Math.Min(
+                                connectorBitmap.Width - 1,
+                                (int)Math.Round(
+                                    assistantMidX))),
+                        Math.Max(
+                            0,
+                            Math.Min(
+                                connectorBitmap.Height - 1,
+                                (int)Math.Round(
+                                    rootPosition.Top +
+                                    rootPosition.Height /
+                                    2f))));
+
+                bool regularConnectorVisible =
+                    verticalElbowPixel.R <
+                        245 ||
+                    verticalElbowPixel.G <
+                        245 ||
+                    verticalElbowPixel.B <
+                        245;
+                bool assistantConnectorVisible =
+                    assistantElbowPixel.R <
+                        245 ||
+                    assistantElbowPixel.G <
+                        245 ||
+                    assistantElbowPixel.B <
+                        245;
+
+                if (!regularConnectorVisible ||
+                    !assistantConnectorVisible)
+                {
+                    throw new InvalidOperationException(
+                        "SmartArt hierarchy elbow connector routing was not rendered.");
+                }
             }
 
             string[] kinds =
