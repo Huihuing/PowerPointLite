@@ -11944,6 +11944,7 @@ namespace PptxViewer
                 g,
                 rect,
                 chartDoc,
+                theme,
                 out plot);
 
             List<XmlNode> seriesNodes =
@@ -12320,7 +12321,7 @@ namespace PptxViewer
             Dictionary<string, Color> theme)
         {
             RectangleF plot;
-            PrepareChartSurface(g, rect, chartDoc, out plot);
+            PrepareChartSurface(g, rect, chartDoc, theme, out plot);
             List<ChartSeriesData> series = ReadStandardChartSeries(chartDoc, theme);
             if (series.Count == 0)
             {
