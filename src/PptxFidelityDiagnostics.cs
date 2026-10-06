@@ -1700,7 +1700,7 @@ namespace PptxViewer
             area.LoadXml(
                 "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
                 "<c:chart><c:title><c:tx><c:rich><a:p><a:r><a:t>Area</a:t></a:r></a:p></c:rich></c:tx></c:title>" +
-                "<c:plotArea><c:areaChart>" +
+                "<c:plotArea><c:areaChart><c:grouping val=\"stacked\"/>" +
                 BuildSyntheticChartSeries(
                     0,
                     "North",
@@ -1711,7 +1711,10 @@ namespace PptxViewer
                     "South",
                     new string[] { "Jan", "Feb", "Mar", "Apr" },
                     new double[] { 12.0, 23.0, 42.0, 33.0 }) +
-                "</c:areaChart></c:plotArea>" +
+                "</c:areaChart>" +
+                "<c:catAx><c:axId val=\"11\"/><c:title><c:tx><c:rich><a:p><a:r><a:t>Month</a:t></a:r></a:p></c:rich></c:tx></c:title></c:catAx>" +
+                "<c:valAx><c:axId val=\"12\"/><c:title><c:tx><c:rich><a:p><a:r><a:t>Total</a:t></a:r></a:p></c:rich></c:tx></c:title></c:valAx>" +
+                "</c:plotArea>" +
                 "<c:legend><c:legendPos val=\"r\"/></c:legend></c:chart></c:chartSpace>");
 
             XmlDocument scatter =
@@ -1742,6 +1745,12 @@ namespace PptxViewer
                     new string[] { "Speed", "Power", "Range", "Skill", "Guard" },
                     new double[] { 70.0, 82.0, 54.0, 91.0, 66.0 }) +
                 "</c:radarChart></c:plotArea></c:chart></c:chartSpace>");
+
+            if (ReadAreaChartGrouping(area) != "stacked")
+            {
+                throw new InvalidOperationException(
+                    "Area chart grouping was not parsed correctly.");
+            }
 
             using (Bitmap bitmap =
                 new Bitmap(
