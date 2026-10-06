@@ -35,6 +35,7 @@ namespace PptxViewer
                 "</linearGradient>" +
                 "<clipPath id=\"clip\"><circle cx=\"100\" cy=\"78\" r=\"40\"/></clipPath>" +
                 "<clipPath id=\"nestedClip\"><g transform=\"translate(22 0)\"><rect x=\"10\" y=\"8\" width=\"18\" height=\"16\"/></g></clipPath>" +
+                "<clipPath id=\"evenoddClip\"><path d=\"M 176 2 H 196 V 22 H 176 Z M 181 7 H 191 V 17 H 181 Z\" clip-rule=\"evenodd\"/></clipPath>" +
                 "<pattern id=\"pat\" patternUnits=\"userSpaceOnUse\" width=\"12\" height=\"12\">" +
                 "<rect x=\"0\" y=\"0\" width=\"6\" height=\"12\" fill=\"#e85d75\"/>" +
                 "<rect x=\"6\" y=\"0\" width=\"6\" height=\"12\" fill=\"#4c78d6\"/>" +
@@ -46,6 +47,7 @@ namespace PptxViewer
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<circle cx=\"154\" cy=\"28\" r=\"18\" fill=\"url(#g)\" transform=\"skewX(8)\"/>" +
+                "<rect id=\"clipRuleTarget\" x=\"176\" y=\"2\" width=\"20\" height=\"20\" fill=\"#7b61ff\" clip-path=\"url(#evenoddClip)\"/>" +
                 "<rect x=\"8\" y=\"6\" width=\"48\" height=\"22\" fill=\"#1677d2\" clip-path=\"url(#nestedClip)\"/>" +
                 "<rect id=\"blurRect\" x=\"88\" y=\"14\" width=\"24\" height=\"18\" fill=\"#d62728\" filter=\"url(#softBlur)\"/>" +
                 "<rect id=\"shadowRect\" x=\"78\" y=\"8\" width=\"6\" height=\"8\" fill=\"#f5c842\" filter=\"url(#dropShadow)\"/>" +
@@ -290,6 +292,45 @@ namespace PptxViewer
                 }
             }
 
+            XmlNode clipRuleTarget =
+                FindSvgNodeById(
+                    document,
+                    "clipRuleTarget");
+
+            using (GraphicsPath evenoddClip =
+                BuildSvgClipPath(
+                    clipRuleTarget,
+                    document,
+                    new RectangleF(
+                        704f,
+                        8f,
+                        80f,
+                        80f),
+                    new RectangleF(
+                        0f,
+                        0f,
+                        800f,
+                        480f),
+                    0f,
+                    0f,
+                    4f,
+                    4f))
+            {
+                if (evenoddClip == null ||
+                    evenoddClip.FillMode !=
+                        FillMode.Alternate ||
+                    !evenoddClip.IsVisible(
+                        712f,
+                        16f) ||
+                    evenoddClip.IsVisible(
+                        744f,
+                        48f))
+                {
+                    throw new InvalidOperationException(
+                        "SVG clip-rule evenodd was not preserved in the clip geometry.");
+                }
+            }
+
             using (Bitmap bitmap =
                 new Bitmap(
                     800,
@@ -386,6 +427,38 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Nested transformed SVG clipPath geometry was not positioned correctly.");
+                }
+
+                Color clipRuleOuter =
+                    bitmap.GetPixel(
+                        712,
+                        16);
+                Color clipRuleHole =
+                    bitmap.GetPixel(
+                        744,
+                        48);
+
+                bool clipOuterVisible =
+                    clipRuleOuter.B >
+                        150 &&
+                    clipRuleOuter.R >
+                        70 &&
+                    clipRuleOuter.G <
+                        150;
+
+                bool clipHoleEmpty =
+                    clipRuleHole.R >
+                        245 &&
+                    clipRuleHole.G >
+                        245 &&
+                    clipRuleHole.B >
+                        245;
+
+                if (!clipOuterVisible ||
+                    !clipHoleEmpty)
+                {
+                    throw new InvalidOperationException(
+                        "SVG clip-rule evenodd did not preserve the expected clipped hole.");
                 }
 
                 Color nonzeroCenter =

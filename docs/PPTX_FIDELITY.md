@@ -62,6 +62,7 @@ Microsoft PowerPoint (설치된 경우)
   - clipPath/mask 내부 nested group/geometry transform 누적 반영
   - stroke-dasharray / stroke-dashoffset 기본 점선 패턴 반영
   - fill-rule nonzero(기본) / evenodd 복합 path 채움 판정
+  - clipPath 내부 clip-rule nonzero(기본) / evenodd 기본 반영
   - filter="url(#...)"의 단일 feGaussianBlur(SourceGraphic) stdDeviation 기본 근사
   - 단일 feDropShadow(SourceGraphic)의 dx/dy/stdDeviation/flood-color/flood-opacity 기본 근사
   - 단일 feOffset(SourceGraphic)의 dx/dy 이동 기본 근사

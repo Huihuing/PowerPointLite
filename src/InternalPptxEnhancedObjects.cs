@@ -3200,6 +3200,9 @@ namespace PptxViewer
             GraphicsPath result =
                 new GraphicsPath();
 
+            result.FillMode =
+                FillMode.Winding;
+
             AppendSvgGeometryChildren(
                 result,
                 clipNode,
@@ -3400,6 +3403,31 @@ namespace PptxViewer
                             {
                                 childPath.Transform(
                                     combined);
+                            }
+
+                            if (!maskMode)
+                            {
+                                string clipRule =
+                                    GetSvgStyleInherited(
+                                        child,
+                                        "clip-rule");
+
+                                if (string.Equals(
+                                        clipRule,
+                                        "evenodd",
+                                        StringComparison.OrdinalIgnoreCase))
+                                {
+                                    destination.FillMode =
+                                        FillMode.Alternate;
+                                }
+                                else if (string.Equals(
+                                        clipRule,
+                                        "nonzero",
+                                        StringComparison.OrdinalIgnoreCase))
+                                {
+                                    destination.FillMode =
+                                        FillMode.Winding;
+                                }
                             }
 
                             destination.AddPath(
