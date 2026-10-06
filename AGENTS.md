@@ -224,6 +224,14 @@ Pre-merge automated gate:
 RUN_PREMERGE_CHECKS.cmd
 ```
 
+GitHub Actions Windows verification:
+
+```text
+.github/workflows/windows-framework-verify.yml
+```
+
+The workflow runs the same pre-merge gate on `windows-latest`, so a green run confirms the current source passed the real .NET Framework `csc.exe` build plus structural self-tests on the pushed commit. It uploads the executable and generated diagnostics as a short-lived artifact. A green CI run still does not replace manual Viewer/UI and Office/LibreOffice/Hancom interoperability checks.
+
 Format self-tests:
 
 ```bat

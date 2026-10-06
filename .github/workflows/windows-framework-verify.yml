@@ -1,0 +1,73 @@
+name: Windows Framework verification
+
+on:
+  push:
+    branches:
+      - main
+      - feature/office-foundation
+    paths:
+      - "src/**"
+      - "tools/**"
+      - "*.cmd"
+      - "PowerPointLite.exe.config"
+      - ".github/workflows/windows-framework-verify.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-framework-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show Framework compiler
+        shell: cmd
+        run: |
+          if exist "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" (
+            "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /version
+          ) else if exist "%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe" (
+            "%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe" /version
+          ) else (
+            echo .NET Framework csc.exe was not found.
+            exit /b 2
+          )
+
+      - name: Run pre-merge checks
+        shell: cmd
+        run: |
+          set PPLT_NO_PAUSE=1
+          call RUN_PREMERGE_CHECKS.cmd
+
+      - name: Upload portable build and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PowerPointLite-windows-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            PowerPointLite.exe
+            PowerPointLite.exe.config
+            TEST_WRITER_OUTPUT.pptx
+            TEST_RICHTEXT_OUTPUT.pptx
+            TEST_DOCX_OUTPUT.docx
+            TEST_XLSX_OUTPUT.xlsx
+            TEST_HWPX_OUTPUT.hwpx
+            TEST_ODT_OUTPUT.odt
+            TEST_ODS_OUTPUT.ods
+            TEST_ODP_OUTPUT.odp
+            TEST_SVG_RENDER.png
+            ANIMATION_SELFTEST_OUTPUT/**
+            PPTX_FIDELITY_SELFTEST_OUTPUT/**
+            PDF_SELFTEST_OUTPUT/**
+            CONVERSION_SELFTEST_OUTPUT/**
+            DOCUMENT_SAFETY_SELFTEST_OUTPUT/**
