@@ -1824,6 +1824,10 @@ namespace PptxViewer
                                 else if (lineJoin == "bevel")
                                     pen.LineJoin = LineJoin.Bevel;
 
+                                ApplySvgStrokeMiterLimit(
+                                    pen,
+                                    node);
+
                                 ApplySvgStrokeDashPattern(
                                     pen,
                                     node,
@@ -3749,6 +3753,47 @@ namespace PptxViewer
                     StringComparison.OrdinalIgnoreCase)
                     ? FillMode.Alternate
                     : FillMode.Winding;
+        }
+
+        private static void ApplySvgStrokeMiterLimit(
+            Pen pen,
+            XmlNode node)
+        {
+            if (pen == null)
+            {
+                return;
+            }
+
+            float limit =
+                4f;
+
+            if (node != null)
+            {
+                string raw =
+                    GetSvgStyleInherited(
+                        node,
+                        "stroke-miterlimit");
+
+                if (!string.IsNullOrEmpty(
+                        raw))
+                {
+                    float parsed =
+                        ParseSvgFloat(
+                            raw,
+                            4f);
+
+                    if (!float.IsNaN(parsed) &&
+                        !float.IsInfinity(parsed) &&
+                        parsed >= 1f)
+                    {
+                        limit =
+                            parsed;
+                    }
+                }
+            }
+
+            pen.MiterLimit =
+                limit;
         }
 
         private static bool ApplySvgStrokeDashPattern(
