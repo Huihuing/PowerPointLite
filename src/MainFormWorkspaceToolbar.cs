@@ -21,6 +21,10 @@ namespace PptxViewer
             workspaceToolbarButton.Top = 8;
             workspaceToolbarButton.Width = 84;
             workspaceToolbarButton.Height = 30;
+            workspaceToolbarButton.Tag = "Workspace";
+            workspaceToolbarButton.TextAlign = ContentAlignment.MiddleCenter;
+            workspaceToolbarButton.UseCompatibleTextRendering = true;
+            workspaceToolbarButton.Padding = new Padding(0, 1, 0, 0);
             ApplicationTheme.ApplyButton(workspaceToolbarButton);
             workspaceToolbarButton.Click += delegate
             {
@@ -28,22 +32,10 @@ namespace PptxViewer
             };
             toolbar.Controls.Add(workspaceToolbarButton);
 
-            // Keep the original viewer controls visible while adding a direct
-            // multi-format workspace entry. No Office/Hancom ribbon assets are
-            // copied; this uses the project's own flat WinForms theme.
-            for (int i = 0; i < toolbar.Controls.Count; i++)
-            {
-                Button button = toolbar.Controls[i] as Button;
-                if (button != null &&
-                    button != workspaceToolbarButton &&
-                    button.Text.StartsWith("Auto TOC", StringComparison.Ordinal))
-                {
-                    button.Left = 952;
-                }
-            }
-
-            zoomTrack.Left = 1042;
-            engineLabel.Left = 1202;
+            // Reflow the viewer toolbar after adding Workspace. The layout
+            // helper hides the redundant Auto TOC toolbar button while the
+            // same function remains available from the View menu.
+            LayoutViewerToolbar();
             workspaceToolbarButton.BringToFront();
         }
     }

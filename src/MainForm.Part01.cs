@@ -127,7 +127,9 @@ public sealed partial class MainForm : Form
             autoToc.Click += delegate
             {
                 autoHideSidebar = !autoHideSidebar;
-                autoToc.Text = autoHideSidebar ? "Auto TOC*" : "Auto TOC";
+                autoToc.Text = UiLocalization.Text(
+                    autoHideSidebar ? "Auto TOC*" : "Auto TOC");
+                LayoutViewerToolbar();
 
                 if (autoHideSidebar && !fullscreen)
                 {
@@ -161,9 +163,13 @@ public sealed partial class MainForm : Form
 
             engineLabel = new Label
             {
-                AutoSize = true,
+                AutoSize = false,
                 Left = 1116,
-                Top = 16,
+                Top = 13,
+                Width = 170,
+                Height = 22,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoEllipsis = true,
                 ForeColor = Color.Silver,
                 Text = "Engine: detecting..."
             };
@@ -409,7 +415,13 @@ public sealed partial class MainForm : Form
                 Height = 30,
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(42, 46, 54),
-                ForeColor = Color.WhiteSmoke
+                ForeColor = Color.WhiteSmoke,
+                TextAlign = ContentAlignment.MiddleCenter,
+                UseCompatibleTextRendering = true,
+                Padding = new Padding(0, 1, 0, 0),
+                AutoSize = false,
+                AutoEllipsis = true,
+                Tag = text
             };
             b.FlatAppearance.BorderColor = Color.FromArgb(62, 67, 78);
             toolbar.Controls.Add(b);
