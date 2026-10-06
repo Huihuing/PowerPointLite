@@ -176,6 +176,13 @@ namespace PptxViewer
             for (int i = 0; i < targets.Count; i++)
             {
                 XmlNode target = targets[i];
+
+                if (!IsAnimationBehaviorTarget(
+                        target))
+                {
+                    continue;
+                }
+
                 string shapeId = GetAttr(target, "spid");
                 if (string.IsNullOrEmpty(shapeId))
                     continue;
@@ -201,6 +208,39 @@ namespace PptxViewer
 
             BuildAnimationSteps(actions, timeline);
             return timeline;
+        }
+
+        private static bool IsAnimationBehaviorTarget(
+            XmlNode target)
+        {
+            XmlNode current =
+                target == null
+                    ? null
+                    : target.ParentNode;
+
+            while (current != null)
+            {
+                if (current.LocalName ==
+                    "cBhvr")
+                {
+                    return true;
+                }
+
+                if (current.LocalName ==
+                        "cond" ||
+                    current.LocalName ==
+                        "stCondLst" ||
+                    current.LocalName ==
+                        "timing")
+                {
+                    return false;
+                }
+
+                current =
+                    current.ParentNode;
+            }
+
+            return false;
         }
 
         private static AnimationActionSpec BuildAnimationAction(
