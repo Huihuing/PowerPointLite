@@ -517,7 +517,9 @@ namespace PptxViewer
                 "<a:glow rad=\"110000\"><a:srgbClr val=\"55A8FF\"><a:alpha val=\"65000\"/></a:srgbClr></a:glow>" +
                 "<a:softEdge rad=\"60000\"/>" +
                 "<a:reflection dist=\"50000\" sy=\"70000\" stA=\"42000\" endA=\"0\"/>" +
+                "<a:innerShdw blurRad=\"50000\" dist=\"24000\" dir=\"13500000\"><a:srgbClr val=\"101010\"><a:alpha val=\"50000\"/></a:srgbClr></a:innerShdw>" +
                 "</a:effectLst>" +
+                "<a:sp3d><a:bevelT w=\"90000\" h=\"70000\"/><a:bevelB w=\"50000\" h=\"50000\"/></a:sp3d>" +
                 "</a:spPr>");
 
             Dictionary<string, Color> theme =
@@ -568,6 +570,13 @@ namespace PptxViewer
                         path);
                 }
 
+                DrawShapePostFillEffects(
+                    graphics,
+                    shapeProperties.DocumentElement,
+                    path,
+                    rect,
+                    theme);
+
                 Color glowPixel =
                     bitmap.GetPixel(
                         120,
@@ -592,6 +601,91 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Shape reflection approximation did not render below the source path.");
+                }
+
+                HashSet<int> interiorBuckets =
+                    new HashSet<int>();
+
+                for (int y = (int)rect.Top + 3;
+                     y < (int)rect.Bottom - 3;
+                     y += 6)
+                {
+                    for (int x = (int)rect.Left + 3;
+                         x < (int)rect.Right - 3;
+                         x += 6)
+                    {
+                        Color pixel =
+                            bitmap.GetPixel(
+                                x,
+                                y);
+
+                        interiorBuckets.Add(
+                            ((pixel.R / 24) << 12) |
+                            ((pixel.G / 24) << 6) |
+                            (pixel.B / 24));
+                    }
+                }
+
+                if (interiorBuckets.Count < 3)
+                {
+                    throw new InvalidOperationException(
+                        "Inner-shadow / bevel post-fill approximation did not alter the shape interior.");
+                }
+
+                XmlDocument presetShadow =
+                    new XmlDocument();
+
+                presetShadow.LoadXml(
+                    "<a:spPr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                    "<a:solidFill><a:srgbClr val=\"55AA77\"/></a:solidFill>" +
+                    "<a:effectLst><a:prstShdw prst=\"shdw1\" dist=\"70000\" dir=\"2700000\">" +
+                    "<a:srgbClr val=\"202020\"><a:alpha val=\"50000\"/></a:srgbClr>" +
+                    "</a:prstShdw></a:effectLst></a:spPr>");
+
+                RectangleF presetRect =
+                    new RectangleF(
+                        385f,
+                        80f,
+                        95f,
+                        72f);
+
+                using (GraphicsPath presetPath =
+                    new GraphicsPath())
+                {
+                    presetPath.AddRectangle(
+                        presetRect);
+
+                    DrawShapeVisualEffects(
+                        graphics,
+                        presetShadow.DocumentElement,
+                        presetPath,
+                        presetRect,
+                        theme);
+
+                    using (Brush presetFill =
+                        new SolidBrush(
+                            Color.FromArgb(
+                                85,
+                                170,
+                                119)))
+                    {
+                        graphics.FillPath(
+                            presetFill,
+                            presetPath);
+                    }
+                }
+
+                Color presetShadowPixel =
+                    bitmap.GetPixel(
+                        486,
+                        158);
+
+                if (presetShadowPixel.R > 247 &&
+                    presetShadowPixel.G > 247 &&
+                    presetShadowPixel.B > 247)
+                {
+                    throw new InvalidOperationException(
+                        "Preset shadow approximation did not render outside the source shape.");
                 }
 
                 bitmap.Save(

@@ -72,6 +72,13 @@ namespace PptxViewer
                     if (!pictureFill && fillBrush != null)
                         g.FillPath(fillBrush, path);
 
+                    DrawShapePostFillEffects(
+                        g,
+                        spPr,
+                        path,
+                        rect,
+                        theme);
+
                     if (line.HasValue)
                     {
                         using (Pen pen = CreateLinePen(spPr, theme, line.Value))
