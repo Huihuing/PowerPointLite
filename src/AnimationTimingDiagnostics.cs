@@ -206,6 +206,8 @@ namespace PptxViewer
 
             bool foundTriggerShape =
                 false;
+            bool foundRoundedRectangle =
+                false;
 
             if (shapeRegions != null &&
                 shapeRegions.Count == 1)
@@ -288,7 +290,40 @@ namespace PptxViewer
                         foundTriggerShape =
                             centerHit &&
                             ellipseCornerMiss;
-                        break;
+                    }
+
+                    if (region != null &&
+                        region.ShapeId == "2" &&
+                        string.Equals(
+                            region.GeometryKind,
+                            "roundRect",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        float centerX =
+                            region.Bounds.Left +
+                            region.Bounds.Width *
+                            0.5f;
+                        float centerY =
+                            region.Bounds.Top +
+                            region.Bounds.Height *
+                            0.5f;
+
+                        bool centerHit =
+                            region.Contains(
+                                centerX,
+                                centerY);
+                        bool roundedCornerMiss =
+                            !region.Contains(
+                                region.Bounds.Left +
+                                    region.Bounds.Width *
+                                    0.01f,
+                                region.Bounds.Top +
+                                    region.Bounds.Height *
+                                    0.01f);
+
+                        foundRoundedRectangle =
+                            centerHit &&
+                            roundedCornerMiss;
                     }
                 }
             }
@@ -297,6 +332,12 @@ namespace PptxViewer
             {
                 throw new InvalidOperationException(
                     "Animation trigger ellipse geometry, rotation, or precise hit testing was not preserved.");
+            }
+
+            if (!foundRoundedRectangle)
+            {
+                throw new InvalidOperationException(
+                    "Rounded rectangle animation geometry or corner hit testing was not preserved.");
             }
 
             InternalPptxRenderer.SlideAnimationTimeline timeline = timelines[0];

@@ -60,81 +60,68 @@ internal static partial class InternalPptxRenderer
                     Bounds.Height *
                     0.5f;
 
+                float localX =
+                    x;
+                float localY =
+                    y;
+
                 if (Math.Abs(
-                        RotationDegrees) <
+                        RotationDegrees) >=
                     0.001f)
                 {
-                    if (string.Equals(
-                            GeometryKind,
-                            "ellipse",
-                            StringComparison.OrdinalIgnoreCase))
-                    {
-                        float radiusX =
-                            Bounds.Width *
-                            0.5f;
-                        float radiusY =
-                            Bounds.Height *
-                            0.5f;
+                    double radians =
+                        -RotationDegrees *
+                        Math.PI /
+                        180.0;
+                    double cosine =
+                        Math.Cos(
+                            radians);
+                    double sine =
+                        Math.Sin(
+                            radians);
 
-                        if (radiusX <= 0f ||
-                            radiusY <= 0f)
-                        {
-                            return false;
-                        }
+                    float dx =
+                        x -
+                        centerX;
+                    float dy =
+                        y -
+                        centerY;
 
-                        float ellipseX =
-                            (x -
-                             centerX) /
-                            radiusX;
-                        float ellipseY =
-                            (y -
-                             centerY) /
-                            radiusY;
-
-                        return ellipseX *
-                                ellipseX +
-                            ellipseY *
-                                ellipseY <=
-                            1f;
-                    }
-
-                    return Bounds.Contains(
-                        x,
-                        y);
+                    localX =
+                        centerX +
+                        (float)(
+                            dx *
+                            cosine -
+                            dy *
+                            sine);
+                    localY =
+                        centerY +
+                        (float)(
+                            dx *
+                            sine +
+                            dy *
+                            cosine);
                 }
 
-                double radians =
-                    -RotationDegrees *
-                    Math.PI /
-                    180.0;
-                double cosine =
-                    Math.Cos(
-                        radians);
-                double sine =
-                    Math.Sin(
-                        radians);
+                return ContainsLocal(
+                    localX,
+                    localY,
+                    centerX,
+                    centerY);
+            }
 
-                float dx =
-                    x -
-                    centerX;
-                float dy =
-                    y -
-                    centerY;
-
-                float localX =
-                    centerX +
-                    (float)(
-                        dx *
-                        cosine -
-                        dy *
-                        sine);
-                float localY =
-                    centerY +
-                    (float)(
-                        dx *
-                        sine +
-                        dy *
-                        cosine);
+            private bool ContainsLocal(
+                float x,
+                float y,
+                float centerX,
+                float centerY)
+            {
+                if (!Bounds.Contains(
+                        x,
+                        y))
+                {
+                    return false;
+                }
 
                 if (string.Equals(
                         GeometryKind,
@@ -155,11 +142,11 @@ internal static partial class InternalPptxRenderer
                     }
 
                     float ellipseX =
-                        (localX -
+                        (x -
                          centerX) /
                         radiusX;
                     float ellipseY =
-                        (localY -
+                        (y -
                          centerY) /
                         radiusY;
 
@@ -170,9 +157,71 @@ internal static partial class InternalPptxRenderer
                         1f;
                 }
 
-                return Bounds.Contains(
-                    localX,
-                    localY);
+                if (string.Equals(
+                        GeometryKind,
+                        "roundRect",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    float radius =
+                        Math.Min(
+                            Bounds.Width,
+                            Bounds.Height) *
+                        0.16667f;
+
+                    if (radius <= 0.0001f)
+                        return true;
+
+                    if (x >=
+                            Bounds.Left +
+                            radius &&
+                        x <=
+                            Bounds.Right -
+                            radius)
+                    {
+                        return true;
+                    }
+
+                    if (y >=
+                            Bounds.Top +
+                            radius &&
+                        y <=
+                            Bounds.Bottom -
+                            radius)
+                    {
+                        return true;
+                    }
+
+                    float cornerX =
+                        x <
+                            centerX
+                            ? Bounds.Left +
+                              radius
+                            : Bounds.Right -
+                              radius;
+                    float cornerY =
+                        y <
+                            centerY
+                            ? Bounds.Top +
+                              radius
+                            : Bounds.Bottom -
+                              radius;
+
+                    float dx =
+                        x -
+                        cornerX;
+                    float dy =
+                        y -
+                        cornerY;
+
+                    return dx *
+                            dx +
+                        dy *
+                            dy <=
+                        radius *
+                        radius;
+                }
+
+                return true;
             }
         }
 
@@ -820,16 +869,26 @@ internal static partial class InternalPptxRenderer
                         child,
                         "prstGeom");
 
-                string geometryKind =
-                    presetGeometry != null &&
-                    string.Equals(
-                        GetAttr(
+                string presetName =
+                    presetGeometry == null
+                        ? string.Empty
+                        : GetAttr(
                             presetGeometry,
-                            "prst"),
+                            "prst") ??
+                          string.Empty;
+
+                string geometryKind =
+                    string.Equals(
+                        presetName,
                         "ellipse",
                         StringComparison.OrdinalIgnoreCase)
                         ? "ellipse"
-                        : "rect";
+                        : string.Equals(
+                              presetName,
+                              "roundRect",
+                              StringComparison.OrdinalIgnoreCase)
+                            ? "roundRect"
+                            : "rect";
 
                 regions.Add(
                     new ShapeRegion
