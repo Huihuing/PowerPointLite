@@ -5717,6 +5717,10 @@ namespace PptxViewer
                         !string.Equals(
                             op,
                             "xor",
+                            StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(
+                            op,
+                            "atop",
                             StringComparison.OrdinalIgnoreCase))
                     {
                         return false;
@@ -5780,6 +5784,10 @@ namespace PptxViewer
                      string.Equals(
                          blendMode,
                          "xor",
+                         StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(
+                         blendMode,
+                         "atop",
                          StringComparison.OrdinalIgnoreCase)) &&
                     !secondIsChain)
                 {
@@ -6036,6 +6044,26 @@ namespace PptxViewer
                     StringComparison.OrdinalIgnoreCase))
             {
                 DrawSvgCompositeXorApproximation(
+                    g,
+                    path,
+                    offsetX,
+                    offsetY,
+                    hasSolidFill,
+                    fillAlpha,
+                    fill,
+                    strokeAlpha,
+                    stroke,
+                    strokeWidth);
+                return true;
+            }
+
+            if (blendSourceGraphic &&
+                string.Equals(
+                    blendMode,
+                    "atop",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                DrawSvgCompositeAtopApproximation(
                     g,
                     path,
                     offsetX,
@@ -6656,6 +6684,68 @@ namespace PptxViewer
                     {
                         g.Restore(
                             state);
+                    }
+                }
+            }
+        }
+
+        private static void DrawSvgCompositeAtopApproximation(
+            Graphics g,
+            GraphicsPath sourcePath,
+            float offsetX,
+            float offsetY,
+            bool hasSolidFill,
+            int fillAlpha,
+            Color fill,
+            int strokeAlpha,
+            Color stroke,
+            float strokeWidth)
+        {
+            if (g == null ||
+                sourcePath == null ||
+                sourcePath.PointCount == 0)
+            {
+                return;
+            }
+
+            using (GraphicsPath shifted =
+                (GraphicsPath)sourcePath.Clone())
+            using (Matrix translation =
+                new Matrix())
+            {
+                translation.Translate(
+                    offsetX,
+                    offsetY);
+                shifted.Transform(
+                    translation);
+
+                if (hasSolidFill &&
+                    fillAlpha > 0)
+                {
+                    using (Brush brush =
+                        new SolidBrush(
+                            Color.FromArgb(
+                                fillAlpha,
+                                fill)))
+                    {
+                        g.FillPath(
+                            brush,
+                            shifted);
+                    }
+                }
+
+                if (strokeAlpha > 0)
+                {
+                    using (Pen pen =
+                        new Pen(
+                            Color.FromArgb(
+                                strokeAlpha,
+                                stroke),
+                            strokeWidth))
+                    {
+                        g.DrawPath(
+                            pen,
+                            shifted);
                     }
                 }
             }
