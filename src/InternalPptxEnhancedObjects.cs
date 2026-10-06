@@ -5347,6 +5347,15 @@ namespace PptxViewer
                 return rgbColor;
             }
 
+            Color hslColor;
+
+            if (TryParseSvgHslColor(
+                    raw,
+                    out hslColor))
+            {
+                return hslColor;
+            }
+
             Color named =
                 Color.FromName(raw);
 
@@ -5582,6 +5591,392 @@ namespace PptxViewer
                         255,
                         (int)Math.Round(
                             channel)));
+
+            return true;
+        }
+
+        private static bool TryParseSvgHslColor(
+            string raw,
+            out Color color)
+        {
+            color =
+                Color.Empty;
+
+            if (string.IsNullOrEmpty(raw))
+                return false;
+
+            raw =
+                raw.Trim();
+
+            bool hsl =
+                raw.StartsWith(
+                    "hsl(",
+                    StringComparison.OrdinalIgnoreCase);
+            bool hsla =
+                raw.StartsWith(
+                    "hsla(",
+                    StringComparison.OrdinalIgnoreCase);
+
+            if (!hsl &&
+                !hsla)
+            {
+                return false;
+            }
+
+            int open =
+                raw.IndexOf('(');
+            int close =
+                raw.LastIndexOf(')');
+
+            if (open < 0 ||
+                close <= open)
+            {
+                return false;
+            }
+
+            string body =
+                raw.Substring(
+                    open + 1,
+                    close -
+                    open -
+                    1)
+                .Trim();
+
+            if (body.StartsWith(
+                    "from ",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            body =
+                body.Replace(
+                    ",",
+                    " ")
+                .Replace(
+                    "/",
+                    " / ");
+
+            string[] tokens =
+                body.Split(
+                    new char[]
+                    {
+                        ' ',
+                        '\t',
+                        '\r',
+                        '\n'
+                    },
+                    StringSplitOptions.RemoveEmptyEntries);
+
+            List<string> components =
+                new List<string>();
+            string alphaToken =
+                null;
+            bool afterSlash =
+                false;
+
+            for (int i = 0;
+                 i < tokens.Length;
+                 i++)
+            {
+                string token =
+                    tokens[i];
+
+                if (token == "/")
+                {
+                    afterSlash =
+                        true;
+                    continue;
+                }
+
+                if (afterSlash)
+                {
+                    if (alphaToken == null)
+                    {
+                        alphaToken =
+                            token;
+                    }
+
+                    continue;
+                }
+
+                components.Add(
+                    token);
+            }
+
+            if (components.Count == 4 &&
+                alphaToken == null)
+            {
+                alphaToken =
+                    components[3];
+                components.RemoveAt(3);
+            }
+
+            if (components.Count != 3)
+                return false;
+
+            float hue;
+            float saturation;
+            float lightness;
+
+            if (!TryParseSvgHue(
+                    components[0],
+                    out hue) ||
+                !TryParseSvgPercentComponent(
+                    components[1],
+                    out saturation) ||
+                !TryParseSvgPercentComponent(
+                    components[2],
+                    out lightness))
+            {
+                return false;
+            }
+
+            int alpha =
+                255;
+
+            if (!string.IsNullOrEmpty(
+                    alphaToken) &&
+                !TryParseSvgAlphaChannel(
+                    alphaToken,
+                    out alpha))
+            {
+                return false;
+            }
+
+            float chroma =
+                (1f -
+                 Math.Abs(
+                     2f *
+                     lightness -
+                     1f)) *
+                saturation;
+            float hueSection =
+                hue /
+                60f;
+            float x =
+                chroma *
+                (1f -
+                 Math.Abs(
+                     hueSection %
+                     2f -
+                     1f));
+
+            float r1 = 0f;
+            float g1 = 0f;
+            float b1 = 0f;
+
+            if (hueSection < 1f)
+            {
+                r1 = chroma;
+                g1 = x;
+            }
+            else if (hueSection < 2f)
+            {
+                r1 = x;
+                g1 = chroma;
+            }
+            else if (hueSection < 3f)
+            {
+                g1 = chroma;
+                b1 = x;
+            }
+            else if (hueSection < 4f)
+            {
+                g1 = x;
+                b1 = chroma;
+            }
+            else if (hueSection < 5f)
+            {
+                r1 = x;
+                b1 = chroma;
+            }
+            else
+            {
+                r1 = chroma;
+                b1 = x;
+            }
+
+            float match =
+                lightness -
+                chroma /
+                2f;
+
+            int red =
+                Math.Max(
+                    0,
+                    Math.Min(
+                        255,
+                        (int)Math.Round(
+                            (r1 + match) *
+                            255f)));
+            int green =
+                Math.Max(
+                    0,
+                    Math.Min(
+                        255,
+                        (int)Math.Round(
+                            (g1 + match) *
+                            255f)));
+            int blue =
+                Math.Max(
+                    0,
+                    Math.Min(
+                        255,
+                        (int)Math.Round(
+                            (b1 + match) *
+                            255f)));
+
+            color =
+                Color.FromArgb(
+                    alpha,
+                    red,
+                    green,
+                    blue);
+
+            return true;
+        }
+
+        private static bool TryParseSvgHue(
+            string raw,
+            out float degrees)
+        {
+            degrees = 0f;
+
+            if (string.IsNullOrEmpty(raw))
+                return false;
+
+            raw =
+                raw.Trim();
+
+            if (string.Equals(
+                    raw,
+                    "none",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            float multiplier =
+                1f;
+
+            if (raw.EndsWith(
+                    "turn",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                multiplier = 360f;
+                raw =
+                    raw.Substring(
+                        0,
+                        raw.Length - 4);
+            }
+            else if (raw.EndsWith(
+                    "grad",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                multiplier = 0.9f;
+                raw =
+                    raw.Substring(
+                        0,
+                        raw.Length - 4);
+            }
+            else if (raw.EndsWith(
+                    "rad",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                multiplier =
+                    180f /
+                    (float)Math.PI;
+                raw =
+                    raw.Substring(
+                        0,
+                        raw.Length - 3);
+            }
+            else if (raw.EndsWith(
+                    "deg",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                raw =
+                    raw.Substring(
+                        0,
+                        raw.Length - 3);
+            }
+
+            float parsed =
+                ParseSvgFloat(
+                    raw,
+                    float.NaN);
+
+            if (float.IsNaN(parsed) ||
+                float.IsInfinity(parsed))
+            {
+                return false;
+            }
+
+            degrees =
+                parsed *
+                multiplier;
+
+            degrees =
+                degrees %
+                360f;
+
+            if (degrees < 0f)
+                degrees += 360f;
+
+            return true;
+        }
+
+        private static bool TryParseSvgPercentComponent(
+            string raw,
+            out float value)
+        {
+            value = 0f;
+
+            if (string.IsNullOrEmpty(raw))
+                return false;
+
+            raw =
+                raw.Trim();
+
+            if (string.Equals(
+                    raw,
+                    "none",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            bool percent =
+                raw.EndsWith(
+                    "%",
+                    StringComparison.Ordinal);
+
+            string number =
+                percent
+                    ? raw.Substring(
+                        0,
+                        raw.Length - 1)
+                    : raw;
+
+            float parsed =
+                ParseSvgFloat(
+                    number,
+                    float.NaN);
+
+            if (float.IsNaN(parsed) ||
+                float.IsInfinity(parsed))
+            {
+                return false;
+            }
+
+            value =
+                Math.Max(
+                    0f,
+                    Math.Min(
+                        1f,
+                        parsed /
+                        100f));
 
             return true;
         }
