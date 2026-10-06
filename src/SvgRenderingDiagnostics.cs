@@ -41,11 +41,13 @@ namespace PptxViewer
                 "</pattern>" +
                 "<mask id=\"mask\"><circle cx=\"158\" cy=\"88\" r=\"24\" fill=\"white\"/></mask>" +
                 "<filter id=\"softBlur\"><feGaussianBlur in=\"SourceGraphic\" stdDeviation=\"3\"/></filter>" +
+                "<filter id=\"dropShadow\"><feDropShadow in=\"SourceGraphic\" dx=\"2\" dy=\"1.5\" stdDeviation=\"1\" flood-color=\"#2244aa\" flood-opacity=\"0.7\"/></filter>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<circle cx=\"154\" cy=\"28\" r=\"18\" fill=\"url(#g)\" transform=\"skewX(8)\"/>" +
                 "<rect x=\"8\" y=\"6\" width=\"48\" height=\"22\" fill=\"#1677d2\" clip-path=\"url(#nestedClip)\"/>" +
                 "<rect id=\"blurRect\" x=\"88\" y=\"14\" width=\"24\" height=\"18\" fill=\"#d62728\" filter=\"url(#softBlur)\"/>" +
+                "<rect id=\"shadowRect\" x=\"78\" y=\"8\" width=\"6\" height=\"8\" fill=\"#f5c842\" filter=\"url(#dropShadow)\"/>" +
                 "<path d=\"M 12 52 C 30 38 42 68 60 52 S 90 38 108 52 Q 126 70 142 52 T 184 52\" fill=\"none\" stroke=\"#6f42a8\" stroke-width=\"2\"/>" +
                 "<rect x=\"18\" y=\"66\" width=\"60\" height=\"42\" fill=\"url(#pat)\"/>" +
                 "<rect x=\"124\" y=\"64\" width=\"68\" height=\"48\" fill=\"#29b36b\" mask=\"url(#mask)\"/>" +
@@ -119,6 +121,48 @@ namespace PptxViewer
             {
                 throw new InvalidOperationException(
                     "SVG feGaussianBlur stdDeviation was not parsed correctly.");
+            }
+
+            XmlNode shadowRect =
+                FindSvgNodeById(
+                    document,
+                    "shadowRect");
+
+            float shadowOffsetX;
+            float shadowOffsetY;
+            float shadowBlurX;
+            float shadowBlurY;
+            Color parsedShadowColor;
+
+            if (!TryReadSvgDropShadow(
+                    shadowRect,
+                    document,
+                    4f,
+                    4f,
+                    out shadowOffsetX,
+                    out shadowOffsetY,
+                    out shadowBlurX,
+                    out shadowBlurY,
+                    out parsedShadowColor) ||
+                Math.Abs(
+                    shadowOffsetX -
+                    8f) > 0.1f ||
+                Math.Abs(
+                    shadowOffsetY -
+                    6f) > 0.1f ||
+                Math.Abs(
+                    shadowBlurX -
+                    4f) > 0.1f ||
+                Math.Abs(
+                    shadowBlurY -
+                    4f) > 0.1f ||
+                parsedShadowColor.B <
+                    130 ||
+                parsedShadowColor.A <
+                    150)
+            {
+                throw new InvalidOperationException(
+                    "SVG feDropShadow parameters were not parsed correctly.");
             }
 
             using (Bitmap bitmap =
@@ -217,6 +261,42 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Nested transformed SVG clipPath geometry was not positioned correctly.");
+                }
+
+                bool foundDropShadow =
+                    false;
+
+                for (int y = 42;
+                     y <= 72 &&
+                     !foundDropShadow;
+                     y += 2)
+                {
+                    for (int x = 336;
+                         x <= 352;
+                         x += 2)
+                    {
+                        Color shadowPixel =
+                            bitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (shadowPixel.B -
+                                shadowPixel.R >= 8 &&
+                            shadowPixel.B -
+                                shadowPixel.G >= 3 &&
+                            shadowPixel.B < 252)
+                        {
+                            foundDropShadow =
+                                true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!foundDropShadow)
+                {
+                    throw new InvalidOperationException(
+                        "SVG feDropShadow approximation did not render the configured shadow.");
                 }
 
                 bool foundBlurHalo =

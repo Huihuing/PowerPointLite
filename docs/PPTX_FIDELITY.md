@@ -61,6 +61,7 @@ Microsoft PowerPoint (설치된 경우)
   - clipPathUnits="objectBoundingBox" 기본 반영
   - clipPath/mask 내부 nested group/geometry transform 누적 반영
   - filter="url(#...)"의 단일 feGaussianBlur(SourceGraphic) stdDeviation 기본 근사
+  - 단일 feDropShadow(SourceGraphic)의 dx/dy/stdDeviation/flood-color/flood-opacity 기본 근사
 - shape
   - 기본 Office preset
   - custom geometry의 line / cubic / quadratic / arcTo path
@@ -182,7 +183,7 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 - SmartArt 고유 layout algorithm의 세부 spacing/assistant/routing semantics
 - chart의 모든 axis/style/data-label/3D 조합
 - theme effect style 참조 전체 및 복합 shadow/effect 조합
-- feGaussianBlur 외의 SVG filter chain 및 복잡한 mask luminance/gradient 등 고급 SVG 기능
+- feGaussianBlur/feDropShadow 외의 SVG filter chain 및 복잡한 mask luminance/gradient 등 고급 SVG 기능
 - artisticBlur 외의 artistic preset 등 고급 image artistic effects
 - 3D material/lighting, camera projection 및 bevel/extrusion profile의 정확한 PowerPoint parity
 - custom geometry의 복잡한 nested guide 의존성, 모든 preset formula/adjust-handle semantics
