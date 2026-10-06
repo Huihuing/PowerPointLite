@@ -13,6 +13,7 @@ obj/
 # Generated structural self-test outputs
 TEST_WRITER_OUTPUT.pptx
 TEST_RICHTEXT_OUTPUT.pptx
+TEST_SVG_RENDER.png
 TEST_DOCX_OUTPUT.docx
 TEST_XLSX_OUTPUT.xlsx
 TEST_HWPX_OUTPUT.hwpx

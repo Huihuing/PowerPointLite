@@ -43,6 +43,8 @@ namespace PptxViewer
                     return;
                 if (TryRunAnimationSelfTest(args))
                     return;
+                if (TryRunSvgSelfTest(args))
+                    return;
                 if (TryRunDocxSelfTest(args))
                     return;
                 if (TryRunXlsxSelfTest(args))
@@ -94,6 +96,7 @@ namespace PptxViewer
 
             return string.Equals(args[0], "--writer-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--animation-selftest", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(args[0], "--svg-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--docx-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--xlsx-selftest", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[0], "--hwpx-selftest", StringComparison.OrdinalIgnoreCase) ||
@@ -146,6 +149,26 @@ namespace PptxViewer
             Environment.ExitCode = 0;
             CrashReporter.WriteLine(
                 "PPTX animation timing self-test passed: " + outputDirectory);
+            return true;
+        }
+
+        private static bool TryRunSvgSelfTest(string[] args)
+        {
+            if (!MatchesCommand(args, "--svg-selftest"))
+                return false;
+
+            string outputPath =
+                ResolveOutputFile(
+                    args,
+                    "TEST_SVG_RENDER.png");
+
+            InternalPptxRenderer.ValidateSvgRendering(
+                outputPath);
+
+            Environment.ExitCode = 0;
+            CrashReporter.WriteLine(
+                "SVG rendering self-test passed: " +
+                outputPath);
             return true;
         }
 

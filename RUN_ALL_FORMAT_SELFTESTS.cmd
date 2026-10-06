@@ -11,7 +11,7 @@ if not exist "PowerPointLite.exe" (
 
 echo ==========================================
 echo PowerPointLite structural self-tests
-echo PPTX / Animation / DOCX / XLSX / HWPX / HWP
+echo PPTX / Animation / SVG / DOCX / XLSX / HWPX / HWP
 echo ODT / ODS / ODP / PDF / Conversion
 echo Font licensing / document safety
 echo ==========================================
@@ -29,6 +29,16 @@ if errorlevel 1 (
   goto :failed
 )
 echo [OK] PPTX animation timing process completed
+echo.
+
+echo [RUN] SVG rendering
+if exist "TEST_SVG_RENDER.png" del /q "TEST_SVG_RENDER.png"
+"PowerPointLite.exe" --svg-selftest "%CD%\TEST_SVG_RENDER.png"
+if errorlevel 1 (
+  echo [FAIL] SVG rendering
+  goto :failed
+)
+echo [OK] SVG rendering process completed
 echo.
 
 call :run --docx-selftest "TEST_DOCX_OUTPUT.docx" "DOCX"

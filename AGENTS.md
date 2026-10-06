@@ -134,6 +134,7 @@ PPTX diagnostics:
 src/PptxWriterDiagnostics.cs
 src/PptxRichTextDiagnostics.cs
 src/AnimationTimingDiagnostics.cs
+src/SvgRenderingDiagnostics.cs
 ```
 
 Text documents:
@@ -228,6 +229,7 @@ Format self-tests:
 RUN_ALL_FORMAT_SELFTESTS.cmd
 RUN_WRITER_SELFTEST.cmd
 RUN_ANIMATION_SELFTEST.cmd
+RUN_SVG_SELFTEST.cmd
 RUN_DOCX_SELFTEST.cmd
 RUN_XLSX_SELFTEST.cmd
 RUN_HWPX_SELFTEST.cmd
@@ -301,14 +303,14 @@ Current Internal OpenXML renderer now includes:
 - additional preset/custom shapes
 - nested group transforms with rotate/flip approximation
 - picture crop/alpha/grayscale/bi-level/brightness/contrast approximation
-- SVG path support for M/L/H/V/C/Q/Z commands
+- SVG mixed primitives, M/L/H/V/C/Q/A/Z paths, basic gradients, clipPath and transform support
 - additional chart families: doughnut, area, scatter, bubble, radar
 - SmartArt data-model hierarchy approximation
 - `mc:AlternateContent` fallback preparation without modifying the original PPTX
 - animation timeline parsing for entrance/exit/emphasis/motion, on-click/with-previous/after-previous, delay, duration, repeat, auto-reverse
 - slide `advTm` / `advClick` / loop/useTimings integration
 
-Do not claim pixel-identical PowerPoint rendering. SmartArt native layout, all chart style/3D combinations, advanced SVG filters/arcs, 3D effects, exact motion paths/easing, every timing-tree edge case, and Morph object matching remain approximations or fallbacks.
+Do not claim pixel-identical PowerPoint rendering. SmartArt native layout, all chart style/3D combinations, advanced SVG filters/masks/patterns, 3D effects, exact motion paths/easing, every timing-tree edge case, and Morph object matching remain approximations or fallbacks.
 
 Viewer rendering support does not imply Editor round-trip safety. Keep `PptxEditableReader` deny-by-default behavior for unsupported external documents.
 
