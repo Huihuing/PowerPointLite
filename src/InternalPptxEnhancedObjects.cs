@@ -5483,13 +5483,15 @@ namespace PptxViewer
             out float offsetY,
             out float blurX,
             out float blurY,
-            out bool blendSourceGraphic)
+            out bool blendSourceGraphic,
+            out string blendMode)
         {
             offsetX = 0f;
             offsetY = 0f;
             blurX = 0f;
             blurY = 0f;
             blendSourceGraphic = false;
+            blendMode = string.Empty;
 
             if (node == null ||
                 document == null)
@@ -5652,15 +5654,27 @@ namespace PptxViewer
                             blend,
                             "mode");
 
-                    if (!string.IsNullOrEmpty(
-                            mode) &&
-                        !string.Equals(
+                    if (string.IsNullOrEmpty(
+                            mode))
+                    {
+                        mode =
+                            "normal";
+                    }
+
+                    if (!string.Equals(
                             mode,
                             "normal",
+                            StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(
+                            mode,
+                            "multiply",
                             StringComparison.OrdinalIgnoreCase))
                     {
                         return false;
                     }
+
+                    blendMode =
+                        mode.ToLowerInvariant();
                 }
                 else
                 {
@@ -5678,6 +5692,9 @@ namespace PptxViewer
                     {
                         return false;
                     }
+
+                    blendMode =
+                        "over";
                 }
 
                 string secondResult =
@@ -5826,6 +5843,7 @@ namespace PptxViewer
             float blurX;
             float blurY;
             bool blendSourceGraphic;
+            string blendMode;
 
             if (!TryReadSvgOffsetGaussianChain(
                     node,
@@ -5836,7 +5854,8 @@ namespace PptxViewer
                     out offsetY,
                     out blurX,
                     out blurY,
-                    out blendSourceGraphic))
+                    out blendSourceGraphic,
+                    out blendMode))
             {
                 return false;
             }
@@ -5999,6 +6018,24 @@ namespace PptxViewer
                                 sourcePen,
                                 path);
                         }
+                    }
+
+                    if (string.Equals(
+                            blendMode,
+                            "multiply",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        DrawSvgMultiplyOverlapApproximation(
+                            g,
+                            path,
+                            offsetX,
+                            offsetY,
+                            hasSolidFill,
+                            fillAlpha,
+                            fill,
+                            strokeAlpha,
+                            stroke,
+                            strokeWidth);
                     }
                 }
 
@@ -6164,9 +6201,134 @@ namespace PptxViewer
                             path);
                     }
                 }
+
+                if (string.Equals(
+                        blendMode,
+                        "multiply",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    DrawSvgMultiplyOverlapApproximation(
+                        g,
+                        path,
+                        offsetX,
+                        offsetY,
+                        hasSolidFill,
+                        fillAlpha,
+                        fill,
+                        strokeAlpha,
+                        stroke,
+                        strokeWidth);
+                }
             }
 
             return true;
+        }
+
+        private static void DrawSvgMultiplyOverlapApproximation(
+            Graphics g,
+            GraphicsPath sourcePath,
+            float offsetX,
+            float offsetY,
+            bool hasSolidFill,
+            int fillAlpha,
+            Color fill,
+            int strokeAlpha,
+            Color stroke,
+            float strokeWidth)
+        {
+            if (g == null ||
+                sourcePath == null ||
+                sourcePath.PointCount == 0)
+            {
+                return;
+            }
+
+            using (GraphicsPath shifted =
+                (GraphicsPath)sourcePath.Clone())
+            using (Matrix translation =
+                new Matrix())
+            {
+                translation.Translate(
+                    offsetX,
+                    offsetY);
+                shifted.Transform(
+                    translation);
+
+                using (Region overlap =
+                    new Region(
+                        sourcePath))
+                {
+                    overlap.Intersect(
+                        shifted);
+
+                    GraphicsState state =
+                        g.Save();
+
+                    try
+                    {
+                        g.SetClip(
+                            overlap,
+                            CombineMode.Intersect);
+
+                        if (hasSolidFill &&
+                            fillAlpha > 0)
+                        {
+                            Color multipliedFill =
+                                Color.FromArgb(
+                                    fillAlpha,
+                                    fill.R *
+                                        fill.R /
+                                        255,
+                                    fill.G *
+                                        fill.G /
+                                        255,
+                                    fill.B *
+                                        fill.B /
+                                        255);
+
+                            using (Brush brush =
+                                new SolidBrush(
+                                    multipliedFill))
+                            {
+                                g.FillPath(
+                                    brush,
+                                    sourcePath);
+                            }
+                        }
+
+                        if (strokeAlpha > 0)
+                        {
+                            Color multipliedStroke =
+                                Color.FromArgb(
+                                    strokeAlpha,
+                                    stroke.R *
+                                        stroke.R /
+                                        255,
+                                    stroke.G *
+                                        stroke.G /
+                                        255,
+                                    stroke.B *
+                                        stroke.B /
+                                        255);
+
+                            using (Pen pen =
+                                new Pen(
+                                    multipliedStroke,
+                                    strokeWidth))
+                            {
+                                g.DrawPath(
+                                    pen,
+                                    sourcePath);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        g.Restore(
+                            state);
+                    }
+                }
+            }
         }
 
         private static bool TryReadStandaloneSvgOffset(

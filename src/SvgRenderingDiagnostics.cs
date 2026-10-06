@@ -53,6 +53,7 @@ namespace PptxViewer
                 "<filter id=\"offsetOnly\"><feOffset in=\"SourceGraphic\" dx=\"3\" dy=\"3\"/></filter>" +
                 "<filter id=\"offsetBlurChain\"><feOffset in=\"SourceGraphic\" dx=\"8\" dy=\"2\" result=\"shifted\"/><feGaussianBlur in=\"shifted\" stdDeviation=\"1\"/></filter>" +
                 "<filter id=\"offsetBlurBlend\"><feOffset in=\"SourceGraphic\" dx=\"8\" dy=\"2\" result=\"shifted2\"/><feGaussianBlur in=\"shifted2\" stdDeviation=\"1\" result=\"blurred2\"/><feBlend in=\"blurred2\" in2=\"SourceGraphic\" mode=\"normal\"/></filter>" +
+                "<filter id=\"offsetBlurMultiply\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedMul\"/><feGaussianBlur in=\"shiftedMul\" stdDeviation=\"0.6\" result=\"blurredMul\"/><feBlend in=\"SourceGraphic\" in2=\"blurredMul\" mode=\"multiply\"/></filter>" +
                 "<filter id=\"offsetBlurComposite\"><feOffset in=\"SourceGraphic\" dx=\"8\" dy=\"2\" result=\"shifted3\"/><feGaussianBlur in=\"shifted3\" stdDeviation=\"1\" result=\"blurred3\"/><feComposite in=\"SourceGraphic\" in2=\"blurred3\" operator=\"over\"/></filter>" +
                 "<filter id=\"swapRedBlue\"><feColorMatrix in=\"SourceGraphic\" type=\"matrix\" values=\"0 0 1 0 0  0 1 0 0 0  1 0 0 0 0  0 0 0 1 0\"/></filter>" +
                 "<filter id=\"desaturate\"><feColorMatrix in=\"SourceGraphic\" type=\"saturate\" values=\"0\"/></filter>" +
@@ -60,6 +61,7 @@ namespace PptxViewer
                 "<filter id=\"lumaAlpha\"><feColorMatrix in=\"SourceGraphic\" type=\"luminanceToAlpha\"/></filter>" +
                 "<rect id=\"offsetBlurBlendRect\" x=\"2\" y=\"12\" width=\"8\" height=\"6\" fill=\"#d64545\" filter=\"url(#offsetBlurBlend)\"/>" +
                 "<rect id=\"offsetBlurCompositeRect\" x=\"2\" y=\"22\" width=\"8\" height=\"6\" fill=\"#3f7fd1\" filter=\"url(#offsetBlurComposite)\"/>" +
+                "<rect id=\"offsetBlurMultiplyRect\" x=\"2\" y=\"32\" width=\"8\" height=\"6\" fill=\"#80c060\" filter=\"url(#offsetBlurMultiply)\"/>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<g color=\"hsl(326deg 53% 50% / 100%)\"><use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" color=\"inherit\" fill=\"currentColor\"/></g>" +
@@ -402,6 +404,7 @@ namespace PptxViewer
             float chainBlurX;
             float chainBlurY;
             bool chainBlendSource;
+            string chainBlendMode;
 
             if (!TryReadSvgOffsetGaussianChain(
                     offsetBlurChainRect,
@@ -412,7 +415,8 @@ namespace PptxViewer
                     out chainOffsetY,
                     out chainBlurX,
                     out chainBlurY,
-                    out chainBlendSource) ||
+                    out chainBlendSource,
+                    out chainBlendMode) ||
                 Math.Abs(
                     chainOffsetX -
                     32f) > 0.1f ||
@@ -425,7 +429,9 @@ namespace PptxViewer
                 Math.Abs(
                     chainBlurY -
                     4f) > 0.1f ||
-                chainBlendSource)
+                chainBlendSource ||
+                !string.IsNullOrEmpty(
+                    chainBlendMode))
             {
                 throw new InvalidOperationException(
                     "SVG feOffset/feGaussianBlur filter chain was not parsed correctly.");
@@ -511,6 +517,7 @@ namespace PptxViewer
             float blendBlurX;
             float blendBlurY;
             bool blendSourceGraphic;
+            string normalBlendMode;
 
             if (!TryReadSvgOffsetGaussianChain(
                     offsetBlurBlendRect,
@@ -521,8 +528,10 @@ namespace PptxViewer
                     out blendOffsetY,
                     out blendBlurX,
                     out blendBlurY,
-                    out blendSourceGraphic) ||
-                !blendSourceGraphic)
+                    out blendSourceGraphic,
+                    out normalBlendMode) ||
+                !blendSourceGraphic ||
+                normalBlendMode != "normal")
             {
                 throw new InvalidOperationException(
                     "SVG feOffset/feGaussianBlur/feBlend filter chain was not parsed correctly.");
@@ -610,6 +619,7 @@ namespace PptxViewer
             float compositeBlurX;
             float compositeBlurY;
             bool compositeSourceGraphic;
+            string compositeBlendMode;
 
             if (!TryReadSvgOffsetGaussianChain(
                     offsetBlurCompositeRect,
@@ -620,8 +630,10 @@ namespace PptxViewer
                     out compositeOffsetY,
                     out compositeBlurX,
                     out compositeBlurY,
-                    out compositeSourceGraphic) ||
-                !compositeSourceGraphic)
+                    out compositeSourceGraphic,
+                    out compositeBlendMode) ||
+                !compositeSourceGraphic ||
+                compositeBlendMode != "over")
             {
                 throw new InvalidOperationException(
                     "SVG feOffset/feGaussianBlur/feComposite over chain was not parsed correctly.");
@@ -693,6 +705,91 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "SVG feComposite over chain did not preserve SourceGraphic with the filtered result.");
+                }
+            }
+
+            XmlNode offsetBlurMultiplyRect =
+                FindSvgNodeById(
+                    document,
+                    "offsetBlurMultiplyRect");
+
+            float multiplyOffsetX;
+            float multiplyOffsetY;
+            float multiplyBlurX;
+            float multiplyBlurY;
+            bool multiplySourceGraphic;
+            string multiplyMode;
+
+            if (!TryReadSvgOffsetGaussianChain(
+                    offsetBlurMultiplyRect,
+                    document,
+                    4f,
+                    4f,
+                    out multiplyOffsetX,
+                    out multiplyOffsetY,
+                    out multiplyBlurX,
+                    out multiplyBlurY,
+                    out multiplySourceGraphic,
+                    out multiplyMode) ||
+                !multiplySourceGraphic ||
+                multiplyMode != "multiply")
+            {
+                throw new InvalidOperationException(
+                    "SVG multiply feBlend chain was not parsed correctly.");
+            }
+
+            using (GraphicsPath multiplyPath =
+                BuildEnhancedSvgElementPath(
+                    offsetBlurMultiplyRect,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        160f,
+                        180f),
+                    0f,
+                    0f,
+                    4f,
+                    4f))
+            using (Bitmap multiplyBitmap =
+                new Bitmap(
+                    160,
+                    180,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics multiplyGraphics =
+                Graphics.FromImage(
+                    multiplyBitmap))
+            {
+                multiplyGraphics.Clear(
+                    Color.White);
+
+                if (!DrawSvgOffsetGaussianChainApproximation(
+                        multiplyGraphics,
+                        offsetBlurMultiplyRect,
+                        document,
+                        multiplyPath,
+                        4f,
+                        4f))
+                {
+                    throw new InvalidOperationException(
+                        "SVG multiply feBlend chain was not rendered.");
+                }
+
+                Color originalOnly =
+                    multiplyBitmap.GetPixel(
+                        12,
+                        140);
+                Color overlap =
+                    multiplyBitmap.GetPixel(
+                        24,
+                        140);
+
+                if (overlap.R >=
+                        originalOnly.R - 15 ||
+                    overlap.G >=
+                        originalOnly.G - 15)
+                {
+                    throw new InvalidOperationException(
+                        "SVG multiply feBlend overlap was not darkened.");
                 }
             }
 
