@@ -566,10 +566,14 @@ namespace PptxViewer
             string[] kinds =
                 new string[]
                 {
+                    "Hierarchy",
                     "Basic Process",
+                    "Vertical Process",
                     "Cycle",
                     "Matrix",
-                    "Pyramid"
+                    "Pyramid",
+                    "Radial Relationship",
+                    "Basic Venn"
                 };
 
             Dictionary<string, Color> theme =
@@ -587,8 +591,8 @@ namespace PptxViewer
 
             using (Bitmap bitmap =
                 new Bitmap(
-                    1200,
-                    760,
+                    1600,
+                    900,
                     PixelFormat.Format32bppArgb))
             using (Graphics graphics =
                 Graphics.FromImage(bitmap))
@@ -612,20 +616,20 @@ namespace PptxViewer
                         "</dgm:layoutDef>");
 
                     int column =
-                        i % 2;
+                        i % 4;
                     int row =
-                        i / 2;
+                        i / 4;
 
                     RectangleF rect =
                         new RectangleF(
-                            20f +
+                            12f +
                                 column *
-                                590f,
-                            20f +
+                                397f,
+                            12f +
                                 row *
-                                365f,
-                            570f,
-                            345f);
+                                438f,
+                            385f,
+                            426f);
 
                     using (Pen border =
                         new Pen(
@@ -667,7 +671,7 @@ namespace PptxViewer
                     out nonWhite,
                     out distinct);
 
-                if (nonWhite < 350 ||
+                if (nonWhite < 650 ||
                     distinct < 7)
                 {
                     throw new InvalidOperationException(

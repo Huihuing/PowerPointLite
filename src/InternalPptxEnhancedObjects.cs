@@ -4161,8 +4161,21 @@ namespace PptxViewer
                         accent,
                         0.82f);
 
+                if (layoutKind == "venn")
+                {
+                    fill =
+                        Color.FromArgb(
+                            145,
+                            fill);
+                }
+
+                bool ellipseNode =
+                    layoutKind == "cycle" ||
+                    layoutKind == "radial" ||
+                    layoutKind == "venn";
+
                 using (GraphicsPath path =
-                    layoutKind == "cycle"
+                    ellipseNode
                         ? EllipsePath(box)
                         : RoundedRectanglePath(
                             box,
@@ -4237,30 +4250,64 @@ namespace PptxViewer
                 layoutDoc.OuterXml
                     .ToLowerInvariant();
 
+            if (text.IndexOf("venn") >= 0)
+                return "venn";
+
+            if (text.IndexOf("radial") >= 0 ||
+                text.IndexOf("relationship") >= 0 ||
+                text.IndexOf("converging") >= 0 ||
+                text.IndexOf("diverging") >= 0)
+            {
+                return "radial";
+            }
+
+            if ((text.IndexOf("vertical") >= 0 ||
+                 text.IndexOf("descending") >= 0) &&
+                (text.IndexOf("process") >= 0 ||
+                 text.IndexOf("step") >= 0))
+            {
+                return "verticalProcess";
+            }
+
             if (text.IndexOf("cycle") >= 0 ||
-                text.IndexOf("circular") >= 0)
+                text.IndexOf("circular") >= 0 ||
+                text.IndexOf("continuous loop") >= 0)
             {
                 return "cycle";
             }
 
-            if (text.IndexOf("pyramid") >= 0)
+            if (text.IndexOf("pyramid") >= 0 ||
+                text.IndexOf("funnel") >= 0)
+            {
                 return "pyramid";
+            }
 
             if (text.IndexOf("matrix") >= 0 ||
-                text.IndexOf("grid") >= 0)
+                text.IndexOf("grid") >= 0 ||
+                text.IndexOf("quadrant") >= 0)
             {
                 return "matrix";
             }
 
+            if (text.IndexOf("list") >= 0 ||
+                text.IndexOf("bullet") >= 0 ||
+                text.IndexOf("stacked") >= 0)
+            {
+                return "list";
+            }
+
             if (text.IndexOf("process") >= 0 ||
-                text.IndexOf("chevron") >= 0)
+                text.IndexOf("chevron") >= 0 ||
+                text.IndexOf("step") >= 0 ||
+                text.IndexOf("timeline") >= 0)
             {
                 return "process";
             }
 
             if (text.IndexOf("hierarchy") >= 0 ||
                 text.IndexOf("orgchart") >= 0 ||
-                text.IndexOf("organization") >= 0)
+                text.IndexOf("organization") >= 0 ||
+                text.IndexOf("horizontal hierarchy") >= 0)
             {
                 return "hierarchy";
             }
@@ -4285,6 +4332,34 @@ namespace PptxViewer
             if (layoutKind == "process")
             {
                 return BuildProcessSmartArtPositions(
+                    nodes,
+                    rect);
+            }
+
+            if (layoutKind == "verticalProcess")
+            {
+                return BuildVerticalProcessSmartArtPositions(
+                    nodes,
+                    rect);
+            }
+
+            if (layoutKind == "list")
+            {
+                return BuildListSmartArtPositions(
+                    nodes,
+                    rect);
+            }
+
+            if (layoutKind == "radial")
+            {
+                return BuildRadialSmartArtPositions(
+                    nodes,
+                    rect);
+            }
+
+            if (layoutKind == "venn")
+            {
+                return BuildVennSmartArtPositions(
                     nodes,
                     rect);
             }
@@ -4463,6 +4538,376 @@ namespace PptxViewer
                             (cellH + gap),
                         cellW,
                         cellH);
+            }
+
+            return positions;
+        }
+
+        private static Dictionary<string, RectangleF>
+            BuildVerticalProcessSmartArtPositions(
+                List<SmartNode> nodes,
+                RectangleF rect)
+        {
+            Dictionary<string, RectangleF> positions =
+                new Dictionary<string, RectangleF>(
+                    StringComparer.Ordinal);
+
+            int count =
+                Math.Max(
+                    1,
+                    nodes.Count);
+
+            float gap =
+                Math.Max(
+                    7f,
+                    rect.Height *
+                    0.025f);
+
+            float boxH =
+                Math.Max(
+                    28f,
+                    (rect.Height -
+                     gap *
+                     (count + 1)) /
+                    count);
+
+            boxH =
+                Math.Min(
+                    boxH,
+                    rect.Height *
+                    0.22f);
+
+            float boxW =
+                Math.Max(
+                    60f,
+                    rect.Width *
+                    0.72f);
+
+            for (int i = 0;
+                 i < nodes.Count;
+                 i++)
+            {
+                float x =
+                    rect.Left +
+                    (rect.Width -
+                     boxW) /
+                    2f;
+
+                float y =
+                    rect.Top +
+                    gap +
+                    i *
+                    (boxH + gap);
+
+                positions[
+                    nodes[i].Id] =
+                    new RectangleF(
+                        x,
+                        y,
+                        boxW,
+                        boxH);
+            }
+
+            return positions;
+        }
+
+        private static Dictionary<string, RectangleF>
+            BuildListSmartArtPositions(
+                List<SmartNode> nodes,
+                RectangleF rect)
+        {
+            Dictionary<string, RectangleF> positions =
+                new Dictionary<string, RectangleF>(
+                    StringComparer.Ordinal);
+
+            int count =
+                Math.Max(
+                    1,
+                    nodes.Count);
+
+            int columns =
+                count > 6
+                    ? 2
+                    : 1;
+
+            int rows =
+                (int)Math.Ceiling(
+                    count /
+                    (double)columns);
+
+            float gap =
+                Math.Max(
+                    8f,
+                    Math.Min(
+                        rect.Width,
+                        rect.Height) *
+                    0.025f);
+
+            float boxW =
+                Math.Max(
+                    70f,
+                    (rect.Width -
+                     gap *
+                     (columns + 1)) /
+                    columns);
+
+            float boxH =
+                Math.Max(
+                    28f,
+                    (rect.Height -
+                     gap *
+                     (rows + 1)) /
+                    rows);
+
+            for (int i = 0;
+                 i < nodes.Count;
+                 i++)
+            {
+                int column =
+                    i /
+                    rows;
+                int row =
+                    i %
+                    rows;
+
+                positions[
+                    nodes[i].Id] =
+                    new RectangleF(
+                        rect.Left +
+                            gap +
+                            column *
+                            (boxW + gap),
+                        rect.Top +
+                            gap +
+                            row *
+                            (boxH + gap),
+                        boxW,
+                        boxH);
+            }
+
+            return positions;
+        }
+
+        private static Dictionary<string, RectangleF>
+            BuildRadialSmartArtPositions(
+                List<SmartNode> nodes,
+                RectangleF rect)
+        {
+            Dictionary<string, RectangleF> positions =
+                new Dictionary<string, RectangleF>(
+                    StringComparer.Ordinal);
+
+            if (nodes.Count == 0)
+                return positions;
+
+            float centerW =
+                Math.Max(
+                    64f,
+                    Math.Min(
+                        rect.Width *
+                        0.30f,
+                        180f));
+
+            float centerH =
+                Math.Max(
+                    38f,
+                    Math.Min(
+                        rect.Height *
+                        0.20f,
+                        100f));
+
+            float cx =
+                rect.Left +
+                rect.Width /
+                2f;
+            float cy =
+                rect.Top +
+                rect.Height /
+                2f;
+
+            positions[
+                nodes[0].Id] =
+                new RectangleF(
+                    cx -
+                        centerW /
+                        2f,
+                    cy -
+                        centerH /
+                        2f,
+                    centerW,
+                    centerH);
+
+            if (nodes.Count == 1)
+                return positions;
+
+            float satelliteW =
+                Math.Max(
+                    52f,
+                    centerW *
+                    0.78f);
+            float satelliteH =
+                Math.Max(
+                    32f,
+                    centerH *
+                    0.84f);
+
+            float radiusX =
+                Math.Max(
+                    12f,
+                    (rect.Width -
+                     satelliteW) *
+                    0.40f);
+            float radiusY =
+                Math.Max(
+                    12f,
+                    (rect.Height -
+                     satelliteH) *
+                    0.38f);
+
+            int satelliteCount =
+                nodes.Count -
+                1;
+
+            for (int i = 1;
+                 i < nodes.Count;
+                 i++)
+            {
+                double angle =
+                    -Math.PI /
+                    2.0 +
+                    (i - 1) *
+                    Math.PI *
+                    2.0 /
+                    satelliteCount;
+
+                float x =
+                    cx +
+                    (float)Math.Cos(
+                        angle) *
+                    radiusX -
+                    satelliteW /
+                    2f;
+
+                float y =
+                    cy +
+                    (float)Math.Sin(
+                        angle) *
+                    radiusY -
+                    satelliteH /
+                    2f;
+
+                positions[
+                    nodes[i].Id] =
+                    new RectangleF(
+                        x,
+                        y,
+                        satelliteW,
+                        satelliteH);
+            }
+
+            return positions;
+        }
+
+        private static Dictionary<string, RectangleF>
+            BuildVennSmartArtPositions(
+                List<SmartNode> nodes,
+                RectangleF rect)
+        {
+            Dictionary<string, RectangleF> positions =
+                new Dictionary<string, RectangleF>(
+                    StringComparer.Ordinal);
+
+            if (nodes.Count == 0)
+                return positions;
+
+            int count =
+                Math.Min(
+                    6,
+                    nodes.Count);
+
+            float diameter =
+                Math.Max(
+                    64f,
+                    Math.Min(
+                        rect.Width,
+                        rect.Height) *
+                    (count <= 3
+                        ? 0.42f
+                        : 0.32f));
+
+            float cx =
+                rect.Left +
+                rect.Width /
+                2f;
+            float cy =
+                rect.Top +
+                rect.Height /
+                2f;
+
+            float ring =
+                diameter *
+                (count <= 3
+                    ? 0.34f
+                    : 0.58f);
+
+            for (int i = 0;
+                 i < count;
+                 i++)
+            {
+                double angle =
+                    -Math.PI /
+                    2.0 +
+                    i *
+                    Math.PI *
+                    2.0 /
+                    count;
+
+                float x =
+                    cx +
+                    (float)Math.Cos(
+                        angle) *
+                    ring -
+                    diameter /
+                    2f;
+
+                float y =
+                    cy +
+                    (float)Math.Sin(
+                        angle) *
+                    ring -
+                    diameter /
+                    2f;
+
+                positions[
+                    nodes[i].Id] =
+                    new RectangleF(
+                        x,
+                        y,
+                        diameter,
+                        diameter);
+            }
+
+            for (int i = count;
+                 i < nodes.Count;
+                 i++)
+            {
+                float small =
+                    Math.Max(
+                        42f,
+                        diameter *
+                        0.62f);
+
+                positions[
+                    nodes[i].Id] =
+                    new RectangleF(
+                        cx -
+                            small /
+                            2f,
+                        cy -
+                            small /
+                            2f,
+                        small,
+                        small);
             }
 
             return positions;
@@ -4708,6 +5153,9 @@ namespace PptxViewer
             Dictionary<string, RectangleF> positions,
             Color[] palette)
         {
+            if (layoutKind == "venn")
+                return;
+
             Color connectorColor =
                 palette != null &&
                 palette.Length > 0
@@ -4758,7 +5206,8 @@ namespace PptxViewer
                         PointF from;
                         PointF to;
 
-                        if (layoutKind == "hierarchy")
+                        if (layoutKind == "hierarchy" ||
+                            layoutKind == "verticalProcess")
                         {
                             from =
                                 new PointF(
