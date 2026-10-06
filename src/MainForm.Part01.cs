@@ -223,8 +223,8 @@ public sealed partial class MainForm : Form
                 Visible = false,
                 ReadOnly = true,
                 BorderStyle = BorderStyle.FixedSingle,
-                BackColor = Color.FromArgb(245, 245, 242),
-                ForeColor = Color.FromArgb(30, 30, 30),
+                BackColor = ApplicationTheme.Surface,
+                ForeColor = ApplicationTheme.PrimaryText,
                 Font = new Font("Segoe UI", 10f),
                 DetectUrls = true
             };
