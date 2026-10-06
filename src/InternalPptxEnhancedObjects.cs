@@ -2197,128 +2197,395 @@ namespace PptxViewer
             float sx,
             float sy)
         {
-            List<string> tokens = TokenizeSvgPath(data);
+            List<string> tokens =
+                TokenizeSvgPath(data);
+
             if (tokens.Count == 0)
                 return null;
 
-            GraphicsPath path = new GraphicsPath();
+            GraphicsPath path =
+                new GraphicsPath();
+
             int index = 0;
             char command = ' ';
-            PointF current = new PointF(0f, 0f);
-            PointF start = current;
+            char previousUpper = ' ';
+            PointF current =
+                new PointF(
+                    0f,
+                    0f);
+            PointF start =
+                current;
+            PointF lastCubicControl =
+                current;
+            PointF lastQuadraticControl =
+                current;
+            bool hasCubicControl = false;
+            bool hasQuadraticControl = false;
 
             while (index < tokens.Count)
             {
-                if (IsSvgCommand(tokens[index]))
+                if (IsSvgCommand(
+                        tokens[index]))
                 {
-                    command = tokens[index][0];
+                    command =
+                        tokens[index][0];
                     index++;
-                    if (command == 'Z' || command == 'z')
+
+                    if (command == 'Z' ||
+                        command == 'z')
                     {
                         path.CloseFigure();
                         current = start;
+                        previousUpper = 'Z';
+                        hasCubicControl = false;
+                        hasQuadraticControl = false;
                         continue;
                     }
                 }
 
-                bool relative = char.IsLower(command);
-                char upper = char.ToUpperInvariant(command);
-                float a, b, c, d, e, f, h;
+                bool relative =
+                    char.IsLower(
+                        command);
 
-                if (upper == 'M' || upper == 'L')
+                char upper =
+                    char.ToUpperInvariant(
+                        command);
+
+                float a, b, cc, d, e, f, h;
+
+                if (upper == 'M' ||
+                    upper == 'L')
                 {
-                    if (!ReadSvgNumber(tokens, ref index, out a) ||
-                        !ReadSvgNumber(tokens, ref index, out b)) break;
-                    PointF next = SvgPoint(a, b, relative, current);
+                    if (!ReadSvgNumber(
+                            tokens,
+                            ref index,
+                            out a) ||
+                        !ReadSvgNumber(
+                            tokens,
+                            ref index,
+                            out b))
+                    {
+                        break;
+                    }
+
+                    PointF next =
+                        SvgPoint(
+                            a,
+                            b,
+                            relative,
+                            current);
+
                     if (upper == 'M')
                     {
                         path.StartFigure();
                         start = next;
-                        command = relative ? 'l' : 'L';
+                        current = next;
+                        previousUpper = 'M';
+                        command =
+                            relative
+                                ? 'l'
+                                : 'L';
                     }
                     else
-                        path.AddLine(ToSvgTarget(current, target, minX, minY, sx, sy),
-                                     ToSvgTarget(next, target, minX, minY, sx, sy));
-                    current = next;
+                    {
+                        path.AddLine(
+                            ToSvgTarget(
+                                current,
+                                target,
+                                minX,
+                                minY,
+                                sx,
+                                sy),
+                            ToSvgTarget(
+                                next,
+                                target,
+                                minX,
+                                minY,
+                                sx,
+                                sy));
+                        current = next;
+                        previousUpper = 'L';
+                    }
+
+                    hasCubicControl = false;
+                    hasQuadraticControl = false;
                 }
                 else if (upper == 'H')
                 {
-                    if (!ReadSvgNumber(tokens, ref index, out a)) break;
-                    PointF next = new PointF(relative ? current.X + a : a, current.Y);
-                    path.AddLine(ToSvgTarget(current, target, minX, minY, sx, sy),
-                                 ToSvgTarget(next, target, minX, minY, sx, sy));
+                    if (!ReadSvgNumber(
+                            tokens,
+                            ref index,
+                            out a))
+                    {
+                        break;
+                    }
+
+                    PointF next =
+                        new PointF(
+                            relative
+                                ? current.X + a
+                                : a,
+                            current.Y);
+
+                    path.AddLine(
+                        ToSvgTarget(
+                            current,
+                            target,
+                            minX,
+                            minY,
+                            sx,
+                            sy),
+                        ToSvgTarget(
+                            next,
+                            target,
+                            minX,
+                            minY,
+                            sx,
+                            sy));
+
                     current = next;
+                    previousUpper = 'H';
+                    hasCubicControl = false;
+                    hasQuadraticControl = false;
                 }
                 else if (upper == 'V')
                 {
-                    if (!ReadSvgNumber(tokens, ref index, out a)) break;
-                    PointF next = new PointF(current.X, relative ? current.Y + a : a);
-                    path.AddLine(ToSvgTarget(current, target, minX, minY, sx, sy),
-                                 ToSvgTarget(next, target, minX, minY, sx, sy));
+                    if (!ReadSvgNumber(
+                            tokens,
+                            ref index,
+                            out a))
+                    {
+                        break;
+                    }
+
+                    PointF next =
+                        new PointF(
+                            current.X,
+                            relative
+                                ? current.Y + a
+                                : a);
+
+                    path.AddLine(
+                        ToSvgTarget(
+                            current,
+                            target,
+                            minX,
+                            minY,
+                            sx,
+                            sy),
+                        ToSvgTarget(
+                            next,
+                            target,
+                            minX,
+                            minY,
+                            sx,
+                            sy));
+
                     current = next;
+                    previousUpper = 'V';
+                    hasCubicControl = false;
+                    hasQuadraticControl = false;
                 }
                 else if (upper == 'C')
                 {
                     if (!ReadSvgNumber(tokens, ref index, out a) ||
                         !ReadSvgNumber(tokens, ref index, out b) ||
-                        !ReadSvgNumber(tokens, ref index, out c) ||
+                        !ReadSvgNumber(tokens, ref index, out cc) ||
                         !ReadSvgNumber(tokens, ref index, out d) ||
                         !ReadSvgNumber(tokens, ref index, out e) ||
-                        !ReadSvgNumber(tokens, ref index, out f)) break;
-                    PointF c1 = SvgPoint(a, b, relative, current);
-                    PointF c2 = SvgPoint(c, d, relative, current);
-                    PointF end = SvgPoint(e, f, relative, current);
+                        !ReadSvgNumber(tokens, ref index, out f))
+                    {
+                        break;
+                    }
+
+                    PointF c1 =
+                        SvgPoint(
+                            a,
+                            b,
+                            relative,
+                            current);
+                    PointF c2 =
+                        SvgPoint(
+                            cc,
+                            d,
+                            relative,
+                            current);
+                    PointF finish =
+                        SvgPoint(
+                            e,
+                            f,
+                            relative,
+                            current);
+
                     path.AddBezier(
                         ToSvgTarget(current, target, minX, minY, sx, sy),
                         ToSvgTarget(c1, target, minX, minY, sx, sy),
                         ToSvgTarget(c2, target, minX, minY, sx, sy),
-                        ToSvgTarget(end, target, minX, minY, sx, sy));
-                    current = end;
+                        ToSvgTarget(finish, target, minX, minY, sx, sy));
+
+                    current = finish;
+                    lastCubicControl = c2;
+                    hasCubicControl = true;
+                    hasQuadraticControl = false;
+                    previousUpper = 'C';
+                }
+                else if (upper == 'S')
+                {
+                    if (!ReadSvgNumber(tokens, ref index, out a) ||
+                        !ReadSvgNumber(tokens, ref index, out b) ||
+                        !ReadSvgNumber(tokens, ref index, out cc) ||
+                        !ReadSvgNumber(tokens, ref index, out d))
+                    {
+                        break;
+                    }
+
+                    PointF c1 =
+                        hasCubicControl &&
+                        (previousUpper == 'C' ||
+                         previousUpper == 'S')
+                            ? new PointF(
+                                current.X * 2f -
+                                    lastCubicControl.X,
+                                current.Y * 2f -
+                                    lastCubicControl.Y)
+                            : current;
+
+                    PointF c2 =
+                        SvgPoint(
+                            a,
+                            b,
+                            relative,
+                            current);
+
+                    PointF finish =
+                        SvgPoint(
+                            cc,
+                            d,
+                            relative,
+                            current);
+
+                    path.AddBezier(
+                        ToSvgTarget(current, target, minX, minY, sx, sy),
+                        ToSvgTarget(c1, target, minX, minY, sx, sy),
+                        ToSvgTarget(c2, target, minX, minY, sx, sy),
+                        ToSvgTarget(finish, target, minX, minY, sx, sy));
+
+                    current = finish;
+                    lastCubicControl = c2;
+                    hasCubicControl = true;
+                    hasQuadraticControl = false;
+                    previousUpper = 'S';
                 }
                 else if (upper == 'Q')
                 {
                     if (!ReadSvgNumber(tokens, ref index, out a) ||
                         !ReadSvgNumber(tokens, ref index, out b) ||
-                        !ReadSvgNumber(tokens, ref index, out c) ||
-                        !ReadSvgNumber(tokens, ref index, out d)) break;
-                    PointF control = SvgPoint(a, b, relative, current);
-                    PointF end = SvgPoint(c, d, relative, current);
-                    PointF c1 = new PointF(
-                        current.X + (control.X - current.X) * 2f / 3f,
-                        current.Y + (control.Y - current.Y) * 2f / 3f);
-                    PointF c2 = new PointF(
-                        end.X + (control.X - end.X) * 2f / 3f,
-                        end.Y + (control.Y - end.Y) * 2f / 3f);
-                    path.AddBezier(
-                        ToSvgTarget(current, target, minX, minY, sx, sy),
-                        ToSvgTarget(c1, target, minX, minY, sx, sy),
-                        ToSvgTarget(c2, target, minX, minY, sx, sy),
-                        ToSvgTarget(end, target, minX, minY, sx, sy));
-                    current = end;
+                        !ReadSvgNumber(tokens, ref index, out cc) ||
+                        !ReadSvgNumber(tokens, ref index, out d))
+                    {
+                        break;
+                    }
+
+                    PointF control =
+                        SvgPoint(
+                            a,
+                            b,
+                            relative,
+                            current);
+                    PointF finish =
+                        SvgPoint(
+                            cc,
+                            d,
+                            relative,
+                            current);
+
+                    AppendSvgQuadratic(
+                        path,
+                        current,
+                        control,
+                        finish,
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy);
+
+                    current = finish;
+                    lastQuadraticControl = control;
+                    hasQuadraticControl = true;
+                    hasCubicControl = false;
+                    previousUpper = 'Q';
+                }
+                else if (upper == 'T')
+                {
+                    if (!ReadSvgNumber(tokens, ref index, out a) ||
+                        !ReadSvgNumber(tokens, ref index, out b))
+                    {
+                        break;
+                    }
+
+                    PointF control =
+                        hasQuadraticControl &&
+                        (previousUpper == 'Q' ||
+                         previousUpper == 'T')
+                            ? new PointF(
+                                current.X * 2f -
+                                    lastQuadraticControl.X,
+                                current.Y * 2f -
+                                    lastQuadraticControl.Y)
+                            : current;
+
+                    PointF finish =
+                        SvgPoint(
+                            a,
+                            b,
+                            relative,
+                            current);
+
+                    AppendSvgQuadratic(
+                        path,
+                        current,
+                        control,
+                        finish,
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy);
+
+                    current = finish;
+                    lastQuadraticControl = control;
+                    hasQuadraticControl = true;
+                    hasCubicControl = false;
+                    previousUpper = 'T';
                 }
                 else if (upper == 'A')
                 {
                     if (!ReadSvgNumber(tokens, ref index, out a) ||
                         !ReadSvgNumber(tokens, ref index, out b) ||
-                        !ReadSvgNumber(tokens, ref index, out c) ||
+                        !ReadSvgNumber(tokens, ref index, out cc) ||
                         !ReadSvgNumber(tokens, ref index, out d) ||
                         !ReadSvgNumber(tokens, ref index, out e) ||
                         !ReadSvgNumber(tokens, ref index, out f) ||
-                        !ReadSvgNumber(tokens, ref index, out h)) break;
+                        !ReadSvgNumber(tokens, ref index, out h))
+                    {
+                        break;
+                    }
 
-                    PointF end = SvgPoint(
-                        f,
-                        h,
-                        relative,
-                        current);
+                    PointF finish =
+                        SvgPoint(
+                            f,
+                            h,
+                            relative,
+                            current);
 
                     AppendSvgArc(
                         path,
                         current,
-                        end,
+                        finish,
                         a,
                         b,
-                        c,
+                        cc,
                         Math.Abs(d) > 0.5f,
                         Math.Abs(e) > 0.5f,
                         target,
@@ -2327,15 +2594,65 @@ namespace PptxViewer
                         sx,
                         sy);
 
-                    current = end;
+                    current = finish;
+                    hasCubicControl = false;
+                    hasQuadraticControl = false;
+                    previousUpper = 'A';
                 }
                 else
                 {
                     index++;
+                    hasCubicControl = false;
+                    hasQuadraticControl = false;
+                    previousUpper = upper;
                 }
             }
 
             return path;
+        }
+
+        private static void AppendSvgQuadratic(
+            GraphicsPath path,
+            PointF start,
+            PointF control,
+            PointF finish,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy)
+        {
+            PointF c1 =
+                new PointF(
+                    start.X +
+                        (control.X -
+                         start.X) *
+                        2f /
+                        3f,
+                    start.Y +
+                        (control.Y -
+                         start.Y) *
+                        2f /
+                        3f);
+
+            PointF c2 =
+                new PointF(
+                    finish.X +
+                        (control.X -
+                         finish.X) *
+                        2f /
+                        3f,
+                    finish.Y +
+                        (control.Y -
+                         finish.Y) *
+                        2f /
+                        3f);
+
+            path.AddBezier(
+                ToSvgTarget(start, target, minX, minY, sx, sy),
+                ToSvgTarget(c1, target, minX, minY, sx, sy),
+                ToSvgTarget(c2, target, minX, minY, sx, sy),
+                ToSvgTarget(finish, target, minX, minY, sx, sy));
         }
 
         private static void AppendSvgArc(

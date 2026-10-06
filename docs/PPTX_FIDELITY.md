@@ -36,7 +36,7 @@ Microsoft PowerPoint (설치된 경우)
 - EMF / WMF는 GDI+가 읽을 수 있는 경우
 - SVG primitive와 path
   - rect / circle / ellipse / line / polygon / polyline / text 혼합 렌더
-  - M / L / H / V / C / Q / A / Z
+  - M / L / H / V / C / S / Q / T / A / Z
   - absolute / relative path
   - linearGradient / radialGradient 기본 stop interpolation
   - clipPath 기본 geometry
