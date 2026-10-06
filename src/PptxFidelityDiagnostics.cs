@@ -204,6 +204,73 @@ namespace PptxViewer
                     "Chart value-axis tick label visibility was not parsed.");
             }
 
+            ChartSeriesData highLabelSeries =
+                new ChartSeriesData();
+            highLabelSeries.Categories.Add(
+                "HIGH");
+
+            using (Bitmap labelBitmap =
+                new Bitmap(
+                    240,
+                    140,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics labelGraphics =
+                Graphics.FromImage(
+                    labelBitmap))
+            {
+                labelGraphics.Clear(
+                    Color.White);
+
+                RectangleF labelPlot =
+                    new RectangleF(
+                        60f,
+                        55f,
+                        120f,
+                        45f);
+
+                DrawChartCategoryLabels(
+                    labelGraphics,
+                    labelPlot,
+                    highLabelSeries,
+                    1,
+                    "column",
+                    "high");
+
+                bool foundAbovePlot =
+                    false;
+
+                for (int y = 20;
+                     y < 55 &&
+                     !foundAbovePlot;
+                     y++)
+                {
+                    for (int x = 60;
+                         x < 180;
+                         x++)
+                    {
+                        Color pixel =
+                            labelBitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.R < 220 ||
+                            pixel.G < 220 ||
+                            pixel.B < 220)
+                        {
+                            foundAbovePlot =
+                                true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!foundAbovePlot)
+                {
+                    throw new InvalidOperationException(
+                        "Chart category tickLblPos=high did not move labels above the plot.");
+                }
+            }
+
             ChartAxisScale scale =
                 ReadChartAxisScale(
                     chart,

@@ -988,10 +988,13 @@ internal static partial class InternalPptxRenderer
                 }
             }
 
+            string categoryTickLabelPosition =
+                ReadChartAxisTickLabelPosition(
+                    chartDoc,
+                    "catAx");
+
             if (!string.Equals(
-                    ReadChartAxisTickLabelPosition(
-                        chartDoc,
-                        "catAx"),
+                    categoryTickLabelPosition,
                     "none",
                     StringComparison.OrdinalIgnoreCase))
             {
@@ -1000,7 +1003,8 @@ internal static partial class InternalPptxRenderer
                     plot,
                     series[0],
                     categoryCount,
-                    kind);
+                    kind,
+                    categoryTickLabelPosition);
             }
 
             DrawChartAxisTitles(
@@ -2274,7 +2278,8 @@ internal static partial class InternalPptxRenderer
             RectangleF plot,
             ChartSeriesData firstSeries,
             int categoryCount,
-            string kind)
+            string kind,
+            string tickLabelPosition)
         {
             if (firstSeries == null || firstSeries.Categories.Count == 0)
                 return;
@@ -2288,17 +2293,36 @@ internal static partial class InternalPptxRenderer
                 sf.Trimming = StringTrimming.EllipsisCharacter;
 
                 int count = Math.Min(categoryCount, firstSeries.Categories.Count);
+                bool high =
+                    string.Equals(
+                        tickLabelPosition,
+                        "high",
+                        StringComparison.OrdinalIgnoreCase);
 
                 for (int i = 0; i < count; i++)
                 {
                     if (kind == "bar")
                     {
-                        sf.Alignment = StringAlignment.Far;
+                        sf.Alignment =
+                            high
+                                ? StringAlignment.Near
+                                : StringAlignment.Far;
                         float groupH = plot.Height / Math.Max(1, categoryCount);
+                        float labelWidth =
+                            Math.Max(
+                                20f,
+                                plot.Width *
+                                0.08f);
                         RectangleF label = new RectangleF(
-                            plot.Left - Math.Max(24f, plot.Width * 0.09f),
+                            high
+                                ? plot.Right + 4f
+                                : plot.Left -
+                                  Math.Max(
+                                      24f,
+                                      plot.Width *
+                                      0.09f),
                             plot.Top + i * groupH,
-                            Math.Max(20f, plot.Width * 0.08f),
+                            labelWidth,
                             groupH);
                         sf.LineAlignment = StringAlignment.Center;
                         g.DrawString(firstSeries.Categories[i], font, brush, label, sf);
@@ -2308,11 +2332,21 @@ internal static partial class InternalPptxRenderer
                         sf.Alignment = StringAlignment.Center;
                         sf.LineAlignment = StringAlignment.Near;
                         float groupW = plot.Width / Math.Max(1, categoryCount);
+                        float labelHeight =
+                            Math.Max(
+                                14f,
+                                font.Height +
+                                4f);
                         RectangleF label = new RectangleF(
                             plot.Left + i * groupW,
-                            plot.Bottom + 2f,
+                            high
+                                ? plot.Top -
+                                  labelHeight -
+                                  2f
+                                : plot.Bottom +
+                                  2f,
                             groupW,
-                            Math.Max(14f, font.Height + 4f));
+                            labelHeight);
                         g.DrawString(firstSeries.Categories[i], font, brush, label, sf);
                     }
                 }

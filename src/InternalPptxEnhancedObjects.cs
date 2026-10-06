@@ -11226,10 +11226,13 @@ namespace PptxViewer
                 }
             }
 
+            string categoryTickLabelPosition =
+                ReadChartAxisTickLabelPosition(
+                    chartDoc,
+                    "catAx");
+
             if (!string.Equals(
-                    ReadChartAxisTickLabelPosition(
-                        chartDoc,
-                        "catAx"),
+                    categoryTickLabelPosition,
                     "none",
                     StringComparison.OrdinalIgnoreCase))
             {
@@ -11238,7 +11241,8 @@ namespace PptxViewer
                     plot,
                     series[0],
                     categoryCount,
-                    "column");
+                    "column",
+                    categoryTickLabelPosition);
             }
 
             DrawChartAxisTitles(
