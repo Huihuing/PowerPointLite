@@ -80,7 +80,7 @@ namespace PptxViewer
                 "<c:chart>" +
                 "<c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarterly Delta</a:t></a:r></a:p></c:rich></c:tx></c:title>" +
                 "<c:plotArea><c:barChart><c:barDir val=\"col\"/>" +
-                "<c:dLbls><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:dLblPos val=\"inEnd\"/><c:showVal val=\"1\"/><c:showCatName val=\"1\"/><c:separator> · </c:separator></c:dLbls>" +
+                "<c:dLbls><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:dLblPos val=\"inEnd\"/><c:showVal val=\"1\"/><c:showCatName val=\"1\"/><c:txPr><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr><a:solidFill><a:srgbClr val=\"224488\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr><c:separator> · </c:separator></c:dLbls>" +
                 BuildSyntheticChartSeries(
                     0,
                     "North",
@@ -490,12 +490,17 @@ namespace PptxViewer
 
             ChartLabelOptions labels =
                 ReadChartLabelOptions(
-                    chart);
+                    chart,
+                    theme);
 
             if (!labels.ShowValue ||
                 !labels.ShowCategoryName ||
                 labels.ShowSeriesName ||
                 labels.ShowPercent ||
+                !labels.TextColor.HasValue ||
+                labels.TextColor.Value.R != 0x22 ||
+                labels.TextColor.Value.G != 0x44 ||
+                labels.TextColor.Value.B != 0x88 ||
                 labels.NumberFormat != "0.0" ||
                 labels.Position != "inEnd" ||
                 labels.Separator != " · ")
@@ -607,7 +612,7 @@ namespace PptxViewer
             pointOverrideDoc.LoadXml(
                 "<c:ser xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
                 "<c:dLbls>" +
-                "<c:dLbl><c:idx val=\"0\"/><c:showVal val=\"0\"/><c:showSerName val=\"1\"/><c:dLblPos val=\"ctr\"/><c:separator> / </c:separator></c:dLbl>" +
+                "<c:dLbl><c:idx val=\"0\"/><c:showVal val=\"0\"/><c:showSerName val=\"1\"/><c:dLblPos val=\"ctr\"/><c:txPr><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr><a:solidFill><a:srgbClr val=\"AA3377\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr><c:separator> / </c:separator></c:dLbl>" +
                 "<c:dLbl><c:idx val=\"1\"/><c:delete val=\"1\"/></c:dLbl>" +
                 "</c:dLbls></c:ser>");
 
@@ -645,7 +650,8 @@ namespace PptxViewer
 
             ReadChartSeriesLabelOverrides(
                 pointOverrideDoc.DocumentElement,
-                pointOverrideSeries);
+                pointOverrideSeries,
+                theme);
 
             ChartLabelOptions resolvedPointZero =
                 ResolveChartPointLabelOptions(
@@ -660,6 +666,10 @@ namespace PptxViewer
 
             if (resolvedPointZero.ShowValue ||
                 !resolvedPointZero.ShowSeriesName ||
+                !resolvedPointZero.TextColor.HasValue ||
+                resolvedPointZero.TextColor.Value.R != 0xAA ||
+                resolvedPointZero.TextColor.Value.G != 0x33 ||
+                resolvedPointZero.TextColor.Value.B != 0x77 ||
                 resolvedPointZero.Position != "ctr" ||
                 resolvedPointZero.Separator != " / " ||
                 resolvedPointOne.HasAny)
