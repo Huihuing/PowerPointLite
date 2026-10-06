@@ -5721,6 +5721,10 @@ namespace PptxViewer
                         !string.Equals(
                             op,
                             "atop",
+                            StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(
+                            op,
+                            "arithmetic",
                             StringComparison.OrdinalIgnoreCase))
                     {
                         return false;
@@ -5788,6 +5792,10 @@ namespace PptxViewer
                      string.Equals(
                          blendMode,
                          "atop",
+                         StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(
+                         blendMode,
+                         "arithmetic",
                          StringComparison.OrdinalIgnoreCase)) &&
                     !secondIsChain)
                 {
@@ -5874,6 +5882,134 @@ namespace PptxViewer
                     0.001f ||
                 blurX > 0.05f ||
                 blurY > 0.05f;
+        }
+
+        private static bool TryReadSvgCompositeArithmeticCoefficients(
+            XmlNode node,
+            XmlDocument document,
+            out float k1,
+            out float k2,
+            out float k3,
+            out float k4)
+        {
+            k1 = 0f;
+            k2 = 0f;
+            k3 = 0f;
+            k4 = 0f;
+
+            if (node == null ||
+                document == null)
+            {
+                return false;
+            }
+
+            string filterId =
+                ExtractSvgUrlId(
+                    GetSvgStyleInherited(
+                        node,
+                        "filter"));
+
+            if (string.IsNullOrEmpty(
+                    filterId))
+            {
+                return false;
+            }
+
+            XmlNode filter =
+                FindSvgNodeById(
+                    document,
+                    filterId);
+
+            if (filter == null ||
+                filter.LocalName !=
+                    "filter")
+            {
+                return false;
+            }
+
+            XmlNode arithmetic =
+                null;
+
+            for (int i = 0;
+                 i < filter.ChildNodes.Count;
+                 i++)
+            {
+                XmlNode child =
+                    filter.ChildNodes[i];
+
+                if (child == null ||
+                    child.NodeType !=
+                        XmlNodeType.Element ||
+                    child.LocalName !=
+                        "feComposite")
+                {
+                    continue;
+                }
+
+                if (string.Equals(
+                        GetAttr(
+                            child,
+                            "operator"),
+                        "arithmetic",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    arithmetic =
+                        child;
+                    break;
+                }
+            }
+
+            if (arithmetic == null)
+                return false;
+
+            k1 =
+                ClampSvgArithmeticCoefficient(
+                    ParseSvgFloat(
+                        GetAttr(
+                            arithmetic,
+                            "k1"),
+                        0f));
+            k2 =
+                ClampSvgArithmeticCoefficient(
+                    ParseSvgFloat(
+                        GetAttr(
+                            arithmetic,
+                            "k2"),
+                        0f));
+            k3 =
+                ClampSvgArithmeticCoefficient(
+                    ParseSvgFloat(
+                        GetAttr(
+                            arithmetic,
+                            "k3"),
+                        0f));
+            k4 =
+                ClampSvgArithmeticCoefficient(
+                    ParseSvgFloat(
+                        GetAttr(
+                            arithmetic,
+                            "k4"),
+                        0f));
+
+            return true;
+        }
+
+        private static float ClampSvgArithmeticCoefficient(
+            float value)
+        {
+            if (float.IsNaN(
+                    value) ||
+                float.IsInfinity(
+                    value))
+            {
+                return 0f;
+            }
+
+            return Math.Max(
+                -8f,
+                Math.Min(
+                    8f,
+                    value));
         }
 
         private static bool DrawSvgOffsetGaussianChainApproximation(
@@ -5996,6 +6132,46 @@ namespace PptxViewer
                     Math.Min(
                         Math.Abs(sx),
                         Math.Abs(sy)));
+
+            if (blendSourceGraphic &&
+                string.Equals(
+                    blendMode,
+                    "arithmetic",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                float k1;
+                float k2;
+                float k3;
+                float k4;
+
+                if (!TryReadSvgCompositeArithmeticCoefficients(
+                        node,
+                        document,
+                        out k1,
+                        out k2,
+                        out k3,
+                        out k4))
+                {
+                    return false;
+                }
+
+                DrawSvgCompositeArithmeticApproximation(
+                    g,
+                    path,
+                    offsetX,
+                    offsetY,
+                    hasSolidFill,
+                    fillAlpha,
+                    fill,
+                    strokeAlpha,
+                    stroke,
+                    strokeWidth,
+                    k1,
+                    k2,
+                    k3,
+                    k4);
+                return true;
+            }
 
             if (blendSourceGraphic &&
                 string.Equals(
@@ -6382,6 +6558,326 @@ namespace PptxViewer
             }
 
             return true;
+        }
+
+        private static void DrawSvgCompositeArithmeticApproximation(
+            Graphics g,
+            GraphicsPath sourcePath,
+            float offsetX,
+            float offsetY,
+            bool hasSolidFill,
+            int fillAlpha,
+            Color fill,
+            int strokeAlpha,
+            Color stroke,
+            float strokeWidth,
+            float k1,
+            float k2,
+            float k3,
+            float k4)
+        {
+            if (g == null ||
+                sourcePath == null ||
+                sourcePath.PointCount == 0)
+            {
+                return;
+            }
+
+            using (GraphicsPath shifted =
+                (GraphicsPath)sourcePath.Clone())
+            using (Matrix translation =
+                new Matrix())
+            {
+                translation.Translate(
+                    offsetX,
+                    offsetY);
+                shifted.Transform(
+                    translation);
+
+                using (Region sourceOnly =
+                    new Region(
+                        sourcePath))
+                using (Region shiftedOnly =
+                    new Region(
+                        shifted))
+                using (Region overlap =
+                    new Region(
+                        sourcePath))
+                {
+                    sourceOnly.Exclude(
+                        shifted);
+                    shiftedOnly.Exclude(
+                        sourcePath);
+                    overlap.Intersect(
+                        shifted);
+
+                    DrawSvgArithmeticRegion(
+                        g,
+                        sourceOnly,
+                        sourcePath,
+                        true,
+                        false,
+                        hasSolidFill,
+                        fillAlpha,
+                        fill,
+                        strokeAlpha,
+                        stroke,
+                        strokeWidth,
+                        k1,
+                        k2,
+                        k3,
+                        k4);
+
+                    DrawSvgArithmeticRegion(
+                        g,
+                        overlap,
+                        sourcePath,
+                        true,
+                        true,
+                        hasSolidFill,
+                        fillAlpha,
+                        fill,
+                        strokeAlpha,
+                        stroke,
+                        strokeWidth,
+                        k1,
+                        k2,
+                        k3,
+                        k4);
+
+                    DrawSvgArithmeticRegion(
+                        g,
+                        shiftedOnly,
+                        shifted,
+                        false,
+                        true,
+                        hasSolidFill,
+                        fillAlpha,
+                        fill,
+                        strokeAlpha,
+                        stroke,
+                        strokeWidth,
+                        k1,
+                        k2,
+                        k3,
+                        k4);
+                }
+            }
+        }
+
+        private static void DrawSvgArithmeticRegion(
+            Graphics g,
+            Region clip,
+            GraphicsPath renderPath,
+            bool sourcePresent,
+            bool shiftedPresent,
+            bool hasSolidFill,
+            int fillAlpha,
+            Color fill,
+            int strokeAlpha,
+            Color stroke,
+            float strokeWidth,
+            float k1,
+            float k2,
+            float k3,
+            float k4)
+        {
+            if (g == null ||
+                clip == null ||
+                renderPath == null)
+            {
+                return;
+            }
+
+            GraphicsState state =
+                g.Save();
+
+            try
+            {
+                g.SetClip(
+                    clip,
+                    CombineMode.Intersect);
+
+                if (hasSolidFill &&
+                    fillAlpha > 0)
+                {
+                    Color arithmeticFill =
+                        EvaluateSvgArithmeticColor(
+                            fill,
+                            fillAlpha,
+                            sourcePresent,
+                            shiftedPresent,
+                            k1,
+                            k2,
+                            k3,
+                            k4);
+
+                    if (arithmeticFill.A > 0)
+                    {
+                        using (Brush brush =
+                            new SolidBrush(
+                                arithmeticFill))
+                        {
+                            g.FillPath(
+                                brush,
+                                renderPath);
+                        }
+                    }
+                }
+
+                if (strokeAlpha > 0)
+                {
+                    Color arithmeticStroke =
+                        EvaluateSvgArithmeticColor(
+                            stroke,
+                            strokeAlpha,
+                            sourcePresent,
+                            shiftedPresent,
+                            k1,
+                            k2,
+                            k3,
+                            k4);
+
+                    if (arithmeticStroke.A > 0)
+                    {
+                        using (Pen pen =
+                            new Pen(
+                                arithmeticStroke,
+                                strokeWidth))
+                        {
+                            g.DrawPath(
+                                pen,
+                                renderPath);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                g.Restore(
+                    state);
+            }
+        }
+
+        private static Color EvaluateSvgArithmeticColor(
+            Color color,
+            int alpha,
+            bool sourcePresent,
+            bool shiftedPresent,
+            float k1,
+            float k2,
+            float k3,
+            float k4)
+        {
+            float sourceAlpha =
+                sourcePresent
+                    ? Math.Max(
+                        0f,
+                        Math.Min(
+                            1f,
+                            alpha /
+                            255f))
+                    : 0f;
+            float shiftedAlpha =
+                shiftedPresent
+                    ? Math.Max(
+                        0f,
+                        Math.Min(
+                            1f,
+                            alpha /
+                            255f))
+                    : 0f;
+
+            float resultAlpha =
+                EvaluateSvgArithmeticChannel(
+                    sourceAlpha,
+                    shiftedAlpha,
+                    k1,
+                    k2,
+                    k3,
+                    k4);
+
+            float red =
+                EvaluateSvgArithmeticChannel(
+                    sourcePresent
+                        ? color.R /
+                          255f
+                        : 0f,
+                    shiftedPresent
+                        ? color.R /
+                          255f
+                        : 0f,
+                    k1,
+                    k2,
+                    k3,
+                    k4);
+            float green =
+                EvaluateSvgArithmeticChannel(
+                    sourcePresent
+                        ? color.G /
+                          255f
+                        : 0f,
+                    shiftedPresent
+                        ? color.G /
+                          255f
+                        : 0f,
+                    k1,
+                    k2,
+                    k3,
+                    k4);
+            float blue =
+                EvaluateSvgArithmeticChannel(
+                    sourcePresent
+                        ? color.B /
+                          255f
+                        : 0f,
+                    shiftedPresent
+                        ? color.B /
+                          255f
+                        : 0f,
+                    k1,
+                    k2,
+                    k3,
+                    k4);
+
+            return Color.FromArgb(
+                (int)Math.Round(
+                    resultAlpha *
+                    255f),
+                (int)Math.Round(
+                    red *
+                    255f),
+                (int)Math.Round(
+                    green *
+                    255f),
+                (int)Math.Round(
+                    blue *
+                    255f));
+        }
+
+        private static float EvaluateSvgArithmeticChannel(
+            float first,
+            float second,
+            float k1,
+            float k2,
+            float k3,
+            float k4)
+        {
+            float value =
+                k1 *
+                first *
+                second +
+                k2 *
+                first +
+                k3 *
+                second +
+                k4;
+
+            return Math.Max(
+                0f,
+                Math.Min(
+                    1f,
+                    value));
         }
 
         private static void DrawSvgCompositeInApproximation(
