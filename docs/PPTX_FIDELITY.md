@@ -118,6 +118,7 @@ Microsoft PowerPoint (설치된 경우)
   - dLbls numFmt 숫자 서식 기본 반영
   - 데이터 레이블 separator 기본 반영
   - dLblPos의 ctr/inBase/inEnd/outEnd 및 t/b/l/r 위치 기본 근사
+  - pie/doughnut showLeaderLines 및 leaderLines spPr/ln solidFill·width·prstDash 기본 반영
   - series dLbls/dLbl[idx]의 표시 항목·위치·numFmt·separator·delete point override 기본 반영
   - chart-level dLbls와 series-level dLbls를 별도 scope로 해석
   - legendPos 좌/우/상/하/우상단 배치 및 plot 영역 조정
@@ -148,6 +149,7 @@ Microsoft PowerPoint (설치된 경우)
   - hierarchy 일반 자식을 부모 중심별 그룹으로 묶어 sibling spacing과 행 배치를 근사
   - hierarchy parent-child 및 assistant connector를 직각 elbow routing으로 근사
   - process 같은 행은 node edge 연결, 행 전환 및 verticalProcess는 직각 elbow routing으로 근사
+  - process multi-row 배치는 행별 실제 노드 수 기준 중앙 정렬 및 안정적인 row spacing 적용
   - 구조를 알 수 없는 경우 기존 static approximation으로 fallback
 - hyperlink / slide navigation / media extraction
 - speaker notes
