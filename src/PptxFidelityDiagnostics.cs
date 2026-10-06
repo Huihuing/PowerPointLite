@@ -92,8 +92,8 @@ namespace PptxViewer
                     new string[] { "Q1", "Q2", "Q3", "Q4" },
                     new double[] { -18.0, 34.0, 51.0, -39.0 }) +
                 "</c:barChart>" +
-                "<c:catAx><c:axId val=\"1\"/><c:tickLblPos val=\"none\"/><c:tickLblSkip val=\"2\"/><c:crossesAt val=\"20\"/><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"25400\"><a:solidFill><a:srgbClr val=\"3366CC\"/></a:solidFill><a:prstDash val=\"dash\"/></a:ln></c:spPr><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarter</a:t></a:r></a:p></c:rich></c:tx></c:title></c:catAx>" +
-                "<c:valAx><c:axId val=\"2\"/><c:tickLblPos val=\"none\"/><c:scaling><c:orientation val=\"minMax\"/><c:min val=\"-50\"/><c:max val=\"80\"/></c:scaling><c:majorUnit val=\"20\"/><c:minorUnit val=\"10\"/><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:majorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"12700\"><a:solidFill><a:srgbClr val=\"88AACC\"/></a:solidFill><a:prstDash val=\"dashDot\"/></a:ln></c:spPr></c:majorGridlines><c:minorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"9525\"><a:solidFill><a:srgbClr val=\"CCDDEE\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr></c:minorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"19050\"><a:solidFill><a:srgbClr val=\"CC5533\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Delta</a:t></a:r></a:p></c:rich></c:tx></c:title></c:valAx>" +
+                "<c:catAx><c:axId val=\"1\"/><c:tickLblPos val=\"none\"/><c:tickLblSkip val=\"2\"/><c:majorTickMark val=\"out\"/><c:crossesAt val=\"20\"/><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"25400\"><a:solidFill><a:srgbClr val=\"3366CC\"/></a:solidFill><a:prstDash val=\"dash\"/></a:ln></c:spPr><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarter</a:t></a:r></a:p></c:rich></c:tx></c:title></c:catAx>" +
+                "<c:valAx><c:axId val=\"2\"/><c:tickLblPos val=\"none\"/><c:majorTickMark val=\"cross\"/><c:minorTickMark val=\"in\"/><c:scaling><c:orientation val=\"minMax\"/><c:min val=\"-50\"/><c:max val=\"80\"/></c:scaling><c:majorUnit val=\"20\"/><c:minorUnit val=\"10\"/><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:majorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"12700\"><a:solidFill><a:srgbClr val=\"88AACC\"/></a:solidFill><a:prstDash val=\"dashDot\"/></a:ln></c:spPr></c:majorGridlines><c:minorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"9525\"><a:solidFill><a:srgbClr val=\"CCDDEE\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr></c:minorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"19050\"><a:solidFill><a:srgbClr val=\"CC5533\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Delta</a:t></a:r></a:p></c:rich></c:tx></c:title></c:valAx>" +
                 "<c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"FFF8EE\"/></a:solidFill></c:spPr>" +
                 "</c:plotArea>" +
                 "<c:legend><c:legendPos val=\"b\"/></c:legend>" +
@@ -235,6 +235,23 @@ namespace PptxViewer
             {
                 throw new InvalidOperationException(
                     "Chart category-axis tickLblSkip was not parsed.");
+            }
+
+            if (ReadChartAxisTickMark(
+                    chart,
+                    "catAx",
+                    "majorTickMark") != "out" ||
+                ReadChartAxisTickMark(
+                    chart,
+                    "valAx",
+                    "majorTickMark") != "cross" ||
+                ReadChartAxisTickMark(
+                    chart,
+                    "valAx",
+                    "minorTickMark") != "in")
+            {
+                throw new InvalidOperationException(
+                    "Chart major/minor tick mark settings were not parsed.");
             }
 
             ChartLineStyle categoryAxisStyle =
@@ -472,6 +489,145 @@ namespace PptxViewer
             {
                 throw new InvalidOperationException(
                     "Chart category-axis crossesAt value was not parsed.");
+            }
+
+            using (Bitmap tickBitmap =
+                new Bitmap(
+                    240,
+                    160,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics tickGraphics =
+                Graphics.FromImage(
+                    tickBitmap))
+            {
+                tickGraphics.Clear(
+                    Color.White);
+
+                RectangleF tickPlot =
+                    new RectangleF(
+                        50f,
+                        20f,
+                        140f,
+                        100f);
+
+                ChartLineStyle tickCategoryStyle =
+                    new ChartLineStyle();
+                tickCategoryStyle.Color =
+                    Color.FromArgb(
+                        30,
+                        90,
+                        220);
+                tickCategoryStyle.Width =
+                    2f;
+
+                ChartLineStyle tickValueStyle =
+                    new ChartLineStyle();
+                tickValueStyle.Color =
+                    Color.FromArgb(
+                        220,
+                        50,
+                        40);
+                tickValueStyle.Width =
+                    2f;
+
+                DrawChartAxisTickMarks(
+                    tickGraphics,
+                    tickPlot,
+                    scale,
+                    4,
+                    "column",
+                    0f,
+                    80f,
+                    chart,
+                    tickCategoryStyle,
+                    tickValueStyle);
+
+                bool categoryOutVisible =
+                    false;
+                bool valueCrossVisible =
+                    false;
+                bool valueMinorInVisible =
+                    false;
+
+                for (int y = 81;
+                     y <= 87;
+                     y++)
+                {
+                    for (int x = 64;
+                         x <= 71;
+                         x++)
+                    {
+                        Color pixel =
+                            tickBitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.B >
+                                pixel.R + 60 &&
+                            pixel.B >
+                                pixel.G + 40)
+                        {
+                            categoryOutVisible =
+                                true;
+                        }
+                    }
+                }
+
+                for (int y = 78;
+                     y <= 85;
+                     y++)
+                {
+                    for (int x = 44;
+                         x <= 56;
+                         x++)
+                    {
+                        Color pixel =
+                            tickBitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.R >
+                                pixel.G + 70 &&
+                            pixel.R >
+                                pixel.B + 70)
+                        {
+                            valueCrossVisible =
+                                true;
+                        }
+                    }
+                }
+
+                for (int y = 108;
+                     y <= 116;
+                     y++)
+                {
+                    for (int x = 51;
+                         x <= 55;
+                         x++)
+                    {
+                        Color pixel =
+                            tickBitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.R >
+                                pixel.G + 70 &&
+                            pixel.R >
+                                pixel.B + 70)
+                        {
+                            valueMinorInVisible =
+                                true;
+                        }
+                    }
+                }
+
+                if (!categoryOutVisible ||
+                    !valueCrossVisible ||
+                    !valueMinorInVisible)
+                {
+                    throw new InvalidOperationException(
+                        "Chart major/minor axis tick marks were not rendered in the requested direction.");
+                }
             }
 
             List<double> diagnosticMajorTicks =
