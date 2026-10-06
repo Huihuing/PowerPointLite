@@ -25,6 +25,23 @@ public sealed partial class MainForm : Form
             int durationMs,
             bool forward)
         {
+            AnimateBetweenImages(
+                oldImage,
+                nextImage,
+                kind,
+                durationMs,
+                forward,
+                "");
+        }
+
+        private void AnimateBetweenImages(
+            Image oldImage,
+            Image nextImage,
+            string kind,
+            int durationMs,
+            bool forward,
+            string direction)
+        {
             if (nextImage == null)
                 return;
 
@@ -58,27 +75,96 @@ public sealed partial class MainForm : Form
 
                         if (kind == "wipe")
                         {
-                            int reveal = Math.Max(1, (int)Math.Round(width * t));
-                            Rectangle src = forward
-                                ? new Rectangle(0, 0, reveal, height)
-                                : new Rectangle(width - reveal, 0, reveal, height);
-                            Rectangle dst = src;
-                            g.DrawImage(nextCopy, dst, src, GraphicsUnit.Pixel);
-                        }
-                        else if (kind == "push")
-                        {
-                            int shift = (int)Math.Round(width * t);
-                            g.Clear(Color.Black);
+                            string dir = NormalizeTransitionDirection(
+                                direction,
+                                forward);
 
-                            if (forward)
+                            if (dir == "u" || dir == "d")
                             {
-                                g.DrawImage(oldCopy, new Rectangle(-shift, 0, width, height));
-                                g.DrawImage(nextCopy, new Rectangle(width - shift, 0, width, height));
+                                int reveal = Math.Max(
+                                    1,
+                                    (int)Math.Round(height * t));
+
+                                Rectangle src = dir == "d"
+                                    ? new Rectangle(0, 0, width, reveal)
+                                    : new Rectangle(0, height - reveal, width, reveal);
+
+                                g.DrawImage(
+                                    nextCopy,
+                                    src,
+                                    src,
+                                    GraphicsUnit.Pixel);
                             }
                             else
                             {
-                                g.DrawImage(oldCopy, new Rectangle(shift, 0, width, height));
-                                g.DrawImage(nextCopy, new Rectangle(-width + shift, 0, width, height));
+                                int reveal = Math.Max(
+                                    1,
+                                    (int)Math.Round(width * t));
+
+                                Rectangle src = dir == "r"
+                                    ? new Rectangle(0, 0, reveal, height)
+                                    : new Rectangle(width - reveal, 0, reveal, height);
+
+                                g.DrawImage(
+                                    nextCopy,
+                                    src,
+                                    src,
+                                    GraphicsUnit.Pixel);
+                            }
+                        }
+                        else if (kind == "push")
+                        {
+                            string dir = NormalizeTransitionDirection(
+                                direction,
+                                forward);
+
+                            g.Clear(Color.Black);
+
+                            if (dir == "u" || dir == "d")
+                            {
+                                int shift = (int)Math.Round(height * t);
+
+                                if (dir == "u")
+                                {
+                                    g.DrawImage(
+                                        oldCopy,
+                                        new Rectangle(0, -shift, width, height));
+                                    g.DrawImage(
+                                        nextCopy,
+                                        new Rectangle(0, height - shift, width, height));
+                                }
+                                else
+                                {
+                                    g.DrawImage(
+                                        oldCopy,
+                                        new Rectangle(0, shift, width, height));
+                                    g.DrawImage(
+                                        nextCopy,
+                                        new Rectangle(0, -height + shift, width, height));
+                                }
+                            }
+                            else
+                            {
+                                int shift = (int)Math.Round(width * t);
+
+                                if (dir == "l")
+                                {
+                                    g.DrawImage(
+                                        oldCopy,
+                                        new Rectangle(-shift, 0, width, height));
+                                    g.DrawImage(
+                                        nextCopy,
+                                        new Rectangle(width - shift, 0, width, height));
+                                }
+                                else
+                                {
+                                    g.DrawImage(
+                                        oldCopy,
+                                        new Rectangle(shift, 0, width, height));
+                                    g.DrawImage(
+                                        nextCopy,
+                                        new Rectangle(-width + shift, 0, width, height));
+                                }
                             }
                         }
                         else
@@ -113,6 +199,21 @@ public sealed partial class MainForm : Form
                 oldCopy.Dispose();
                 nextCopy.Dispose();
             }
+        }
+
+        private static string NormalizeTransitionDirection(
+            string direction,
+            bool forward)
+        {
+            if (direction == "l" ||
+                direction == "r" ||
+                direction == "u" ||
+                direction == "d")
+            {
+                return direction;
+            }
+
+            return forward ? "l" : "r";
         }
 
         private void LoadInteractiveMetadata()

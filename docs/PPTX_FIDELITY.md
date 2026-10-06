@@ -60,6 +60,8 @@ Microsoft PowerPoint (설치된 경우)
 - hidden slide
 - transition
   - cut / fade / wipe / push 계열
+  - wipe / push는 좌·우·상·하 `dir` 방향을 반영
+  - `spd` 및 명시적 `dur` 시간 정보를 가능한 범위에서 반영
   - unsupported transition은 fade fallback
   - Morph는 현재 smooth-fade 계열 fallback
 - `mc:AlternateContent`

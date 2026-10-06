@@ -43,6 +43,7 @@ internal static partial class InternalPptxRenderer
         public sealed class TransitionSpec
         {
             public string Kind = "cut";
+            public string Direction = "";
             public int DurationMs;
         }
 
@@ -345,6 +346,17 @@ internal static partial class InternalPptxRenderer
 
                     string speed = GetAttr(transition, "spd");
                     spec.DurationMs = speed == "slow" ? 650 : speed == "med" ? 400 : 240;
+
+                    int explicitDuration;
+                    string durationText = GetAttr(transition, "dur");
+                    if (!string.IsNullOrEmpty(durationText) &&
+                        int.TryParse(durationText, out explicitDuration) &&
+                        explicitDuration > 0 &&
+                        explicitDuration <= 60000)
+                    {
+                        spec.DurationMs = explicitDuration;
+                    }
+
                     spec.Kind = "fade";
 
                     foreach (XmlNode child in transition.ChildNodes)
@@ -356,6 +368,15 @@ internal static partial class InternalPptxRenderer
                         else if (name == "fade" || name == "dissolve") spec.Kind = "fade";
                         else if (name == "morph") spec.Kind = "fade";
                         else if (name != "sndAc") spec.Kind = "fade";
+
+                        string direction = GetAttr(child, "dir");
+                        if (direction == "l" ||
+                            direction == "r" ||
+                            direction == "u" ||
+                            direction == "d")
+                        {
+                            spec.Direction = direction;
+                        }
                     }
 
                     result.Add(spec);

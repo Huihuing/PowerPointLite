@@ -586,11 +586,13 @@ namespace PptxViewer
 
             Image next = LoadImageUnlocked(renderedSlides[index]);
             string kind = "cut";
+            string direction = "";
             int duration = 220;
 
             if (index < transitionSpecs.Count && transitionSpecs[index] != null)
             {
                 kind = transitionSpecs[index].Kind;
+                direction = transitionSpecs[index].Direction;
                 duration = transitionSpecs[index].DurationMs;
             }
 
@@ -598,7 +600,13 @@ namespace PptxViewer
 
             try
             {
-                AnimateBetweenImages(viewer.Image, next, kind, duration, forward);
+                AnimateBetweenImages(
+                    viewer.Image,
+                    next,
+                    kind,
+                    duration,
+                    forward,
+                    direction);
                 currentIndex = index;
                 animationRevealCount = 0;
 
