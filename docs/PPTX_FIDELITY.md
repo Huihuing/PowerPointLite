@@ -52,6 +52,7 @@ Microsoft PowerPoint (설치된 경우)
   - use href/xlink:href의 기본 geometry 참조 + x/y 이동
   - symbol/g/svg 컨테이너 참조 및 중첩 use 기본 path 펼침, 순환 참조 차단
   - symbol/svg viewBox + use width/height viewport 스케일, preserveAspectRatio none/meet/slice 기본 정렬
+  - direct primitive use 참조의 명시적 fill/stroke/presentation style fallback
   - fill/stroke의 currentColor를 상속 color 속성으로 해석
   - presentation attribute/style의 inherit 키워드에서 부모 값 계속 탐색
   - SVG hex 색상 #RGB/#RGBA/#RRGGBB/#RRGGBBAA
@@ -197,7 +198,7 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 - chart의 모든 axis/style/data-label/3D 조합
 - theme effect style 참조 전체 및 복합 shadow/effect 조합
 - feGaussianBlur/feDropShadow/단일 feOffset 외의 SVG filter chain 및 복잡한 mask luminance/gradient 등 고급 SVG 기능
-- SVG use shadow-tree style inheritance 및 복잡한 nested viewport/CSS cascade 전체
+- SVG symbol/g 내부 개별 자식의 use shadow-tree CSS cascade 및 복잡한 nested viewport 전체
 - artisticBlur 외의 artistic preset 등 고급 image artistic effects
 - 3D material/lighting, camera projection 및 bevel/extrusion profile의 정확한 PowerPoint parity
 - custom geometry의 복잡한 nested guide 의존성, 모든 preset formula/adjust-handle semantics

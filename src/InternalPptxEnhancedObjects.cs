@@ -5722,6 +5722,51 @@ namespace PptxViewer
             XmlNode node,
             string key)
         {
+            if (node != null &&
+                node.LocalName == "use")
+            {
+                string referenceId =
+                    ReadSvgUseReferenceId(
+                        node);
+
+                if (!string.IsNullOrEmpty(
+                        referenceId))
+                {
+                    XmlNode referenced =
+                        FindSvgNodeById(
+                            node.OwnerDocument,
+                            referenceId);
+
+                    if (referenced != null &&
+                        referenced != node &&
+                        referenced.LocalName != "use" &&
+                        referenced.LocalName != "g" &&
+                        referenced.LocalName != "symbol" &&
+                        referenced.LocalName != "svg")
+                    {
+                        string referencedValue =
+                            GetSvgStyle(
+                                referenced,
+                                key);
+
+                        if (!string.IsNullOrEmpty(
+                                referencedValue))
+                        {
+                            referencedValue =
+                                referencedValue.Trim();
+
+                            if (!string.Equals(
+                                    referencedValue,
+                                    "inherit",
+                                    StringComparison.OrdinalIgnoreCase))
+                            {
+                                return referencedValue;
+                            }
+                        }
+                    }
+                }
+            }
+
             XmlNode current =
                 node;
 
