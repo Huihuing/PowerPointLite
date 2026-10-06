@@ -416,7 +416,7 @@ internal static partial class InternalPptxRenderer
                 {
                     using (GraphicsPath path = BuildShapePath(spPr, preset, rect))
                     {
-                        DrawOuterShadow(g, spPr, path, rect, theme);
+                        DrawShapeVisualEffects(g, spPr, path, rect, theme);
 
                         bool pictureFill = DrawShapePictureFill(zip, g, spPr, rels, path, rect);
 

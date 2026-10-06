@@ -56,7 +56,11 @@ Microsoft PowerPoint (설치된 경우)
   - val, */, +-, +/, ?:, abs, sqrt, max/min, at2, sin/cos/tan, mod, pin, cat2/sat2
   - w/h/hc/vc/ss/ls 및 주요 cd/분할 built-in guide
   - 추가 preset: pentagon, octagon, star5/star6, plus, chevron, homePlate, trapezoid, 방향 화살표
-- gradient / picture fill / line / dash / arrowhead / basic shadow
+- gradient / picture fill / line / dash / arrowhead
+- outer shadow
+- glow 다단계 outline 근사
+- softEdge 외곽 fade 근사
+- reflection mirrored alpha-gradient 근사
 - group coordinate transform과 중첩 group
 - group rotate / horizontal flip / vertical flip의 graphics transform 근사
 - table
@@ -154,7 +158,7 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 
 - SmartArt 고유 layout algorithm
 - chart의 모든 axis/style/data-label/3D 조합
-- theme effect style 전체
+- theme effect style 참조 전체 및 innerShadow/presetShadow 등 미지원 effect 조합
 - SVG filter 및 gradient spreadMethod, 복잡한 mask luminance/gradient 등 고급 SVG 기능
 - blur/sharpen/artistic preset 등 고급 image artistic effects
 - 3D shape / bevel / material / lighting

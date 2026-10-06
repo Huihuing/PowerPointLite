@@ -464,44 +464,437 @@ internal static partial class InternalPptxRenderer
                 Math.Max(0, Math.Min(255, (int)Math.Round(b))));
         }
 
-        private static void DrawOuterShadow(
+        private static void DrawShapeVisualEffects(
             Graphics g,
             XmlNode spPr,
             GraphicsPath path,
             RectangleF rect,
             Dictionary<string, Color> theme)
         {
-            if (spPr == null || path == null)
+            if (g == null ||
+                spPr == null ||
+                path == null)
+            {
                 return;
+            }
 
-            XmlNode shadow = FindFirst(spPr, "outerShdw");
+            DrawOuterShadowEffect(
+                g,
+                spPr,
+                path,
+                rect,
+                theme);
+
+            DrawGlowEffect(
+                g,
+                spPr,
+                path,
+                theme);
+
+            DrawSoftEdgeApproximation(
+                g,
+                spPr,
+                path,
+                theme);
+
+            DrawReflectionEffect(
+                g,
+                spPr,
+                path,
+                rect,
+                theme);
+        }
+
+        private static void DrawOuterShadowEffect(
+            Graphics g,
+            XmlNode spPr,
+            GraphicsPath path,
+            RectangleF rect,
+            Dictionary<string, Color> theme)
+        {
+            XmlNode shadow =
+                FindFirst(
+                    spPr,
+                    "outerShdw");
+
             if (shadow == null)
                 return;
 
-            Color shadowColor = Color.FromArgb(85, 0, 0, 0);
-            Color? rawColor = ReadColorFromFill(shadow, theme);
+            Color shadowColor =
+                Color.FromArgb(
+                    85,
+                    0,
+                    0,
+                    0);
+
+            Color? rawColor =
+                ReadColorFromFill(
+                    shadow,
+                    theme);
 
             if (rawColor.HasValue)
             {
-                int alpha = rawColor.Value.A < 255 ? rawColor.Value.A : 80;
-                shadowColor = Color.FromArgb(alpha, rawColor.Value.R, rawColor.Value.G, rawColor.Value.B);
+                int alpha =
+                    rawColor.Value.A < 255
+                        ? rawColor.Value.A
+                        : 80;
+
+                shadowColor =
+                    Color.FromArgb(
+                        alpha,
+                        rawColor.Value.R,
+                        rawColor.Value.G,
+                        rawColor.Value.B);
             }
 
-            long distEmu = GetLong(shadow, "dist", 0);
-            long dirRaw = GetLong(shadow, "dir", 2700000);
-            float distPx = (float)(distEmu / EmuPerInch * 144.0);
-            float angle = dirRaw / 60000f * (float)Math.PI / 180f;
-            float dx = (float)Math.Cos(angle) * distPx;
-            float dy = (float)Math.Sin(angle) * distPx;
+            long distEmu =
+                GetLong(
+                    shadow,
+                    "dist",
+                    0);
+            long dirRaw =
+                GetLong(
+                    shadow,
+                    "dir",
+                    2700000);
 
-            using (GraphicsPath shadowPath = (GraphicsPath)path.Clone())
-            using (Matrix m = new Matrix())
-            using (Brush brush = new SolidBrush(shadowColor))
+            float distPx =
+                EmuEffectToPixels(
+                    distEmu);
+
+            float angle =
+                dirRaw /
+                60000f *
+                (float)Math.PI /
+                180f;
+
+            float dx =
+                (float)Math.Cos(
+                    angle) *
+                distPx;
+            float dy =
+                (float)Math.Sin(
+                    angle) *
+                distPx;
+
+            using (GraphicsPath shadowPath =
+                (GraphicsPath)path.Clone())
+            using (Matrix matrix =
+                new Matrix())
+            using (Brush brush =
+                new SolidBrush(
+                    shadowColor))
             {
-                m.Translate(dx, dy);
-                shadowPath.Transform(m);
-                g.FillPath(brush, shadowPath);
+                matrix.Translate(
+                    dx,
+                    dy);
+                shadowPath.Transform(
+                    matrix);
+                g.FillPath(
+                    brush,
+                    shadowPath);
             }
+        }
+
+        private static void DrawGlowEffect(
+            Graphics g,
+            XmlNode spPr,
+            GraphicsPath path,
+            Dictionary<string, Color> theme)
+        {
+            XmlNode glow =
+                FindFirst(
+                    spPr,
+                    "glow");
+
+            if (glow == null)
+                return;
+
+            float radius =
+                Math.Max(
+                    1f,
+                    Math.Min(
+                        80f,
+                        EmuEffectToPixels(
+                            GetLong(
+                                glow,
+                                "rad",
+                                0))));
+
+            if (radius <= 1f)
+                return;
+
+            Color baseColor =
+                ReadColorFromFill(
+                    glow,
+                    theme) ??
+                Color.FromArgb(
+                    100,
+                    90,
+                    150,
+                    255);
+
+            int baseAlpha =
+                baseColor.A < 255
+                    ? baseColor.A
+                    : 110;
+
+            const int layers = 8;
+
+            for (int i = layers;
+                 i >= 1;
+                 i--)
+            {
+                float ratio =
+                    i /
+                    (float)layers;
+
+                float width =
+                    Math.Max(
+                        1f,
+                        radius *
+                        2f *
+                        ratio);
+
+                int alpha =
+                    Math.Max(
+                        3,
+                        Math.Min(
+                            180,
+                            (int)Math.Round(
+                                baseAlpha *
+                                (1f -
+                                 ratio *
+                                 0.72f) /
+                                layers *
+                                2.6f)));
+
+                using (Pen pen =
+                    new Pen(
+                        Color.FromArgb(
+                            alpha,
+                            baseColor.R,
+                            baseColor.G,
+                            baseColor.B),
+                        width))
+                {
+                    pen.LineJoin =
+                        LineJoin.Round;
+
+                    g.DrawPath(
+                        pen,
+                        path);
+                }
+            }
+        }
+
+        private static void DrawSoftEdgeApproximation(
+            Graphics g,
+            XmlNode spPr,
+            GraphicsPath path,
+            Dictionary<string, Color> theme)
+        {
+            XmlNode softEdge =
+                FindFirst(
+                    spPr,
+                    "softEdge");
+
+            if (softEdge == null)
+                return;
+
+            float radius =
+                Math.Max(
+                    0f,
+                    Math.Min(
+                        48f,
+                        EmuEffectToPixels(
+                            GetLong(
+                                softEdge,
+                                "rad",
+                                0))));
+
+            if (radius < 1f)
+                return;
+
+            Color baseColor =
+                ReadSolidFill(
+                    spPr,
+                    theme) ??
+                Color.Gray;
+
+            const int layers = 6;
+
+            for (int i = layers;
+                 i >= 1;
+                 i--)
+            {
+                float ratio =
+                    i /
+                    (float)layers;
+
+                int alpha =
+                    Math.Max(
+                        2,
+                        (int)Math.Round(
+                            34f *
+                            (1f -
+                             ratio *
+                             0.70f)));
+
+                using (Pen pen =
+                    new Pen(
+                        Color.FromArgb(
+                            alpha,
+                            baseColor.R,
+                            baseColor.G,
+                            baseColor.B),
+                        Math.Max(
+                            1f,
+                            radius *
+                            2f *
+                            ratio)))
+                {
+                    pen.LineJoin =
+                        LineJoin.Round;
+
+                    g.DrawPath(
+                        pen,
+                        path);
+                }
+            }
+        }
+
+        private static void DrawReflectionEffect(
+            Graphics g,
+            XmlNode spPr,
+            GraphicsPath path,
+            RectangleF rect,
+            Dictionary<string, Color> theme)
+        {
+            XmlNode reflection =
+                FindFirst(
+                    spPr,
+                    "reflection");
+
+            if (reflection == null)
+                return;
+
+            Color sourceColor =
+                ReadSolidFill(
+                    spPr,
+                    theme) ??
+                Color.FromArgb(
+                    120,
+                    120,
+                    120);
+
+            float scaleY =
+                GetLong(
+                    reflection,
+                    "sy",
+                    100000) /
+                100000f;
+
+            scaleY =
+                Math.Max(
+                    0.05f,
+                    Math.Min(
+                        2f,
+                        Math.Abs(
+                            scaleY)));
+
+            float distance =
+                EmuEffectToPixels(
+                    GetLong(
+                        reflection,
+                        "dist",
+                        0));
+
+            int startAlpha =
+                (int)Math.Round(
+                    255.0 *
+                    Math.Max(
+                        0.0,
+                        Math.Min(
+                            1.0,
+                            GetLong(
+                                reflection,
+                                "stA",
+                                52000) /
+                            100000.0)));
+
+            int endAlpha =
+                (int)Math.Round(
+                    255.0 *
+                    Math.Max(
+                        0.0,
+                        Math.Min(
+                            1.0,
+                            GetLong(
+                                reflection,
+                                "endA",
+                                0) /
+                            100000.0)));
+
+            using (GraphicsPath reflected =
+                (GraphicsPath)path.Clone())
+            using (Matrix mirror =
+                new Matrix(
+                    1f,
+                    0f,
+                    0f,
+                    -scaleY,
+                    0f,
+                    rect.Bottom *
+                        (1f +
+                         scaleY) +
+                    distance))
+            {
+                reflected.Transform(
+                    mirror);
+
+                RectangleF bounds =
+                    reflected.GetBounds();
+
+                if (bounds.Width <= 0f ||
+                    bounds.Height <= 0f)
+                {
+                    return;
+                }
+
+                using (LinearGradientBrush brush =
+                    new LinearGradientBrush(
+                        new PointF(
+                            bounds.Left,
+                            bounds.Top),
+                        new PointF(
+                            bounds.Left,
+                            bounds.Bottom),
+                        Color.FromArgb(
+                            startAlpha,
+                            sourceColor.R,
+                            sourceColor.G,
+                            sourceColor.B),
+                        Color.FromArgb(
+                            endAlpha,
+                            sourceColor.R,
+                            sourceColor.G,
+                            sourceColor.B)))
+                {
+                    g.FillPath(
+                        brush,
+                        reflected);
+                }
+            }
+        }
+
+        private static float EmuEffectToPixels(
+            long emu)
+        {
+            return (float)(
+                emu /
+                EmuPerInch *
+                144.0);
         }
 
         private static Color? ReadSolidFill(

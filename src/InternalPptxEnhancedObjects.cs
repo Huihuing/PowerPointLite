@@ -66,7 +66,7 @@ namespace PptxViewer
 
                 using (GraphicsPath path = BuildEnhancedPresetPath(preset, rect))
                 {
-                    DrawOuterShadow(g, spPr, path, rect, theme);
+                    DrawShapeVisualEffects(g, spPr, path, rect, theme);
                     bool pictureFill = DrawShapePictureFill(zip, g, spPr, rels, path, rect);
 
                     if (!pictureFill && fillBrush != null)

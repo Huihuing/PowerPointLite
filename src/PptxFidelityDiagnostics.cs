@@ -31,6 +31,11 @@ namespace PptxViewer
                     Path.GetFullPath(outputDirectory),
                     "image-effects.png"));
 
+            ValidateSyntheticShapeEffects(
+                Path.Combine(
+                    Path.GetFullPath(outputDirectory),
+                    "shape-effects.png"));
+
             ValidateSyntheticTextInheritance();
         }
 
@@ -380,6 +385,106 @@ namespace PptxViewer
                 activeMasterOtherStyle =
                     previousOther;
             }
+        }
+
+        private static void ValidateSyntheticShapeEffects(
+            string outputPath)
+        {
+            XmlDocument shapeProperties =
+                new XmlDocument();
+
+            shapeProperties.LoadXml(
+                "<a:spPr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<a:solidFill><a:srgbClr val=\"3978D4\"/></a:solidFill>" +
+                "<a:effectLst>" +
+                "<a:outerShdw dist=\"80000\" dir=\"2700000\"><a:srgbClr val=\"202020\"><a:alpha val=\"45000\"/></a:srgbClr></a:outerShdw>" +
+                "<a:glow rad=\"110000\"><a:srgbClr val=\"55A8FF\"><a:alpha val=\"65000\"/></a:srgbClr></a:glow>" +
+                "<a:softEdge rad=\"60000\"/>" +
+                "<a:reflection dist=\"50000\" sy=\"70000\" stA=\"42000\" endA=\"0\"/>" +
+                "</a:effectLst>" +
+                "</a:spPr>");
+
+            Dictionary<string, Color> theme =
+                new Dictionary<string, Color>(
+                    StringComparer.OrdinalIgnoreCase);
+
+            RectangleF rect =
+                new RectangleF(
+                    130f,
+                    80f,
+                    220f,
+                    110f);
+
+            using (Bitmap bitmap =
+                new Bitmap(
+                    520,
+                    380,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics graphics =
+                Graphics.FromImage(bitmap))
+            using (GraphicsPath path =
+                new GraphicsPath())
+            {
+                graphics.Clear(
+                    Color.White);
+                graphics.SmoothingMode =
+                    SmoothingMode.AntiAlias;
+
+                path.AddRectangle(
+                    rect);
+
+                DrawShapeVisualEffects(
+                    graphics,
+                    shapeProperties.DocumentElement,
+                    path,
+                    rect,
+                    theme);
+
+                using (Brush fill =
+                    new SolidBrush(
+                        Color.FromArgb(
+                            57,
+                            120,
+                            212)))
+                {
+                    graphics.FillPath(
+                        fill,
+                        path);
+                }
+
+                Color glowPixel =
+                    bitmap.GetPixel(
+                        120,
+                        120);
+
+                Color reflectionPixel =
+                    bitmap.GetPixel(
+                        240,
+                        215);
+
+                if (glowPixel.R > 247 &&
+                    glowPixel.G > 247 &&
+                    glowPixel.B > 247)
+                {
+                    throw new InvalidOperationException(
+                        "Shape glow/soft-edge approximation did not render outside the source path.");
+                }
+
+                if (reflectionPixel.R > 247 &&
+                    reflectionPixel.G > 247 &&
+                    reflectionPixel.B > 247)
+                {
+                    throw new InvalidOperationException(
+                        "Shape reflection approximation did not render below the source path.");
+                }
+
+                bitmap.Save(
+                    outputPath,
+                    ImageFormat.Png);
+            }
+
+            RequireDiagnosticFile(
+                outputPath);
         }
 
         private static void ValidateSyntheticImageEffects(
