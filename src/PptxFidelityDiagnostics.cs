@@ -92,8 +92,8 @@ namespace PptxViewer
                     new string[] { "Q1", "Q2", "Q3", "Q4" },
                     new double[] { -18.0, 34.0, 51.0, -39.0 }) +
                 "</c:barChart>" +
-                "<c:catAx><c:axId val=\"1\"/><c:tickLblPos val=\"none\"/><c:tickLblSkip val=\"2\"/><c:crossesAt val=\"20\"/><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarter</a:t></a:r></a:p></c:rich></c:tx></c:title></c:catAx>" +
-                "<c:valAx><c:axId val=\"2\"/><c:tickLblPos val=\"none\"/><c:scaling><c:orientation val=\"minMax\"/><c:min val=\"-50\"/><c:max val=\"80\"/></c:scaling><c:majorUnit val=\"20\"/><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Delta</a:t></a:r></a:p></c:rich></c:tx></c:title></c:valAx>" +
+                "<c:catAx><c:axId val=\"1\"/><c:tickLblPos val=\"none\"/><c:tickLblSkip val=\"2\"/><c:crossesAt val=\"20\"/><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"25400\"><a:solidFill><a:srgbClr val=\"3366CC\"/></a:solidFill><a:prstDash val=\"dash\"/></a:ln></c:spPr><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarter</a:t></a:r></a:p></c:rich></c:tx></c:title></c:catAx>" +
+                "<c:valAx><c:axId val=\"2\"/><c:tickLblPos val=\"none\"/><c:scaling><c:orientation val=\"minMax\"/><c:min val=\"-50\"/><c:max val=\"80\"/></c:scaling><c:majorUnit val=\"20\"/><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"19050\"><a:solidFill><a:srgbClr val=\"CC5533\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Delta</a:t></a:r></a:p></c:rich></c:tx></c:title></c:valAx>" +
                 "<c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"FFF8EE\"/></a:solidFill></c:spPr>" +
                 "</c:plotArea>" +
                 "<c:legend><c:legendPos val=\"b\"/></c:legend>" +
@@ -235,6 +235,34 @@ namespace PptxViewer
             {
                 throw new InvalidOperationException(
                     "Chart category-axis tickLblSkip was not parsed.");
+            }
+
+            ChartLineStyle categoryAxisStyle =
+                ReadChartAxisLineStyle(
+                    chart,
+                    "catAx",
+                    theme);
+            ChartLineStyle valueAxisStyle =
+                ReadChartAxisLineStyle(
+                    chart,
+                    "valAx",
+                    theme);
+
+            if (categoryAxisStyle.Color.R != 0x33 ||
+                categoryAxisStyle.Color.G != 0x66 ||
+                categoryAxisStyle.Color.B != 0xCC ||
+                categoryAxisStyle.Width <= 1f ||
+                categoryAxisStyle.DashStyle !=
+                    DashStyle.Dash ||
+                valueAxisStyle.Color.R != 0xCC ||
+                valueAxisStyle.Color.G != 0x55 ||
+                valueAxisStyle.Color.B != 0x33 ||
+                valueAxisStyle.Width <= 1f ||
+                valueAxisStyle.DashStyle !=
+                    DashStyle.Dot)
+            {
+                throw new InvalidOperationException(
+                    "Chart axis line color, width, or dash style was not parsed.");
             }
 
             ChartSeriesData highLabelSeries =
