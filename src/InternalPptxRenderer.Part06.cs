@@ -46,6 +46,7 @@ internal static partial class InternalPptxRenderer
             public bool ShowCategoryName;
             public bool ShowSeriesName;
             public bool ShowPercent;
+            public bool ShowLeaderLines;
             public string NumberFormat;
             public string Position;
             public string Separator = ", ";
@@ -464,7 +465,10 @@ internal static partial class InternalPptxRenderer
                         plot,
                         series[0],
                         labelOptions,
-                        firstSliceAngle);
+                        firstSliceAngle,
+                        ReadChartLeaderLineStyle(
+                            chartDoc,
+                            theme));
                 }
 
                 DrawChartLegend(
@@ -1623,6 +1627,10 @@ internal static partial class InternalPptxRenderer
                 ReadChartBooleanChild(
                     labels,
                     "showPercent");
+            result.ShowLeaderLines =
+                ReadChartBooleanChild(
+                    labels,
+                    "showLeaderLines");
 
             XmlNode numberFormat =
                 DirectChild(
@@ -1861,6 +1869,8 @@ internal static partial class InternalPptxRenderer
                     defaults.ShowSeriesName;
                 result.ShowPercent =
                     defaults.ShowPercent;
+                result.ShowLeaderLines =
+                    defaults.ShowLeaderLines;
                 result.NumberFormat =
                     defaults.NumberFormat;
                 result.Position =
@@ -3039,7 +3049,8 @@ internal static partial class InternalPptxRenderer
             RectangleF plot,
             ChartSeriesData series,
             ChartLabelOptions options,
-            float startAngle)
+            float startAngle,
+            ChartLineStyle leaderLineStyle)
         {
             if (series == null ||
                 series.Values.Count == 0)
@@ -3135,7 +3146,7 @@ internal static partial class InternalPptxRenderer
                             labelPosition == "ctr"
                                 ? 0.18f
                                 : labelPosition == "outend"
-                                    ? 0.48f
+                                    ? 0.58f
                                     : labelPosition == "inend"
                                         ? 0.31f
                                         : 0.34f;
@@ -3171,6 +3182,64 @@ internal static partial class InternalPptxRenderer
                             radius -
                             size.Height /
                             2f;
+
+                        if (labelPosition == "outend" &&
+                            pointLabels.ShowLeaderLines)
+                        {
+                            if (leaderLineStyle == null)
+                            {
+                                leaderLineStyle =
+                                    new ChartLineStyle();
+                                leaderLineStyle.Color =
+                                    Color.FromArgb(
+                                        120,
+                                        120,
+                                        120);
+                                leaderLineStyle.Width = 1f;
+                            }
+
+                            float edgeRadius =
+                                diameter *
+                                0.49f;
+                            float lineEndRadius =
+                                diameter *
+                                0.545f;
+
+                            PointF lineStart =
+                                new PointF(
+                                    cx +
+                                    (float)Math.Cos(
+                                        radians) *
+                                    edgeRadius,
+                                    cy +
+                                    (float)Math.Sin(
+                                        radians) *
+                                    edgeRadius);
+                            PointF lineEnd =
+                                new PointF(
+                                    cx +
+                                    (float)Math.Cos(
+                                        radians) *
+                                    lineEndRadius,
+                                    cy +
+                                    (float)Math.Sin(
+                                        radians) *
+                                    lineEndRadius);
+
+                            using (Pen leader =
+                                new Pen(
+                                    leaderLineStyle.Color,
+                                    leaderLineStyle.Width))
+                            {
+                                leader.DashStyle =
+                                    leaderLineStyle.DashStyle;
+
+                                g.DrawLine(
+                                    leader,
+                                    lineStart,
+                                    lineEnd);
+                            }
+                        }
 
                         g.DrawString(
                             label,
@@ -3782,6 +3851,86 @@ internal static partial class InternalPptxRenderer
                 DirectChild(
                     minorGridlines,
                     "spPr");
+            XmlNode line =
+                shapeProperties == null
+                    ? null
+                    : DirectChild(
+                        shapeProperties,
+                        "ln");
+
+            if (line == null)
+                return style;
+
+            Color? color =
+                ReadSolidFill(
+                    line,
+                    theme);
+
+            if (color.HasValue)
+            {
+                style.Color =
+                    color.Value;
+            }
+
+            long width =
+                GetLong(
+                    line,
+                    "w",
+                    0);
+
+            if (width > 0)
+            {
+                style.Width =
+                    Math.Max(
+                        1f,
+                        EmuToRenderPixels(
+                            width));
+            }
+
+            XmlNode dash =
+                DirectChild(
+                    line,
+                    "prstDash");
+
+            style.DashStyle =
+                ParseChartDashStyle(
+                    dash == null
+                        ? string.Empty
+                        : GetAttr(
+                            dash,
+                            "val"));
+
+            return style;
+        }
+
+        private static ChartLineStyle ReadChartLeaderLineStyle(
+            XmlDocument chartDoc,
+            Dictionary<string, Color> theme)
+        {
+            ChartLineStyle style =
+                new ChartLineStyle();
+            style.Color =
+                Color.FromArgb(
+                    120,
+                    120,
+                    120);
+            style.Width = 1f;
+
+            XmlNode labels =
+                FindChartLevelDataLabels(
+                    chartDoc);
+            XmlNode leaderLines =
+                labels == null
+                    ? null
+                    : DirectChild(
+                        labels,
+                        "leaderLines");
+            XmlNode shapeProperties =
+                leaderLines == null
+                    ? null
+                    : DirectChild(
+                        leaderLines,
+                        "spPr");
             XmlNode line =
                 shapeProperties == null
                     ? null
