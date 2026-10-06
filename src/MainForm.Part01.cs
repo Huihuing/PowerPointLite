@@ -324,6 +324,11 @@ public sealed partial class MainForm : Form
                     sidebarHideTimer.Start();
             };
 
+            thumbnails.Resize += delegate
+            {
+                LayoutThumbnailCards();
+            };
+
             mainSplit.MouseMove += delegate(object sender, MouseEventArgs e)
             {
                 if (!autoHideSidebar || fullscreen)

@@ -565,61 +565,344 @@ public sealed partial class MainForm : Form
             thumbnails.SuspendLayout();
             thumbnails.Controls.Clear();
 
-            for (int i = 0; i < renderedSlides.Count; i++)
+            for (int i = 0;
+                 i < renderedSlides.Count;
+                 i++)
             {
                 int index = i;
+                bool hidden =
+                    i < hiddenSlides.Count &&
+                    hiddenSlides[i];
 
-                Panel card = new Panel
+                Panel card =
+                    new Panel
+                    {
+                        Name =
+                            "SlideThumbnailCard" +
+                            i.ToString(),
+                        Width = 220,
+                        Height = 154,
+                        Margin =
+                            new Padding(
+                                6,
+                                5,
+                                6,
+                                5),
+                        BackColor =
+                            ApplicationTheme.Surface,
+                        Cursor = Cursors.Hand,
+                        Tag = index
+                    };
+
+                Panel accent =
+                    new Panel
+                    {
+                        Name =
+                            "ThumbnailAccent",
+                        Dock = DockStyle.Left,
+                        Width = 3,
+                        Visible = false,
+                        BackColor =
+                            ApplicationTheme.Accent
+                    };
+
+                PictureBox pic =
+                    new PictureBox
+                    {
+                        Name =
+                            "ThumbnailImage",
+                        Left = 10,
+                        Top = 10,
+                        Width = 200,
+                        Height = 112,
+                        SizeMode =
+                            PictureBoxSizeMode.Zoom,
+                        BackColor = Color.Black,
+                        Image =
+                            LoadImageUnlocked(
+                                renderedSlides[i]),
+                        Cursor = Cursors.Hand
+                    };
+
+                string titleText =
+                    i < slideTitles.Count
+                        ? slideTitles[i]
+                        : "";
+
+                string caption =
+                    (i + 1).ToString();
+
+                if (!string.IsNullOrWhiteSpace(
+                        titleText))
                 {
-                    Width = 220,
-                    Height = 155,
-                    Margin = new Padding(5),
-                    BackColor = Color.FromArgb(38, 42, 49),
-                    Cursor = Cursors.Hand
-                };
+                    caption +=
+                        "   " +
+                        titleText.Trim();
+                }
 
-                PictureBox pic = new PictureBox
+                if (hidden)
                 {
-                    Left = 8,
-                    Top = 8,
-                    Width = 204,
-                    Height = 115,
-                    SizeMode = PictureBoxSizeMode.Zoom,
-                    Image = LoadImageUnlocked(renderedSlides[i]),
-                    Cursor = Cursors.Hand
-                };
+                    caption +=
+                        UiLocalization.CurrentLanguage ==
+                            AppLanguage.Korean
+                            ? "   · 숨김"
+                            : "   · Hidden";
+                }
 
-                Label label = new Label
+                Label label =
+                    new Label
+                    {
+                        Name =
+                            "ThumbnailCaption",
+                        Left = 10,
+                        Top = 128,
+                        Width = 200,
+                        Height = 20,
+                        TextAlign =
+                            ContentAlignment.MiddleLeft,
+                        AutoEllipsis = true,
+                        BackColor =
+                            Color.Transparent,
+                        ForeColor = hidden
+                            ? Color.FromArgb(
+                                126,
+                                132,
+                                142)
+                            : ApplicationTheme.SecondaryText,
+                        Text = caption,
+                        Cursor = Cursors.Hand
+                    };
+
+                if (!string.IsNullOrWhiteSpace(
+                        titleText))
                 {
-                    Left = 8,
-                    Top = 128,
-                    Width = 204,
-                    Height = 20,
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    ForeColor = (i < hiddenSlides.Count && hiddenSlides[i])
-                        ? Color.DarkGray
-                        : Color.Gainsboro,
-                    Text = (i < hiddenSlides.Count && hiddenSlides[i])
-                        ? "Slide " + (i + 1).ToString() + "  [Hidden]"
-                        : "Slide " + (i + 1).ToString(),
-                    Cursor = Cursors.Hand
-                };
+                    interactiveToolTip.SetToolTip(
+                        card,
+                        titleText);
+                    interactiveToolTip.SetToolTip(
+                        pic,
+                        titleText);
+                    interactiveToolTip.SetToolTip(
+                        label,
+                        titleText);
+                }
 
-                string titleText = i < slideTitles.Count ? slideTitles[i] : "";
-                if (!string.IsNullOrWhiteSpace(titleText))
-                    interactiveToolTip.SetToolTip(card, titleText);
+                EventHandler click =
+                    delegate
+                    {
+                        ShowSlide(
+                            index);
+                    };
 
-                EventHandler click = delegate { ShowSlide(index); };
+                EventHandler enter =
+                    delegate
+                    {
+                        SetThumbnailHover(
+                            card,
+                            true);
+                    };
+
+                EventHandler leave =
+                    delegate
+                    {
+                        SetThumbnailHover(
+                            card,
+                            false);
+                    };
+
                 card.Click += click;
                 pic.Click += click;
                 label.Click += click;
 
-                card.Controls.Add(pic);
-                card.Controls.Add(label);
-                thumbnails.Controls.Add(card);
+                card.MouseEnter += enter;
+                pic.MouseEnter += enter;
+                label.MouseEnter += enter;
+
+                card.MouseLeave += leave;
+                pic.MouseLeave += leave;
+                label.MouseLeave += leave;
+
+                card.Controls.Add(
+                    pic);
+                card.Controls.Add(
+                    label);
+                card.Controls.Add(
+                    accent);
+                thumbnails.Controls.Add(
+                    card);
             }
 
+            LayoutThumbnailCards();
+            UpdateThumbnailSelection();
+
             thumbnails.ResumeLayout();
+        }
+
+        private void LayoutThumbnailCards()
+        {
+            if (thumbnails == null ||
+                thumbnails.Controls.Count == 0)
+            {
+                return;
+            }
+
+            int availableWidth =
+                Math.Max(
+                    176,
+                    thumbnails.ClientSize.Width -
+                    thumbnails.Padding.Horizontal -
+                    22);
+
+            for (int i = 0;
+                 i < thumbnails.Controls.Count;
+                 i++)
+            {
+                Panel card =
+                    thumbnails.Controls[i]
+                    as Panel;
+
+                if (card == null)
+                    continue;
+
+                card.Width =
+                    availableWidth;
+
+                PictureBox pic =
+                    card.Controls[
+                        "ThumbnailImage"]
+                    as PictureBox;
+                Label caption =
+                    card.Controls[
+                        "ThumbnailCaption"]
+                    as Label;
+
+                if (pic == null ||
+                    caption == null)
+                {
+                    continue;
+                }
+
+                pic.Left = 10;
+                pic.Top = 10;
+                pic.Width =
+                    Math.Max(
+                        120,
+                        card.Width - 20);
+
+                float aspect =
+                    pic.Image != null &&
+                    pic.Image.Width > 0 &&
+                    pic.Image.Height > 0
+                        ? pic.Image.Height /
+                          (float)pic.Image.Width
+                        : 9f / 16f;
+
+                pic.Height =
+                    Math.Max(
+                        86,
+                        Math.Min(
+                            138,
+                            (int)Math.Round(
+                                pic.Width *
+                                aspect)));
+
+                caption.Left = 10;
+                caption.Top =
+                    pic.Bottom + 6;
+                caption.Width =
+                    Math.Max(
+                        80,
+                        card.Width - 20);
+
+                card.Height =
+                    caption.Bottom + 8;
+            }
+        }
+
+        private void SetThumbnailHover(
+            Panel card,
+            bool hover)
+        {
+            if (card == null)
+                return;
+
+            int index =
+                card.Tag is int
+                    ? (int)card.Tag
+                    : -1;
+
+            if (index ==
+                currentIndex)
+            {
+                card.BackColor =
+                    ApplicationTheme.AccentSoft;
+                return;
+            }
+
+            card.BackColor =
+                hover
+                    ? ApplicationTheme.SurfaceHover
+                    : ApplicationTheme.Surface;
+        }
+
+        private void UpdateThumbnailSelection()
+        {
+            if (thumbnails == null)
+                return;
+
+            for (int i = 0;
+                 i < thumbnails.Controls.Count;
+                 i++)
+            {
+                Panel card =
+                    thumbnails.Controls[i]
+                    as Panel;
+
+                if (card == null)
+                    continue;
+
+                int index =
+                    card.Tag is int
+                        ? (int)card.Tag
+                        : -1;
+                bool selected =
+                    index == currentIndex;
+
+                card.BackColor =
+                    selected
+                        ? ApplicationTheme.AccentSoft
+                        : ApplicationTheme.Surface;
+
+                Panel accent =
+                    card.Controls[
+                        "ThumbnailAccent"]
+                    as Panel;
+
+                if (accent != null)
+                {
+                    accent.Visible =
+                        selected;
+                    if (selected)
+                        accent.BringToFront();
+                }
+
+                Label caption =
+                    card.Controls[
+                        "ThumbnailCaption"]
+                    as Label;
+
+                if (caption != null &&
+                    !(index >= 0 &&
+                      index <
+                          hiddenSlides.Count &&
+                      hiddenSlides[index]))
+                {
+                    caption.ForeColor =
+                        selected
+                            ? ApplicationTheme.PrimaryText
+                            : ApplicationTheme.SecondaryText;
+                }
+            }
         }
 
         private void ShowSlide(int index)
@@ -628,6 +911,7 @@ public sealed partial class MainForm : Form
                 return;
 
             currentIndex = index;
+            UpdateThumbnailSelection();
             animationRevealCount = 0;
             slideNumberBuffer = "";
             RestoreBlankScreen();
