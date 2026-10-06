@@ -11511,6 +11511,9 @@ namespace PptxViewer
                 valueTickLabelPosition,
                 ReadChartMajorGridlineStyle(
                     chartDoc,
+                    theme),
+                ReadChartMinorGridlineStyle(
+                    chartDoc,
                     theme));
 
             double categoryAxisCrossValue =
