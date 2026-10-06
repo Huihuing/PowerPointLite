@@ -11771,7 +11771,9 @@ namespace PptxViewer
                     series[0],
                     categoryCount,
                     "column",
-                    categoryTickLabelPosition);
+                    categoryTickLabelPosition,
+                    ReadChartCategoryLabelSkip(
+                        chartDoc));
             }
 
             DrawChartAxisTitles(
