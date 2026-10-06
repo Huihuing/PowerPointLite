@@ -298,20 +298,6 @@ namespace PptxViewer
                     "Chart minor gridline color, width, or dash style was not parsed.");
             }
 
-            List<double> diagnosticMajorTicks =
-                BuildChartAxisTicks(
-                    scale);
-            List<double> diagnosticMinorTicks =
-                BuildChartMinorAxisTicks(
-                    scale,
-                    diagnosticMajorTicks);
-
-            if (diagnosticMinorTicks.Count == 0)
-            {
-                throw new InvalidOperationException(
-                    "Chart minorUnit did not produce minor axis ticks.");
-            }
-
             ChartSeriesData highLabelSeries =
                 new ChartSeriesData();
             highLabelSeries.Categories.Add(
@@ -486,6 +472,20 @@ namespace PptxViewer
             {
                 throw new InvalidOperationException(
                     "Chart category-axis crossesAt value was not parsed.");
+            }
+
+            List<double> diagnosticMajorTicks =
+                BuildChartAxisTicks(
+                    scale);
+            List<double> diagnosticMinorTicks =
+                BuildChartMinorAxisTicks(
+                    scale,
+                    diagnosticMajorTicks);
+
+            if (diagnosticMinorTicks.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "Chart minorUnit did not produce minor axis ticks.");
             }
 
             ChartLabelOptions labels =
