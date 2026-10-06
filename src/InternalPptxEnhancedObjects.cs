@@ -13001,31 +13001,199 @@ namespace PptxViewer
                         rowHeight *
                         0.52f);
 
+                float nodeGap =
+                    Math.Max(
+                        8f,
+                        Math.Min(
+                            rect.Width,
+                            rect.Height) *
+                        0.018f);
+
+                Dictionary<string, List<SmartNode>> groups =
+                    new Dictionary<string, List<SmartNode>>(
+                        StringComparer.Ordinal);
+                Dictionary<string, float> groupCenters =
+                    new Dictionary<string, float>(
+                        StringComparer.Ordinal);
+                List<string> groupOrder =
+                    new List<string>();
+
                 for (int i = 0;
                      i < level.Count;
                      i++)
                 {
+                    SmartNode item =
+                        level[i];
+
+                    RectangleF parentBox;
+                    bool hasParent =
+                        depth > 0 &&
+                        !string.IsNullOrEmpty(
+                            item.ParentId) &&
+                        positions.TryGetValue(
+                            item.ParentId,
+                            out parentBox);
+
+                    string groupKey =
+                        hasParent
+                            ? item.ParentId
+                            : "__level_" +
+                              depth.ToString() +
+                              "_" +
+                              i.ToString();
+
+                    List<SmartNode> siblings;
+                    if (!groups.TryGetValue(
+                            groupKey,
+                            out siblings))
+                    {
+                        siblings =
+                            new List<SmartNode>();
+                        groups[groupKey] =
+                            siblings;
+                        groupOrder.Add(
+                            groupKey);
+
+                        groupCenters[groupKey] =
+                            hasParent
+                                ? parentBox.Left +
+                                  parentBox.Width /
+                                  2f
+                                : rect.Left +
+                                  (i + 0.5f) *
+                                  columnWidth;
+                    }
+
+                    siblings.Add(
+                        item);
+                }
+
+                groupOrder.Sort(
+                    delegate(
+                        string left,
+                        string right)
+                    {
+                        return groupCenters[left]
+                            .CompareTo(
+                                groupCenters[right]);
+                    });
+
+                float y =
+                    rect.Top +
+                    depth * rowHeight +
+                    (rowHeight -
+                     boxH) /
+                    2f;
+                float previousRight =
+                    rect.Left -
+                    nodeGap;
+                List<string> placedIds =
+                    new List<string>();
+
+                for (int groupIndex = 0;
+                     groupIndex < groupOrder.Count;
+                     groupIndex++)
+                {
+                    string groupKey =
+                        groupOrder[groupIndex];
+                    List<SmartNode> siblings =
+                        groups[groupKey];
+
+                    float groupWidth =
+                        siblings.Count *
+                        boxW +
+                        Math.Max(
+                            0,
+                            siblings.Count - 1) *
+                        nodeGap;
+
                     float x =
-                        rect.Left +
-                        i * columnWidth +
-                        (columnWidth -
-                         boxW) /
+                        groupCenters[groupKey] -
+                        groupWidth /
                         2f;
 
-                    float y =
-                        rect.Top +
-                        depth * rowHeight +
-                        (rowHeight -
-                         boxH) /
-                        2f;
+                    x =
+                        Math.Max(
+                            rect.Left,
+                            Math.Max(
+                                previousRight +
+                                nodeGap,
+                                x));
 
-                    positions[
-                        level[i].Id] =
-                        new RectangleF(
-                            x,
-                            y,
-                            boxW,
-                            boxH);
+                    for (int siblingIndex = 0;
+                         siblingIndex < siblings.Count;
+                         siblingIndex++)
+                    {
+                        float childX =
+                            x +
+                            siblingIndex *
+                            (boxW +
+                             nodeGap);
+
+                        positions[
+                            siblings[siblingIndex].Id] =
+                            new RectangleF(
+                                childX,
+                                y,
+                                boxW,
+                                boxH);
+
+                        placedIds.Add(
+                            siblings[siblingIndex].Id);
+                    }
+
+                    previousRight =
+                        x +
+                        groupWidth;
+                }
+
+                if (previousRight >
+                    rect.Right &&
+                    placedIds.Count > 0)
+                {
+                    float shift =
+                        previousRight -
+                        rect.Right;
+
+                    for (int i = 0;
+                         i < placedIds.Count;
+                         i++)
+                    {
+                        RectangleF box =
+                            positions[
+                                placedIds[i]];
+                        box.X -= shift;
+                        positions[
+                            placedIds[i]] =
+                            box;
+                    }
+
+                    float firstLeft =
+                        positions[
+                            placedIds[0]]
+                            .Left;
+
+                    if (firstLeft <
+                        rect.Left)
+                    {
+                        float correction =
+                            rect.Left -
+                            firstLeft;
+
+                        for (int i = 0;
+                             i < placedIds.Count;
+                             i++)
+                        {
+                            RectangleF box =
+                                positions[
+                                    placedIds[i]];
+                            box.X +=
+                                correction;
+                            positions[
+                                placedIds[i]] =
+                                box;
+                        }
+                    }
                 }
             }
 
