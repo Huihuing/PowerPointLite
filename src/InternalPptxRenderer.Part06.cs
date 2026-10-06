@@ -50,6 +50,10 @@ internal static partial class InternalPptxRenderer
             public Color? TextColor;
             public Color? FillColor;
             public ChartLineStyle BorderStyle;
+            public float? FontSize;
+            public bool? Bold;
+            public bool? Italic;
+            public string FontFamily;
             public string NumberFormat;
             public string Position;
             public string Separator = ", ";
@@ -76,6 +80,10 @@ internal static partial class InternalPptxRenderer
             public Color? TextColor;
             public Color? FillColor;
             public ChartLineStyle BorderStyle;
+            public float? FontSize;
+            public bool? Bold;
+            public bool? Italic;
+            public string FontFamily;
             public string NumberFormat;
             public string Position;
             public string Separator;
@@ -1659,6 +1667,13 @@ internal static partial class InternalPptxRenderer
                 out result.FillColor,
                 out result.BorderStyle);
 
+            ReadChartDataLabelFontStyle(
+                labels,
+                out result.FontSize,
+                out result.Bold,
+                out result.Italic,
+                out result.FontFamily);
+
             XmlNode numberFormat =
                 DirectChild(
                     labels,
@@ -1825,6 +1840,13 @@ internal static partial class InternalPptxRenderer
                     out item.FillColor,
                     out item.BorderStyle);
 
+                ReadChartDataLabelFontStyle(
+                    label,
+                    out item.FontSize,
+                    out item.Bold,
+                    out item.Italic,
+                    out item.FontFamily);
+
                 XmlNode numberFormat =
                     DirectChild(
                         label,
@@ -1865,6 +1887,149 @@ internal static partial class InternalPptxRenderer
                 data.PointLabelOverrides[
                     pointIndex] =
                     item;
+            }
+        }
+
+        private static XmlNode FindChartDataLabelRunProperties(
+            XmlNode labels)
+        {
+            if (labels == null)
+                return null;
+
+            XmlNode textProperties =
+                DirectChild(
+                    labels,
+                    "txPr");
+
+            if (textProperties == null)
+                return null;
+
+            XmlNode runProperties =
+                FindFirst(
+                    textProperties,
+                    "defRPr");
+
+            if (runProperties == null)
+            {
+                runProperties =
+                    FindFirst(
+                        textProperties,
+                        "rPr");
+            }
+
+            if (runProperties == null)
+            {
+                runProperties =
+                    FindFirst(
+                        textProperties,
+                        "endParaRPr");
+            }
+
+            return runProperties;
+        }
+
+        private static void ReadChartDataLabelFontStyle(
+            XmlNode labels,
+            out float? fontSize,
+            out bool? bold,
+            out bool? italic,
+            out string fontFamily)
+        {
+            fontSize = null;
+            bold = null;
+            italic = null;
+            fontFamily = null;
+
+            XmlNode runProperties =
+                FindChartDataLabelRunProperties(
+                    labels);
+
+            if (runProperties == null)
+                return;
+
+            int rawSize;
+            if (int.TryParse(
+                    GetAttr(
+                        runProperties,
+                        "sz"),
+                    out rawSize) &&
+                rawSize > 0)
+            {
+                fontSize =
+                    Math.Max(
+                        1f,
+                        Math.Min(
+                            400f,
+                            rawSize /
+                            100f));
+            }
+
+            string boldValue =
+                GetAttr(
+                    runProperties,
+                    "b");
+
+            if (!string.IsNullOrEmpty(
+                    boldValue))
+            {
+                bold =
+                    boldValue == "1" ||
+                    string.Equals(
+                        boldValue,
+                        "true",
+                        StringComparison.OrdinalIgnoreCase);
+            }
+
+            string italicValue =
+                GetAttr(
+                    runProperties,
+                    "i");
+
+            if (!string.IsNullOrEmpty(
+                    italicValue))
+            {
+                italic =
+                    italicValue == "1" ||
+                    string.Equals(
+                        italicValue,
+                        "true",
+                        StringComparison.OrdinalIgnoreCase);
+            }
+
+            XmlNode latin =
+                DirectChild(
+                    runProperties,
+                    "latin");
+            XmlNode eastAsia =
+                DirectChild(
+                    runProperties,
+                    "ea");
+
+            string typeface =
+                latin == null
+                    ? null
+                    : GetAttr(
+                        latin,
+                        "typeface");
+
+            if (string.IsNullOrEmpty(
+                    typeface) &&
+                eastAsia != null)
+            {
+                typeface =
+                    GetAttr(
+                        eastAsia,
+                        "typeface");
+            }
+
+            if (!string.IsNullOrEmpty(
+                    typeface) &&
+                !typeface.StartsWith(
+                    "+",
+                    StringComparison.Ordinal))
+            {
+                fontFamily =
+                    typeface;
             }
         }
 
@@ -1958,38 +2123,15 @@ internal static partial class InternalPptxRenderer
             if (labels == null)
                 return null;
 
-            XmlNode textProperties =
-                DirectChild(
-                    labels,
-                    "txPr");
+            XmlNode runProperties =
+                FindChartDataLabelRunProperties(
+                    labels);
 
-            if (textProperties == null)
+            if (runProperties == null)
                 return null;
 
-            XmlNode runProperties =
-                FindFirst(
-                    textProperties,
-                    "defRPr");
-
-            if (runProperties == null)
-            {
-                runProperties =
-                    FindFirst(
-                        textProperties,
-                        "rPr");
-            }
-
-            if (runProperties == null)
-            {
-                runProperties =
-                    FindFirst(
-                        textProperties,
-                        "endParaRPr");
-            }
-
             return ReadSolidFill(
-                runProperties ??
-                textProperties,
+                runProperties,
                 theme);
         }
 
@@ -2051,6 +2193,14 @@ internal static partial class InternalPptxRenderer
                     defaults.FillColor;
                 result.BorderStyle =
                     defaults.BorderStyle;
+                result.FontSize =
+                    defaults.FontSize;
+                result.Bold =
+                    defaults.Bold;
+                result.Italic =
+                    defaults.Italic;
+                result.FontFamily =
+                    defaults.FontFamily;
                 result.NumberFormat =
                     defaults.NumberFormat;
                 result.Position =
@@ -2108,6 +2258,25 @@ internal static partial class InternalPptxRenderer
             if (item.BorderStyle != null)
                 result.BorderStyle =
                     item.BorderStyle;
+
+            if (item.FontSize.HasValue)
+                result.FontSize =
+                    item.FontSize.Value;
+
+            if (item.Bold.HasValue)
+                result.Bold =
+                    item.Bold.Value;
+
+            if (item.Italic.HasValue)
+                result.Italic =
+                    item.Italic.Value;
+
+            if (!string.IsNullOrEmpty(
+                    item.FontFamily))
+            {
+                result.FontFamily =
+                    item.FontFamily;
+            }
 
             if (!string.IsNullOrEmpty(
                     item.NumberFormat))
@@ -2941,11 +3110,15 @@ internal static partial class InternalPptxRenderer
         {
             SolidBrush ownedBrush =
                 null;
+            Font ownedFont =
+                null;
 
             try
             {
                 Brush drawBrush =
                     fallbackBrush;
+                Font drawFont =
+                    font;
 
                 if (options != null &&
                     options.TextColor.HasValue)
@@ -2957,10 +3130,54 @@ internal static partial class InternalPptxRenderer
                         ownedBrush;
                 }
 
+                if (options != null &&
+                    (options.FontSize.HasValue ||
+                     options.Bold.HasValue ||
+                     options.Italic.HasValue ||
+                     !string.IsNullOrEmpty(
+                         options.FontFamily)))
+                {
+                    FontStyle style =
+                        font.Style;
+
+                    if (options.Bold.HasValue)
+                    {
+                        if (options.Bold.Value)
+                            style |=
+                                FontStyle.Bold;
+                        else
+                            style &=
+                                ~FontStyle.Bold;
+                    }
+
+                    if (options.Italic.HasValue)
+                    {
+                        if (options.Italic.Value)
+                            style |=
+                                FontStyle.Italic;
+                        else
+                            style &=
+                                ~FontStyle.Italic;
+                    }
+
+                    ownedFont =
+                        SafeFont(
+                            string.IsNullOrEmpty(
+                                options.FontFamily)
+                                ? font.FontFamily.Name
+                                : options.FontFamily,
+                            options.FontSize.HasValue
+                                ? options.FontSize.Value
+                                : font.Size,
+                            style);
+                    drawFont =
+                        ownedFont;
+                }
+
                 SizeF textSize =
                     g.MeasureString(
                         text,
-                        font);
+                        drawFont);
 
                 RectangleF labelBox =
                     new RectangleF(
@@ -3008,13 +3225,16 @@ internal static partial class InternalPptxRenderer
 
                 g.DrawString(
                     text,
-                    font,
+                    drawFont,
                     drawBrush,
                     x,
                     y);
             }
             finally
             {
+                if (ownedFont != null)
+                    ownedFont.Dispose();
+
                 if (ownedBrush != null)
                     ownedBrush.Dispose();
             }
