@@ -12140,6 +12140,10 @@ namespace PptxViewer
                     theme),
                 ReadChartMinorGridlineStyle(
                     chartDoc,
+                    theme),
+                ReadChartAxisLabelStyle(
+                    chartDoc,
+                    "valAx",
                     theme));
 
             double categoryAxisCrossValue =
@@ -12448,7 +12452,11 @@ namespace PptxViewer
                     "column",
                     categoryTickLabelPosition,
                     ReadChartCategoryLabelSkip(
-                        chartDoc));
+                        chartDoc),
+                    ReadChartAxisLabelStyle(
+                        chartDoc,
+                        "catAx",
+                        theme));
             }
 
             DrawChartAxisTitles(
