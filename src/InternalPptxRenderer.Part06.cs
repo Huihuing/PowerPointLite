@@ -26,6 +26,26 @@ internal static partial class InternalPptxRenderer
             public bool Reverse;
         }
 
+        private sealed class ChartLabelOptions
+        {
+            public bool ShowValue;
+            public bool ShowCategoryName;
+            public bool ShowSeriesName;
+            public bool ShowPercent;
+            public string Separator = ", ";
+
+            public bool HasAny
+            {
+                get
+                {
+                    return ShowValue ||
+                        ShowCategoryName ||
+                        ShowSeriesName ||
+                        ShowPercent;
+                }
+            }
+        }
+
         private static void DrawChart(
             Graphics g,
             XmlDocument chartDoc,
@@ -158,26 +178,71 @@ internal static partial class InternalPptxRenderer
                 }
             }
 
+            string legendPosition =
+                ReadChartLegendPosition(
+                    chartDoc);
+
+            float leftPad =
+                Math.Max(
+                    36f,
+                    rect.Width * 0.09f);
+            float rightPad =
+                Math.Max(
+                    28f,
+                    rect.Width * 0.06f);
+            float bottomPad =
+                Math.Max(
+                    36f,
+                    rect.Height * 0.11f);
+            float plotTop =
+                rect.Top +
+                topPad;
+
+            if (legendPosition == "r" ||
+                legendPosition == "tr")
+            {
+                rightPad =
+                    Math.Max(
+                        92f,
+                        rect.Width * 0.20f);
+            }
+            else if (legendPosition == "l")
+            {
+                leftPad =
+                    Math.Max(
+                        92f,
+                        rect.Width * 0.20f);
+            }
+            else if (legendPosition == "b")
+            {
+                bottomPad =
+                    Math.Max(
+                        66f,
+                        rect.Height * 0.18f);
+            }
+            else if (legendPosition == "t")
+            {
+                plotTop +=
+                    Math.Max(
+                        28f,
+                        rect.Height * 0.10f);
+            }
+
             RectangleF plot =
                 new RectangleF(
                     rect.Left +
-                        Math.Max(
-                            36f,
-                            rect.Width * 0.09f),
-                    rect.Top + topPad,
+                        leftPad,
+                    plotTop,
                     Math.Max(
                         10f,
                         rect.Width -
-                            Math.Max(
-                                82f,
-                                rect.Width * 0.20f)),
+                            leftPad -
+                            rightPad),
                     Math.Max(
                         10f,
-                        rect.Height -
-                            topPad -
-                            Math.Max(
-                                36f,
-                                rect.Height * 0.11f)));
+                        rect.Bottom -
+                            plotTop -
+                            bottomPad));
 
             Color[] palette =
                 new Color[]
@@ -226,8 +291,9 @@ internal static partial class InternalPptxRenderer
                             70))
                 };
 
-            bool showValues =
-                ChartShowsValues(chartDoc);
+            ChartLabelOptions labelOptions =
+                ReadChartLabelOptions(
+                    chartDoc);
 
             if (kind == "pie")
             {
@@ -237,14 +303,22 @@ internal static partial class InternalPptxRenderer
                     series[0],
                     palette);
 
-                if (showValues)
+                if (labelOptions.HasAny)
                 {
                     DrawPieChartValueLabels(
                         g,
                         plot,
-                        series[0]);
+                        series[0],
+                        labelOptions);
                 }
 
+                DrawChartLegend(
+                    g,
+                    rect,
+                    series,
+                    palette,
+                    kind,
+                    legendPosition);
                 return;
             }
 
@@ -481,15 +555,21 @@ internal static partial class InternalPptxRenderer
                                     6,
                                     6);
 
-                                if (showValues &&
+                                if (labelOptions.HasAny &&
                                     i < sd.Values.Count)
                                 {
+                                    string label =
+                                        BuildChartDataLabel(
+                                            labelOptions,
+                                            sd,
+                                            i,
+                                            false);
+
                                     DrawChartValueLabel(
                                         g,
                                         valueFont,
                                         valueBrush,
-                                        FormatChartNumber(
-                                            sd.Values[i]),
+                                        label,
                                         point.X,
                                         point.Y - 16f,
                                         true);
@@ -572,19 +652,25 @@ internal static partial class InternalPptxRenderer
                                         barH - 1));
                             }
 
-                            if (showValues)
+                            if (labelOptions.HasAny)
                             {
                                 float labelX =
                                     value >= 0.0
                                         ? valueX + 4f
                                         : valueX - 4f;
 
+                                string label =
+                                    BuildChartDataLabel(
+                                        labelOptions,
+                                        series[si],
+                                        ci,
+                                        false);
+
                                 DrawChartValueLabel(
                                     g,
                                     valueFont,
                                     valueBrush,
-                                    FormatChartNumber(
-                                        value),
+                                    label,
                                     labelX,
                                     y +
                                         Math.Max(
@@ -671,7 +757,7 @@ internal static partial class InternalPptxRenderer
                                     height);
                             }
 
-                            if (showValues)
+                            if (labelOptions.HasAny)
                             {
                                 float labelY =
                                     value >= 0.0
@@ -680,12 +766,18 @@ internal static partial class InternalPptxRenderer
                                             2f
                                         : valueY + 2f;
 
+                                string label =
+                                    BuildChartDataLabel(
+                                        labelOptions,
+                                        series[si],
+                                        ci,
+                                        false);
+
                                 DrawChartValueLabel(
                                     g,
                                     valueFont,
                                     valueBrush,
-                                    FormatChartNumber(
-                                        value),
+                                    label,
                                     x +
                                         Math.Max(
                                             1f,
@@ -710,38 +802,216 @@ internal static partial class InternalPptxRenderer
                 g,
                 rect,
                 series,
-                palette);
+                palette,
+                kind,
+                legendPosition);
         }
 
-        private static bool ChartShowsValues(
+        private static ChartLabelOptions ReadChartLabelOptions(
             XmlDocument chartDoc)
         {
+            ChartLabelOptions result =
+                new ChartLabelOptions();
+
             XmlNode labels =
-                FindFirst(
-                    chartDoc,
-                    "dLbls");
+                chartDoc == null
+                    ? null
+                    : FindFirst(
+                        chartDoc,
+                        "dLbls");
 
             if (labels == null)
-                return false;
+                return result;
 
-            XmlNode showVal =
-                FindFirst(
+            result.ShowValue =
+                ReadChartBooleanChild(
                     labels,
                     "showVal");
+            result.ShowCategoryName =
+                ReadChartBooleanChild(
+                    labels,
+                    "showCatName");
+            result.ShowSeriesName =
+                ReadChartBooleanChild(
+                    labels,
+                    "showSerName");
+            result.ShowPercent =
+                ReadChartBooleanChild(
+                    labels,
+                    "showPercent");
 
-            if (showVal == null)
+            XmlNode separator =
+                DirectChild(
+                    labels,
+                    "separator");
+
+            if (separator != null &&
+                !string.IsNullOrEmpty(
+                    separator.InnerText))
+            {
+                result.Separator =
+                    separator.InnerText;
+            }
+
+            return result;
+        }
+
+        private static bool ReadChartBooleanChild(
+            XmlNode parent,
+            string childName)
+        {
+            XmlNode child =
+                DirectChild(
+                    parent,
+                    childName);
+
+            if (child == null)
                 return false;
 
             string value =
                 GetAttr(
-                    showVal,
+                    child,
                     "val");
+
+            if (string.IsNullOrEmpty(value))
+                return true;
 
             return value == "1" ||
                 string.Equals(
                     value,
                     "true",
                     StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string BuildChartDataLabel(
+            ChartLabelOptions options,
+            ChartSeriesData series,
+            int index,
+            bool pie)
+        {
+            if (options == null ||
+                series == null ||
+                index < 0 ||
+                index >= series.Values.Count)
+            {
+                return string.Empty;
+            }
+
+            List<string> parts =
+                new List<string>();
+
+            if (options.ShowSeriesName &&
+                !string.IsNullOrEmpty(
+                    series.Name))
+            {
+                parts.Add(
+                    series.Name);
+            }
+
+            if (options.ShowCategoryName &&
+                index <
+                series.Categories.Count &&
+                !string.IsNullOrEmpty(
+                    series.Categories[index]))
+            {
+                parts.Add(
+                    series.Categories[index]);
+            }
+
+            if (options.ShowValue)
+            {
+                parts.Add(
+                    FormatChartNumber(
+                        series.Values[index]));
+            }
+
+            if (options.ShowPercent &&
+                pie)
+            {
+                double total = 0.0;
+
+                for (int i = 0;
+                     i < series.Values.Count;
+                     i++)
+                {
+                    total +=
+                        Math.Abs(
+                            series.Values[i]);
+                }
+
+                if (total > 0.0000001)
+                {
+                    double ratio =
+                        Math.Abs(
+                            series.Values[index]) /
+                        total;
+
+                    parts.Add(
+                        ratio.ToString(
+                            "0.#%",
+                            System.Globalization.CultureInfo.InvariantCulture));
+                }
+            }
+
+            if (parts.Count == 0)
+                return string.Empty;
+
+            return string.Join(
+                string.IsNullOrEmpty(
+                    options.Separator)
+                    ? ", "
+                    : options.Separator,
+                parts.ToArray());
+        }
+
+        private static string ReadChartLegendPosition(
+            XmlDocument chartDoc)
+        {
+            XmlNode legend =
+                chartDoc == null
+                    ? null
+                    : FindFirst(
+                        chartDoc,
+                        "legend");
+
+            if (legend == null)
+                return string.Empty;
+
+            XmlNode deleted =
+                DirectChild(
+                    legend,
+                    "delete");
+
+            if (deleted != null &&
+                ReadChartBooleanChild(
+                    legend,
+                    "delete"))
+            {
+                return string.Empty;
+            }
+
+            XmlNode position =
+                DirectChild(
+                    legend,
+                    "legendPos");
+
+            string value =
+                position != null
+                    ? GetAttr(
+                        position,
+                        "val")
+                    : string.Empty;
+
+            if (value == "l" ||
+                value == "r" ||
+                value == "t" ||
+                value == "b" ||
+                value == "tr")
+            {
+                return value;
+            }
+
+            return "r";
         }
 
         private static ChartAxisScale ReadChartAxisScale(
@@ -1201,7 +1471,8 @@ internal static partial class InternalPptxRenderer
         private static void DrawPieChartValueLabels(
             Graphics g,
             RectangleF plot,
-            ChartSeriesData series)
+            ChartSeriesData series,
+            ChartLabelOptions options)
         {
             if (series == null ||
                 series.Values.Count == 0)
@@ -1286,8 +1557,11 @@ internal static partial class InternalPptxRenderer
                         180.0;
 
                     string label =
-                        FormatChartNumber(
-                            series.Values[i]);
+                        BuildChartDataLabel(
+                            options,
+                            series,
+                            i,
+                            true);
 
                     SizeF size =
                         g.MeasureString(
@@ -1449,29 +1723,221 @@ internal static partial class InternalPptxRenderer
             Graphics g,
             RectangleF rect,
             List<ChartSeriesData> series,
-            Color[] palette)
+            Color[] palette,
+            string kind,
+            string position)
         {
-            if (series.Count <= 1) return;
-
-            float x = rect.Right - Math.Max(65f, rect.Width * 0.14f);
-            float y = rect.Top + Math.Max(35f, rect.Height * 0.12f);
-
-            using (Font font = SafeFont("Arial", Math.Max(7f, Math.Min(11f, rect.Height / 28f))))
+            if (string.IsNullOrEmpty(position) ||
+                series == null ||
+                series.Count == 0 ||
+                palette == null ||
+                palette.Length == 0)
             {
-                for (int i = 0; i < series.Count; i++)
-                {
-                    using (Brush swatch = new SolidBrush(palette[i % palette.Length]))
-                        g.FillRectangle(swatch, x, y + 3, 10, 10);
+                return;
+            }
 
-                    using (Brush text = new SolidBrush(Color.FromArgb(60, 60, 60)))
+            List<string> labels =
+                new List<string>();
+
+            List<Color> colors =
+                new List<Color>();
+
+            if (kind == "pie" &&
+                series[0].Categories.Count > 0)
+            {
+                for (int i = 0;
+                     i < series[0].Categories.Count;
+                     i++)
+                {
+                    labels.Add(
+                        string.IsNullOrEmpty(
+                            series[0].Categories[i])
+                            ? "Item " +
+                                (i + 1).ToString()
+                            : series[0].Categories[i]);
+
+                    colors.Add(
+                        palette[
+                            i %
+                            palette.Length]);
+                }
+            }
+            else
+            {
+                for (int i = 0;
+                     i < series.Count;
+                     i++)
+                {
+                    labels.Add(
+                        string.IsNullOrEmpty(
+                            series[i].Name)
+                            ? "Series " +
+                                (i + 1).ToString()
+                            : series[i].Name);
+
+                    colors.Add(
+                        palette[
+                            i %
+                            palette.Length]);
+                }
+            }
+
+            if (labels.Count == 0)
+                return;
+
+            using (Font font = SafeFont(
+                "Arial",
+                Math.Max(
+                    7f,
+                    Math.Min(
+                        11f,
+                        rect.Height /
+                        28f))))
+            using (Brush text =
+                new SolidBrush(
+                    Color.FromArgb(
+                        60,
+                        60,
+                        60)))
+            {
+                if (position == "t" ||
+                    position == "b")
+                {
+                    float y =
+                        position == "t"
+                            ? rect.Top +
+                                Math.Max(
+                                    28f,
+                                    rect.Height *
+                                    0.08f)
+                            : rect.Bottom -
+                                Math.Max(
+                                    28f,
+                                    rect.Height *
+                                    0.08f);
+
+                    float x =
+                        rect.Left +
+                        12f;
+
+                    for (int i = 0;
+                         i < labels.Count;
+                         i++)
+                    {
+                        SizeF measured =
+                            g.MeasureString(
+                                labels[i],
+                                font);
+
+                        float itemWidth =
+                            16f +
+                            measured.Width +
+                            12f;
+
+                        if (x + itemWidth >
+                            rect.Right - 8f)
+                        {
+                            x =
+                                rect.Left +
+                                12f;
+                            y +=
+                                font.Height +
+                                7f;
+                        }
+
+                        using (Brush swatch =
+                            new SolidBrush(
+                                colors[i]))
+                        {
+                            g.FillRectangle(
+                                swatch,
+                                x,
+                                y + 3f,
+                                10f,
+                                10f);
+                        }
+
                         g.DrawString(
-                            string.IsNullOrEmpty(series[i].Name) ? "Series " + (i + 1).ToString() : series[i].Name,
+                            labels[i],
                             font,
                             text,
-                            x + 14,
+                            x + 14f,
                             y);
 
-                    y += font.Height + 4;
+                        x +=
+                            itemWidth;
+                    }
+
+                    return;
+                }
+
+                float legendWidth =
+                    Math.Max(
+                        72f,
+                        rect.Width *
+                        0.17f);
+
+                float x =
+                    position == "l"
+                        ? rect.Left + 10f
+                        : rect.Right -
+                            legendWidth;
+
+                float y =
+                    position == "tr"
+                        ? rect.Top + 10f
+                        : rect.Top +
+                            Math.Max(
+                                35f,
+                                rect.Height *
+                                0.12f);
+
+                for (int i = 0;
+                     i < labels.Count;
+                     i++)
+                {
+                    using (Brush swatch =
+                        new SolidBrush(
+                            colors[i]))
+                    {
+                        g.FillRectangle(
+                            swatch,
+                            x,
+                            y + 3f,
+                            10f,
+                            10f);
+                    }
+
+                    RectangleF labelRect =
+                        new RectangleF(
+                            x + 14f,
+                            y,
+                            Math.Max(
+                                20f,
+                                legendWidth -
+                                18f),
+                            font.Height +
+                            3f);
+
+                    using (StringFormat format =
+                        new StringFormat())
+                    {
+                        format.Trimming =
+                            StringTrimming.EllipsisCharacter;
+                        format.FormatFlags =
+                            StringFormatFlags.NoWrap;
+
+                        g.DrawString(
+                            labels[i],
+                            font,
+                            text,
+                            labelRect,
+                            format);
+                    }
+
+                    y +=
+                        font.Height +
+                        4f;
                 }
             }
         }

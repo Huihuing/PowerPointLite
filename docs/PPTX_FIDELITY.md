@@ -62,7 +62,10 @@ Microsoft PowerPoint (설치된 경우)
   - cached category/value 기반 title/legend
   - 음수 값과 0 기준선
   - valAx min/max/majorUnit/orientation 기본 반영
-  - showVal 데이터 레이블 및 값 눈금선
+  - showVal/showCatName/showSerName/showPercent 데이터 레이블
+  - 데이터 레이블 separator 기본 반영
+  - legendPos 좌/우/상/하/우상단 배치 및 plot 영역 조정
+  - 파이/도넛 category 범례 및 percent 레이블
 - SmartArt / diagram
   - data model의 node / connection을 읽어 hierarchy로 표시
   - 구조를 알 수 없는 경우 기존 static approximation으로 fallback
