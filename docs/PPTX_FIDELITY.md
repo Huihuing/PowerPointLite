@@ -129,6 +129,7 @@ Microsoft PowerPoint (설치된 경우)
   - chartSpace / plotArea spPr solidFill 배경색 기본 반영
   - valAx/catAx 축 제목 기본 렌더
   - catAx/valAx spPr/ln solidFill·width·prstDash 축선 스타일 기본 반영
+  - catAx majorTickMark 및 valAx majorTickMark/minorTickMark의 in/out/cross 축 눈금 기본 반영
   - valAx majorGridlines spPr/ln solidFill·width·prstDash 스타일 기본 반영
   - valAx minorUnit 및 minorGridlines spPr/ln solidFill·width·prstDash 기본 반영
   - catAx tickLblPos=none 카테고리 축 레이블 숨김
