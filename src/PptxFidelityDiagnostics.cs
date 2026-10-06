@@ -80,7 +80,7 @@ namespace PptxViewer
                 "<c:chart>" +
                 "<c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarterly Delta</a:t></a:r></a:p></c:rich></c:tx></c:title>" +
                 "<c:plotArea><c:barChart><c:barDir val=\"col\"/>" +
-                "<c:dLbls><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:dLblPos val=\"inEnd\"/><c:showVal val=\"1\"/><c:showCatName val=\"1\"/><c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"FFF1CC\"/></a:solidFill><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"12700\"><a:solidFill><a:srgbClr val=\"775511\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr><c:txPr><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr><a:solidFill><a:srgbClr val=\"224488\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr><c:separator> · </c:separator></c:dLbls>" +
+                "<c:dLbls><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:dLblPos val=\"inEnd\"/><c:showVal val=\"1\"/><c:showCatName val=\"1\"/><c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"FFF1CC\"/></a:solidFill><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"12700\"><a:solidFill><a:srgbClr val=\"775511\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr><c:txPr><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr sz=\"1350\" b=\"1\" i=\"1\"><a:latin typeface=\"Arial\"/><a:solidFill><a:srgbClr val=\"224488\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr><c:separator> · </c:separator></c:dLbls>" +
                 BuildSyntheticChartSeries(
                     0,
                     "North",
@@ -511,6 +511,15 @@ namespace PptxViewer
                 labels.BorderStyle.Color.B != 0x11 ||
                 labels.BorderStyle.DashStyle !=
                     DashStyle.Dot ||
+                !labels.FontSize.HasValue ||
+                Math.Abs(
+                    labels.FontSize.Value -
+                    13.5f) > 0.01f ||
+                !labels.Bold.HasValue ||
+                !labels.Bold.Value ||
+                !labels.Italic.HasValue ||
+                !labels.Italic.Value ||
+                labels.FontFamily != "Arial" ||
                 labels.NumberFormat != "0.0" ||
                 labels.Position != "inEnd" ||
                 labels.Separator != " · ")
@@ -622,7 +631,7 @@ namespace PptxViewer
             pointOverrideDoc.LoadXml(
                 "<c:ser xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
                 "<c:dLbls>" +
-                "<c:dLbl><c:idx val=\"0\"/><c:showVal val=\"0\"/><c:showSerName val=\"1\"/><c:dLblPos val=\"ctr\"/><c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"CCEEFF\"/></a:solidFill><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"19050\"><a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill><a:prstDash val=\"dash\"/></a:ln></c:spPr><c:txPr><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr><a:solidFill><a:srgbClr val=\"AA3377\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr><c:separator> / </c:separator></c:dLbl>" +
+                "<c:dLbl><c:idx val=\"0\"/><c:showVal val=\"0\"/><c:showSerName val=\"1\"/><c:dLblPos val=\"ctr\"/><c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"CCEEFF\"/></a:solidFill><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"19050\"><a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill><a:prstDash val=\"dash\"/></a:ln></c:spPr><c:txPr><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr sz=\"1100\" b=\"0\" i=\"1\"><a:latin typeface=\"Arial\"/><a:solidFill><a:srgbClr val=\"AA3377\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr><c:separator> / </c:separator></c:dLbl>" +
                 "<c:dLbl><c:idx val=\"1\"/><c:delete val=\"1\"/></c:dLbl>" +
                 "</c:dLbls></c:ser>");
 
@@ -690,6 +699,15 @@ namespace PptxViewer
                 resolvedPointZero.BorderStyle.Color.B != 0x99 ||
                 resolvedPointZero.BorderStyle.DashStyle !=
                     DashStyle.Dash ||
+                !resolvedPointZero.FontSize.HasValue ||
+                Math.Abs(
+                    resolvedPointZero.FontSize.Value -
+                    11f) > 0.01f ||
+                !resolvedPointZero.Bold.HasValue ||
+                resolvedPointZero.Bold.Value ||
+                !resolvedPointZero.Italic.HasValue ||
+                !resolvedPointZero.Italic.Value ||
+                resolvedPointZero.FontFamily != "Arial" ||
                 resolvedPointZero.Position != "ctr" ||
                 resolvedPointZero.Separator != " / " ||
                 resolvedPointOne.HasAny)
@@ -796,6 +814,14 @@ namespace PptxViewer
                         170,
                         51,
                         119);
+                coloredLabelOptions.FontSize =
+                    14f;
+                coloredLabelOptions.Bold =
+                    true;
+                coloredLabelOptions.Italic =
+                    true;
+                coloredLabelOptions.FontFamily =
+                    "Arial";
                 coloredLabelOptions.FillColor =
                     Color.FromArgb(
                         204,
