@@ -54,7 +54,7 @@ namespace PptxViewer
                 "<rect id=\"blurRect\" x=\"88\" y=\"14\" width=\"24\" height=\"18\" fill=\"#d62728\" filter=\"url(#softBlur)\"/>" +
                 "<rect id=\"shadowRect\" x=\"78\" y=\"8\" width=\"6\" height=\"8\" fill=\"#f5c842\" filter=\"url(#dropShadow)\"/>" +
                 "<rect id=\"offsetRect\" x=\"60\" y=\"2\" width=\"6\" height=\"6\" fill=\"#20b9c7\" filter=\"url(#offsetOnly)\"/>" +
-                "<line id=\"dashLine\" x1=\"100\" y1=\"4\" x2=\"132\" y2=\"4\" stroke=\"#111111\" stroke-width=\"2\" stroke-linejoin=\"miter\" stroke-miterlimit=\"2.5\" stroke-dasharray=\"4 3\" stroke-dashoffset=\"1\"/>" +
+                "<line id=\"dashLine\" x1=\"100\" y1=\"4\" x2=\"132\" y2=\"4\" stroke=\"#111\" stroke-width=\"2\" stroke-linejoin=\"miter\" stroke-miterlimit=\"2.5\" stroke-dasharray=\"4 3\" stroke-dashoffset=\"1\"/>" +
                 "<path id=\"nonzeroPath\" d=\"M 2 30 H 14 V 38 H 2 Z M 5 32 H 11 V 36 H 5 Z\" fill=\"#f28c28\" fill-rule=\"nonzero\"/>" +
                 "<path id=\"evenoddPath\" d=\"M 2 40 H 14 V 48 H 2 Z M 5 42 H 11 V 46 H 5 Z\" fill=\"#159a8c\" fill-rule=\"evenodd\"/>" +
                 "<path d=\"M 12 52 C 30 38 42 68 60 52 S 90 38 108 52 Q 126 70 142 52 T 184 52\" fill=\"none\" stroke=\"#6f42a8\" stroke-width=\"2\"/>" +
@@ -368,6 +368,20 @@ namespace PptxViewer
                     useTriangle,
                     "fill",
                     Color.Transparent);
+
+            Color shortHexAlpha =
+                ParseSvgColorValue(
+                    "#c388",
+                    Color.Transparent);
+
+            if (shortHexAlpha.R != 204 ||
+                shortHexAlpha.G != 51 ||
+                shortHexAlpha.B != 136 ||
+                shortHexAlpha.A != 136)
+            {
+                throw new InvalidOperationException(
+                    "SVG #RGBA shorthand color was not parsed correctly.");
+            }
 
             Color legacyRgba =
                 ParseSvgColorValue(

@@ -5326,16 +5326,13 @@ namespace PptxViewer
                 return Color.Transparent;
             }
 
-            if (raw.StartsWith(
-                    "#",
-                    StringComparison.Ordinal))
-            {
-                Color? parsed =
-                    ParseHexColor(
-                        raw.TrimStart('#'));
+            Color hexColor;
 
-                if (parsed.HasValue)
-                    return parsed.Value;
+            if (TryParseSvgHexColor(
+                    raw,
+                    out hexColor))
+            {
+                return hexColor;
             }
 
             Color rgbColor;
@@ -5366,6 +5363,108 @@ namespace PptxViewer
                     StringComparison.OrdinalIgnoreCase)
                     ? named
                     : fallback;
+        }
+
+        private static bool TryParseSvgHexColor(
+            string raw,
+            out Color color)
+        {
+            color =
+                Color.Empty;
+
+            if (string.IsNullOrEmpty(raw))
+                return false;
+
+            raw =
+                raw.Trim();
+
+            if (!raw.StartsWith(
+                    "#",
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            string hex =
+                raw.Substring(1);
+
+            if (hex.Length == 3 ||
+                hex.Length == 4)
+            {
+                StringBuilder expanded =
+                    new StringBuilder();
+
+                for (int i = 0;
+                     i < hex.Length;
+                     i++)
+                {
+                    expanded.Append(
+                        hex[i]);
+                    expanded.Append(
+                        hex[i]);
+                }
+
+                hex =
+                    expanded.ToString();
+            }
+
+            if (hex.Length != 6 &&
+                hex.Length != 8)
+            {
+                return false;
+            }
+
+            int red;
+            int green;
+            int blue;
+            int alpha =
+                255;
+
+            if (!int.TryParse(
+                    hex.Substring(
+                        0,
+                        2),
+                    NumberStyles.HexNumber,
+                    CultureInfo.InvariantCulture,
+                    out red) ||
+                !int.TryParse(
+                    hex.Substring(
+                        2,
+                        2),
+                    NumberStyles.HexNumber,
+                    CultureInfo.InvariantCulture,
+                    out green) ||
+                !int.TryParse(
+                    hex.Substring(
+                        4,
+                        2),
+                    NumberStyles.HexNumber,
+                    CultureInfo.InvariantCulture,
+                    out blue))
+            {
+                return false;
+            }
+
+            if (hex.Length == 8 &&
+                !int.TryParse(
+                    hex.Substring(
+                        6,
+                        2),
+                    NumberStyles.HexNumber,
+                    CultureInfo.InvariantCulture,
+                    out alpha))
+            {
+                return false;
+            }
+
+            color =
+                Color.FromArgb(
+                    alpha,
+                    red,
+                    green,
+                    blue);
+
+            return true;
         }
 
         private static bool TryParseSvgRgbColor(

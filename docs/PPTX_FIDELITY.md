@@ -51,6 +51,7 @@ Microsoft PowerPoint (설치된 경우)
   - rect / circle / ellipse / line / polygon / polyline / text 혼합 렌더
   - use href/xlink:href의 기본 geometry 참조 + x/y 이동
   - fill/stroke의 currentColor를 상속 color 속성으로 해석
+  - SVG hex 색상 #RGB/#RGBA/#RRGGBB/#RRGGBBAA
   - rgb()/rgba() 절대 색상: 숫자·퍼센트 채널과 alpha 기본 지원
   - hsl()/hsla() 절대 색상: deg/rad/grad/turn hue와 alpha 기본 지원
   - M / L / H / V / C / S / Q / T / A / Z
