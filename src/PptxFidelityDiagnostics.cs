@@ -80,7 +80,7 @@ namespace PptxViewer
                 "<c:chart>" +
                 "<c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarterly Delta</a:t></a:r></a:p></c:rich></c:tx></c:title>" +
                 "<c:plotArea><c:barChart><c:barDir val=\"col\"/>" +
-                "<c:dLbls><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:showVal val=\"1\"/><c:showCatName val=\"1\"/><c:separator> · </c:separator></c:dLbls>" +
+                "<c:dLbls><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:dLblPos val=\"inEnd\"/><c:showVal val=\"1\"/><c:showCatName val=\"1\"/><c:separator> · </c:separator></c:dLbls>" +
                 BuildSyntheticChartSeries(
                     0,
                     "North",
@@ -497,6 +497,7 @@ namespace PptxViewer
                 labels.ShowSeriesName ||
                 labels.ShowPercent ||
                 labels.NumberFormat != "0.0" ||
+                labels.Position != "inEnd" ||
                 labels.Separator != " · ")
             {
                 throw new InvalidOperationException(
@@ -520,6 +521,74 @@ namespace PptxViewer
                 throw new InvalidOperationException(
                     "Chart data-label number format was not applied: " +
                     formattedLabel);
+            }
+
+            using (Bitmap dataLabelBitmap =
+                new Bitmap(
+                    220,
+                    120,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics dataLabelGraphics =
+                Graphics.FromImage(
+                    dataLabelBitmap))
+            using (Font dataLabelFont =
+                SafeFont(
+                    "Arial",
+                    10f))
+            using (Brush dataLabelBrush =
+                new SolidBrush(
+                    Color.Black))
+            {
+                dataLabelGraphics.Clear(
+                    Color.White);
+
+                DrawColumnChartDataLabel(
+                    dataLabelGraphics,
+                    dataLabelFont,
+                    dataLabelBrush,
+                    "X",
+                    new RectangleF(
+                        90f,
+                        30f,
+                        40f,
+                        60f),
+                    90f,
+                    30f,
+                    42.0,
+                    "inEnd");
+
+                bool foundInside =
+                    false;
+
+                for (int y = 31;
+                     y < 52 &&
+                     !foundInside;
+                     y++)
+                {
+                    for (int x = 90;
+                         x < 130;
+                         x++)
+                    {
+                        Color pixel =
+                            dataLabelBitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.R < 220 ||
+                            pixel.G < 220 ||
+                            pixel.B < 220)
+                        {
+                            foundInside = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!foundInside)
+                {
+                    throw new InvalidOperationException(
+                        "Chart dLblPos=inEnd did not move the column label inside the bar.");
+                }
             }
 
             if (ReadChartLegendPosition(chart) != "b")
