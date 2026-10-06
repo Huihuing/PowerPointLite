@@ -91,7 +91,7 @@ namespace PptxViewer
                     new string[] { "Q1", "Q2", "Q3", "Q4" },
                     new double[] { -18.0, 34.0, 51.0, -39.0 }) +
                 "</c:barChart>" +
-                "<c:catAx><c:axId val=\"1\"/><c:tickLblPos val=\"none\"/><c:crossesAt val=\"20\"/><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarter</a:t></a:r></a:p></c:rich></c:tx></c:title></c:catAx>" +
+                "<c:catAx><c:axId val=\"1\"/><c:tickLblPos val=\"none\"/><c:tickLblSkip val=\"2\"/><c:crossesAt val=\"20\"/><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarter</a:t></a:r></a:p></c:rich></c:tx></c:title></c:catAx>" +
                 "<c:valAx><c:axId val=\"2\"/><c:tickLblPos val=\"none\"/><c:scaling><c:orientation val=\"minMax\"/><c:min val=\"-50\"/><c:max val=\"80\"/></c:scaling><c:majorUnit val=\"20\"/><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Delta</a:t></a:r></a:p></c:rich></c:tx></c:title></c:valAx>" +
                 "</c:plotArea>" +
                 "<c:legend><c:legendPos val=\"b\"/></c:legend>" +
@@ -204,6 +204,13 @@ namespace PptxViewer
                     "Chart value-axis tick label visibility was not parsed.");
             }
 
+            if (ReadChartCategoryLabelSkip(
+                    chart) != 2)
+            {
+                throw new InvalidOperationException(
+                    "Chart category-axis tickLblSkip was not parsed.");
+            }
+
             ChartSeriesData highLabelSeries =
                 new ChartSeriesData();
             highLabelSeries.Categories.Add(
@@ -234,7 +241,8 @@ namespace PptxViewer
                     highLabelSeries,
                     1,
                     "column",
-                    "high");
+                    "high",
+                    1);
 
                 bool foundAbovePlot =
                     false;
