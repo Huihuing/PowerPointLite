@@ -514,6 +514,30 @@ namespace PptxViewer
                 "<c:dLbl><c:idx val=\"1\"/><c:delete val=\"1\"/></c:dLbl>" +
                 "</c:dLbls></c:ser>");
 
+            XmlDocument labelScopeDoc =
+                new XmlDocument();
+
+            labelScopeDoc.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
+                "<c:chart><c:plotArea><c:barChart>" +
+                "<c:ser><c:idx val=\"0\"/><c:order val=\"0\"/>" +
+                "<c:dLbls><c:dLbl><c:idx val=\"0\"/><c:showSerName val=\"1\"/></c:dLbl></c:dLbls>" +
+                "</c:ser>" +
+                "<c:dLbls><c:showVal val=\"1\"/><c:dLblPos val=\"outEnd\"/></c:dLbls>" +
+                "</c:barChart></c:plotArea></c:chart></c:chartSpace>");
+
+            ChartLabelOptions scopedDefaults =
+                ReadChartLabelOptions(
+                    labelScopeDoc);
+
+            if (!scopedDefaults.ShowValue ||
+                scopedDefaults.ShowSeriesName ||
+                scopedDefaults.Position != "outEnd")
+            {
+                throw new InvalidOperationException(
+                    "Chart-level dLbls was confused with series-level dLbls.");
+            }
+
             ChartSeriesData pointOverrideSeries =
                 new ChartSeriesData();
             pointOverrideSeries.Name = "North";
