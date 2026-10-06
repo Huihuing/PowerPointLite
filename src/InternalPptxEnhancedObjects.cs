@@ -1884,6 +1884,112 @@ namespace PptxViewer
 
             string name = node.LocalName;
 
+            if (name == "use")
+            {
+                string referenceId =
+                    ReadSvgUseReferenceId(
+                        node);
+
+                if (string.IsNullOrEmpty(
+                        referenceId))
+                {
+                    return null;
+                }
+
+                XmlNode referenced =
+                    FindSvgNodeById(
+                        node.OwnerDocument,
+                        referenceId);
+
+                if (referenced == null ||
+                    referenced == node ||
+                    referenced.LocalName == "use" ||
+                    referenced.LocalName == "g" ||
+                    referenced.LocalName == "symbol" ||
+                    referenced.LocalName == "svg")
+                {
+                    return null;
+                }
+
+                GraphicsPath referencedPath =
+                    BuildEnhancedSvgElementPath(
+                        referenced,
+                        target,
+                        minX,
+                        minY,
+                        sx,
+                        sy);
+
+                if (referencedPath == null ||
+                    referencedPath.PointCount == 0)
+                {
+                    if (referencedPath != null)
+                        referencedPath.Dispose();
+
+                    return null;
+                }
+
+                string referencedTransform =
+                    GetAttr(
+                        referenced,
+                        "transform");
+
+                if (!string.IsNullOrEmpty(
+                        referencedTransform))
+                {
+                    using (Matrix referenceMatrix =
+                        BuildSvgGeometryTransformMatrix(
+                            referencedTransform,
+                            target,
+                            minX,
+                            minY,
+                            sx,
+                            sy))
+                    {
+                        if (referenceMatrix != null &&
+                            !referenceMatrix.IsIdentity)
+                        {
+                            referencedPath.Transform(
+                                referenceMatrix);
+                        }
+                    }
+                }
+
+                float useX =
+                    ParseSvgFloat(
+                        GetAttr(
+                            node,
+                            "x"),
+                        0f) *
+                    sx;
+                float useY =
+                    ParseSvgFloat(
+                        GetAttr(
+                            node,
+                            "y"),
+                        0f) *
+                    sy;
+
+                if (Math.Abs(useX) >
+                        0.001f ||
+                    Math.Abs(useY) >
+                        0.001f)
+                {
+                    using (Matrix translation =
+                        new Matrix())
+                    {
+                        translation.Translate(
+                            useX,
+                            useY);
+
+                        referencedPath.Transform(
+                            translation);
+                    }
+                }
+
+                return referencedPath;
+            }
+
             if (name == "path")
             {
                 return BuildSvgPath(
@@ -4981,6 +5087,58 @@ namespace PptxViewer
                     }
                 }
             }
+        }
+
+        private static string ReadSvgUseReferenceId(
+            XmlNode node)
+        {
+            if (node == null ||
+                node.Attributes == null)
+            {
+                return null;
+            }
+
+            string raw =
+                null;
+
+            for (int i = 0;
+                 i < node.Attributes.Count;
+                 i++)
+            {
+                XmlAttribute attribute =
+                    node.Attributes[i];
+
+                if (attribute != null &&
+                    string.Equals(
+                        attribute.LocalName,
+                        "href",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    raw =
+                        attribute.Value;
+                    break;
+                }
+            }
+
+            if (string.IsNullOrEmpty(raw))
+            {
+                return null;
+            }
+
+            raw =
+                raw.Trim();
+
+            if (raw.StartsWith(
+                    "#",
+                    StringComparison.Ordinal))
+            {
+                raw =
+                    raw.Substring(1);
+            }
+
+            return raw.Length > 0
+                ? raw
+                : null;
         }
 
         private static XmlNode FindSvgNodeById(

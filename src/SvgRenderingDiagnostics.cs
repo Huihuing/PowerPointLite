@@ -26,8 +26,9 @@ namespace PptxViewer
                 Directory.CreateDirectory(directory);
 
             string svgText =
-                "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 120\">" +
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 200 120\">" +
                 "<defs>" +
+                "<path id=\"reuseTriangle\" d=\"M 0 0 L 8 0 L 4 8 Z\"/>" +
                 "<linearGradient id=\"g\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\" spreadMethod=\"reflect\" gradientTransform=\"rotate(22 .5 .5)\">" +
                 "<stop offset=\"0%\" stop-color=\"#e84b4b\"/>" +
                 "<stop offset=\"50%\" stop-color=\"#f2c94c\"/>" +
@@ -46,6 +47,7 @@ namespace PptxViewer
                 "<filter id=\"offsetOnly\"><feOffset in=\"SourceGraphic\" dx=\"3\" dy=\"3\"/></filter>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
+                "<use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" fill=\"#c43d8d\"/>" +
                 "<circle cx=\"154\" cy=\"28\" r=\"18\" fill=\"url(#g)\" transform=\"skewX(8)\"/>" +
                 "<rect id=\"clipRuleTarget\" x=\"176\" y=\"2\" width=\"20\" height=\"20\" fill=\"#7b61ff\" clip-path=\"url(#evenoddClip)\"/>" +
                 "<rect x=\"8\" y=\"6\" width=\"48\" height=\"22\" fill=\"#1677d2\" clip-path=\"url(#nestedClip)\"/>" +
@@ -356,6 +358,53 @@ namespace PptxViewer
                 }
             }
 
+            XmlNode useTriangle =
+                FindSvgNodeById(
+                    document,
+                    "useTriangle");
+
+            using (GraphicsPath reusedGeometry =
+                BuildEnhancedSvgElementPath(
+                    useTriangle,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        800f,
+                        480f),
+                    0f,
+                    0f,
+                    4f,
+                    4f))
+            {
+                if (reusedGeometry == null ||
+                    reusedGeometry.PointCount <
+                        3)
+                {
+                    throw new InvalidOperationException(
+                        "SVG use geometry reference did not resolve.");
+                }
+
+                RectangleF reusedBounds =
+                    reusedGeometry.GetBounds();
+
+                if (Math.Abs(
+                        reusedBounds.X -
+                        536f) > 0.5f ||
+                    Math.Abs(
+                        reusedBounds.Y -
+                        8f) > 0.5f ||
+                    Math.Abs(
+                        reusedBounds.Width -
+                        32f) > 0.5f ||
+                    Math.Abs(
+                        reusedBounds.Height -
+                        32f) > 0.5f)
+                {
+                    throw new InvalidOperationException(
+                        "SVG use x/y translation was not applied to referenced geometry.");
+                }
+            }
+
             using (Bitmap bitmap =
                 new Bitmap(
                     800,
@@ -452,6 +501,22 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Nested transformed SVG clipPath geometry was not positioned correctly.");
+                }
+
+                Color useTrianglePixel =
+                    bitmap.GetPixel(
+                        552,
+                        20);
+
+                if (useTrianglePixel.R <
+                        130 ||
+                    useTrianglePixel.B <
+                        90 ||
+                    useTrianglePixel.G >
+                        120)
+                {
+                    throw new InvalidOperationException(
+                        "SVG use referenced geometry did not render with the use-side fill.");
                 }
 
                 Color clipRuleOuter =

@@ -49,6 +49,7 @@ Microsoft PowerPoint (설치된 경우)
 - EMF / WMF는 GDI+가 읽을 수 있는 경우
 - SVG primitive와 path
   - rect / circle / ellipse / line / polygon / polyline / text 혼합 렌더
+  - use href/xlink:href의 기본 geometry 참조 + x/y 이동
   - M / L / H / V / C / S / Q / T / A / Z
   - absolute / relative path
   - linearGradient / radialGradient 기본 stop interpolation
@@ -189,6 +190,7 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 - chart의 모든 axis/style/data-label/3D 조합
 - theme effect style 참조 전체 및 복합 shadow/effect 조합
 - feGaussianBlur/feDropShadow/단일 feOffset 외의 SVG filter chain 및 복잡한 mask luminance/gradient 등 고급 SVG 기능
+- SVG symbol/중첩 use 및 use shadow-tree style inheritance 전체
 - artisticBlur 외의 artistic preset 등 고급 image artistic effects
 - 3D material/lighting, camera projection 및 bevel/extrusion profile의 정확한 PowerPoint parity
 - custom geometry의 복잡한 nested guide 의존성, 모든 preset formula/adjust-handle semantics
