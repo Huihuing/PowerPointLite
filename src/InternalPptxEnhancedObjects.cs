@@ -6115,31 +6115,156 @@ namespace PptxViewer
             XmlDocument chartDoc,
             out RectangleF plot)
         {
-            using (Brush bg = new SolidBrush(Color.White))
-                g.FillRectangle(bg, rect);
-            using (Pen border = new Pen(Color.FromArgb(210, 210, 210), 1f))
-                g.DrawRectangle(border, rect.X, rect.Y, rect.Width, rect.Height);
-
-            string title = ReadChartTitle(chartDoc);
-            float top = string.IsNullOrEmpty(title) ? 12f : Math.Max(34f, rect.Height * 0.10f);
-            if (!string.IsNullOrEmpty(title))
+            using (Brush bg =
+                new SolidBrush(
+                    Color.White))
             {
-                using (Font font = SafeFont("Arial", Math.Max(10f, Math.Min(18f, rect.Height / 18f)), FontStyle.Bold))
-                using (Brush brush = new SolidBrush(Color.FromArgb(45, 45, 45)))
-                using (StringFormat sf = new StringFormat())
+                g.FillRectangle(
+                    bg,
+                    rect);
+            }
+
+            using (Pen border =
+                new Pen(
+                    Color.FromArgb(
+                        210,
+                        210,
+                        210),
+                    1f))
+            {
+                g.DrawRectangle(
+                    border,
+                    rect.X,
+                    rect.Y,
+                    rect.Width,
+                    rect.Height);
+            }
+
+            string title =
+                ReadChartTitle(
+                    chartDoc);
+
+            float titleHeight =
+                string.IsNullOrEmpty(
+                    title)
+                    ? 12f
+                    : Math.Max(
+                        34f,
+                        rect.Height *
+                        0.10f);
+
+            if (!string.IsNullOrEmpty(
+                    title))
+            {
+                using (Font font =
+                    SafeFont(
+                        "Arial",
+                        Math.Max(
+                            10f,
+                            Math.Min(
+                                18f,
+                                rect.Height /
+                                18f)),
+                        FontStyle.Bold))
+                using (Brush brush =
+                    new SolidBrush(
+                        Color.FromArgb(
+                            45,
+                            45,
+                            45)))
+                using (StringFormat sf =
+                    new StringFormat())
                 {
-                    sf.Alignment = StringAlignment.Center;
-                    sf.LineAlignment = StringAlignment.Center;
-                    g.DrawString(title, font, brush,
-                        new RectangleF(rect.Left + 5f, rect.Top + 4f, rect.Width - 10f, top - 4f), sf);
+                    sf.Alignment =
+                        StringAlignment.Center;
+                    sf.LineAlignment =
+                        StringAlignment.Center;
+
+                    g.DrawString(
+                        title,
+                        font,
+                        brush,
+                        new RectangleF(
+                            rect.Left + 5f,
+                            rect.Top + 4f,
+                            rect.Width - 10f,
+                            titleHeight - 4f),
+                        sf);
                 }
             }
 
-            plot = new RectangleF(
-                rect.Left + Math.Max(28f, rect.Width * 0.08f),
-                rect.Top + top,
-                Math.Max(12f, rect.Width - Math.Max(70f, rect.Width * 0.18f)),
-                Math.Max(12f, rect.Height - top - Math.Max(30f, rect.Height * 0.10f)));
+            string legendPosition =
+                ReadChartLegendPosition(
+                    chartDoc);
+
+            float leftPad =
+                Math.Max(
+                    28f,
+                    rect.Width *
+                    0.07f);
+            float rightPad =
+                Math.Max(
+                    28f,
+                    rect.Width *
+                    0.06f);
+            float bottomPad =
+                Math.Max(
+                    30f,
+                    rect.Height *
+                    0.09f);
+            float topPad =
+                titleHeight;
+
+            if (legendPosition == "r" ||
+                legendPosition == "tr")
+            {
+                rightPad =
+                    Math.Max(
+                        82f,
+                        rect.Width *
+                        0.19f);
+            }
+            else if (legendPosition == "l")
+            {
+                leftPad =
+                    Math.Max(
+                        82f,
+                        rect.Width *
+                        0.19f);
+            }
+            else if (legendPosition == "b")
+            {
+                bottomPad =
+                    Math.Max(
+                        58f,
+                        rect.Height *
+                        0.17f);
+            }
+            else if (legendPosition == "t")
+            {
+                topPad +=
+                    Math.Max(
+                        28f,
+                        rect.Height *
+                        0.09f);
+            }
+
+            plot =
+                new RectangleF(
+                    rect.Left +
+                        leftPad,
+                    rect.Top +
+                        topPad,
+                    Math.Max(
+                        12f,
+                        rect.Width -
+                            leftPad -
+                            rightPad),
+                    Math.Max(
+                        12f,
+                        rect.Height -
+                            topPad -
+                            bottomPad));
         }
 
         private static void DrawDoughnutChart(
@@ -6208,8 +6333,30 @@ namespace PptxViewer
                 pie.Top + (pie.Height - holeSize) / 2f,
                 holeSize,
                 holeSize);
-            using (Brush white = new SolidBrush(Color.White))
-                g.FillEllipse(white, hole);
+            using (Brush white =
+                new SolidBrush(
+                    Color.White))
+            {
+                g.FillEllipse(
+                    white,
+                    hole);
+            }
+
+            ChartLabelOptions labels =
+                ReadChartLabelOptions(
+                    chartDoc);
+
+            if (labels.HasAny)
+            {
+                DrawDoughnutChartValueLabels(
+                    g,
+                    pie,
+                    hole,
+                    data,
+                    labels,
+                    ReadChartFirstSliceAngle(
+                        chartDoc));
+            }
 
             DrawChartLegend(
                 g,
@@ -6218,6 +6365,151 @@ namespace PptxViewer
                 palette,
                 "pie",
                 ReadChartLegendPosition(chartDoc));
+        }
+
+        private static void DrawDoughnutChartValueLabels(
+            Graphics g,
+            RectangleF outer,
+            RectangleF hole,
+            ChartSeriesData series,
+            ChartLabelOptions options,
+            float startAngle)
+        {
+            if (series == null ||
+                options == null ||
+                series.Values.Count == 0)
+            {
+                return;
+            }
+
+            double total = 0.0;
+
+            for (int i = 0;
+                 i < series.Values.Count;
+                 i++)
+            {
+                total +=
+                    Math.Abs(
+                        series.Values[i]);
+            }
+
+            if (total <= 0.0000001)
+                return;
+
+            float cx =
+                outer.Left +
+                outer.Width /
+                2f;
+            float cy =
+                outer.Top +
+                outer.Height /
+                2f;
+
+            float outerRadius =
+                Math.Min(
+                    outer.Width,
+                    outer.Height) /
+                2f;
+
+            float innerRadius =
+                Math.Min(
+                    hole.Width,
+                    hole.Height) /
+                2f;
+
+            float labelRadius =
+                innerRadius +
+                (outerRadius -
+                 innerRadius) *
+                0.55f;
+
+            float angle =
+                startAngle;
+
+            using (Font font =
+                SafeFont(
+                    "Arial",
+                    Math.Max(
+                        7f,
+                        Math.Min(
+                            10f,
+                            outer.Height /
+                            28f)),
+                    FontStyle.Bold))
+            using (Brush brush =
+                new SolidBrush(
+                    Color.FromArgb(
+                        55,
+                        55,
+                        55)))
+            {
+                for (int i = 0;
+                     i < series.Values.Count;
+                     i++)
+                {
+                    double value =
+                        Math.Abs(
+                            series.Values[i]);
+
+                    float sweep =
+                        (float)(
+                            360.0 *
+                            value /
+                            total);
+
+                    float centerAngle =
+                        angle +
+                        sweep /
+                        2f;
+
+                    double radians =
+                        centerAngle *
+                        Math.PI /
+                        180.0;
+
+                    string label =
+                        BuildChartDataLabel(
+                            options,
+                            series,
+                            i,
+                            true);
+
+                    if (!string.IsNullOrEmpty(
+                            label))
+                    {
+                        SizeF size =
+                            g.MeasureString(
+                                label,
+                                font);
+
+                        float x =
+                            cx +
+                            (float)Math.Cos(
+                                radians) *
+                            labelRadius -
+                            size.Width /
+                            2f;
+
+                        float y =
+                            cy +
+                            (float)Math.Sin(
+                                radians) *
+                            labelRadius -
+                            size.Height /
+                            2f;
+
+                        g.DrawString(
+                            label,
+                            font,
+                            brush,
+                            x,
+                            y);
+                    }
+
+                    angle +=
+                        sweep;
+                }
+            }
         }
 
         private static void DrawAreaChart(
@@ -6833,6 +7125,14 @@ namespace PptxViewer
                     }
                 }
             }
+            DrawRadarCategoryLabels(
+                g,
+                series[0],
+                count,
+                cx,
+                cy,
+                radius);
+
             DrawChartLegend(
                 g,
                 rect,
@@ -6840,6 +7140,92 @@ namespace PptxViewer
                 palette,
                 "radar",
                 ReadChartLegendPosition(chartDoc));
+        }
+
+        private static void DrawRadarCategoryLabels(
+            Graphics g,
+            ChartSeriesData series,
+            int count,
+            float cx,
+            float cy,
+            float radius)
+        {
+            if (series == null ||
+                series.Categories.Count == 0 ||
+                count <= 0)
+            {
+                return;
+            }
+
+            using (Font font =
+                SafeFont(
+                    "Arial",
+                    8f))
+            using (Brush brush =
+                new SolidBrush(
+                    Color.FromArgb(
+                        72,
+                        72,
+                        72)))
+            {
+                int labelCount =
+                    Math.Min(
+                        count,
+                        series.Categories.Count);
+
+                for (int i = 0;
+                     i < labelCount;
+                     i++)
+                {
+                    string label =
+                        series.Categories[i];
+
+                    if (string.IsNullOrEmpty(
+                            label))
+                    {
+                        continue;
+                    }
+
+                    double angle =
+                        -Math.PI /
+                        2.0 +
+                        i *
+                        Math.PI *
+                        2.0 /
+                        count;
+
+                    SizeF size =
+                        g.MeasureString(
+                            label,
+                            font);
+
+                    float x =
+                        cx +
+                        (float)Math.Cos(
+                            angle) *
+                        (radius + 10f);
+
+                    float y =
+                        cy +
+                        (float)Math.Sin(
+                            angle) *
+                        (radius + 10f);
+
+                    x -=
+                        size.Width /
+                        2f;
+                    y -=
+                        size.Height /
+                        2f;
+
+                    g.DrawString(
+                        label,
+                        font,
+                        brush,
+                        x,
+                        y);
+                }
+            }
         }
 
         private static List<double> ReadCachedNumbers(XmlNode parent)
