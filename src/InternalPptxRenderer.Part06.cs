@@ -24,6 +24,7 @@ internal static partial class InternalPptxRenderer
             public double Maximum;
             public double MajorUnit;
             public bool Reverse;
+            public string NumberFormat;
         }
 
         private sealed class ChartLabelOptions
@@ -106,6 +107,10 @@ internal static partial class InternalPptxRenderer
                     theme,
                     data.PointColors,
                     data.Values.Count);
+
+                ReadChartSeriesVisualStyle(
+                    ser,
+                    data);
 
                 if (data.Values.Count > 0)
                     series.Add(data);
@@ -193,6 +198,16 @@ internal static partial class InternalPptxRenderer
                 ReadChartLegendPosition(
                     chartDoc);
 
+            string valueAxisTitle =
+                ReadChartAxisTitle(
+                    chartDoc,
+                    "valAx");
+
+            string categoryAxisTitle =
+                ReadChartAxisTitle(
+                    chartDoc,
+                    "catAx");
+
             float leftPad =
                 Math.Max(
                     36f,
@@ -237,6 +252,35 @@ internal static partial class InternalPptxRenderer
                     Math.Max(
                         28f,
                         rect.Height * 0.10f);
+            }
+
+            if (kind == "bar")
+            {
+                if (!string.IsNullOrEmpty(
+                        valueAxisTitle))
+                {
+                    bottomPad += 24f;
+                }
+
+                if (!string.IsNullOrEmpty(
+                        categoryAxisTitle))
+                {
+                    leftPad += 24f;
+                }
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(
+                        valueAxisTitle))
+                {
+                    leftPad += 26f;
+                }
+
+                if (!string.IsNullOrEmpty(
+                        categoryAxisTitle))
+                {
+                    bottomPad += 24f;
+                }
             }
 
             RectangleF plot =
@@ -540,12 +584,12 @@ internal static partial class InternalPptxRenderer
                             new Pen(
                                 color,
                                 Math.Max(
-                                    2f,
-                                    plot.Width /
-                                    250f)))
-                        using (Brush marker =
-                            new SolidBrush(color))
+                                    1f,
+                                    sd.LineWidth)))
                         {
+                            pen.DashStyle =
+                                sd.LineDashStyle;
+
                             if (points.Count > 1)
                             {
                                 g.DrawLines(
@@ -560,12 +604,15 @@ internal static partial class InternalPptxRenderer
                                 PointF point =
                                     points[i];
 
-                                g.FillEllipse(
-                                    marker,
-                                    point.X - 3,
-                                    point.Y - 3,
-                                    6,
-                                    6);
+                                if (sd.MarkerEnabled)
+                                {
+                                    DrawChartMarker(
+                                        g,
+                                        point,
+                                        sd.MarkerSymbol,
+                                        sd.MarkerSize,
+                                        color);
+                                }
 
                                 if (labelOptions.HasAny &&
                                     i < sd.Values.Count)
@@ -810,6 +857,14 @@ internal static partial class InternalPptxRenderer
                 series[0],
                 categoryCount,
                 kind);
+
+            DrawChartAxisTitles(
+                g,
+                plot,
+                rect,
+                kind,
+                valueAxisTitle,
+                categoryAxisTitle);
 
             DrawChartLegend(
                 g,
@@ -1137,6 +1192,19 @@ internal static partial class InternalPptxRenderer
                     unit;
             }
 
+            XmlNode numberFormat =
+                DirectChild(
+                    valueAxis,
+                    "numFmt");
+
+            if (numberFormat != null)
+            {
+                scale.NumberFormat =
+                    GetAttr(
+                        numberFormat,
+                        "formatCode");
+            }
+
             NormalizeChartAxisScale(scale);
             return scale;
         }
@@ -1268,8 +1336,9 @@ internal static partial class InternalPptxRenderer
                             plot.Bottom);
 
                         string label =
-                            FormatChartNumber(
-                                value);
+                            FormatChartAxisNumber(
+                                value,
+                                scale.NumberFormat);
 
                         SizeF size =
                             g.MeasureString(
@@ -1300,8 +1369,9 @@ internal static partial class InternalPptxRenderer
                             y);
 
                         string label =
-                            FormatChartNumber(
-                                value);
+                            FormatChartAxisNumber(
+                                value,
+                                scale.NumberFormat);
 
                         SizeF size =
                             g.MeasureString(
@@ -1817,6 +1887,592 @@ internal static partial class InternalPptxRenderer
                 palette.Length];
         }
 
+        private static void ReadChartSeriesVisualStyle(
+            XmlNode series,
+            ChartSeriesData data)
+        {
+            if (series == null ||
+                data == null)
+            {
+                return;
+            }
+
+            XmlNode shapeProperties =
+                DirectChild(
+                    series,
+                    "spPr");
+
+            XmlNode line =
+                shapeProperties != null
+                    ? DirectChild(
+                        shapeProperties,
+                        "ln")
+                    : null;
+
+            if (line != null)
+            {
+                long width =
+                    GetLong(
+                        line,
+                        "w",
+                        0);
+
+                if (width > 0)
+                {
+                    data.LineWidth =
+                        Math.Max(
+                            1f,
+                            EmuToRenderPixels(
+                                width));
+                }
+
+                XmlNode dash =
+                    DirectChild(
+                        line,
+                        "prstDash");
+
+                string dashValue =
+                    dash != null
+                        ? GetAttr(
+                            dash,
+                            "val")
+                        : string.Empty;
+
+                data.LineDashStyle =
+                    ParseChartDashStyle(
+                        dashValue);
+            }
+
+            XmlNode marker =
+                DirectChild(
+                    series,
+                    "marker");
+
+            if (marker == null)
+                return;
+
+            XmlNode symbol =
+                DirectChild(
+                    marker,
+                    "symbol");
+
+            string symbolValue =
+                symbol != null
+                    ? GetAttr(
+                        symbol,
+                        "val")
+                    : string.Empty;
+
+            if (!string.IsNullOrEmpty(
+                    symbolValue))
+            {
+                data.MarkerSymbol =
+                    symbolValue;
+                data.MarkerEnabled =
+                    !string.Equals(
+                        symbolValue,
+                        "none",
+                        StringComparison.OrdinalIgnoreCase);
+            }
+
+            XmlNode size =
+                DirectChild(
+                    marker,
+                    "size");
+
+            int sizeValue;
+            if (size != null &&
+                int.TryParse(
+                    GetAttr(
+                        size,
+                        "val"),
+                    out sizeValue))
+            {
+                data.MarkerSize =
+                    Math.Max(
+                        3f,
+                        Math.Min(
+                            24f,
+                            sizeValue));
+            }
+        }
+
+        private static DashStyle ParseChartDashStyle(
+            string value)
+        {
+            if (string.IsNullOrEmpty(value) ||
+                value == "solid")
+            {
+                return DashStyle.Solid;
+            }
+
+            string lower =
+                value.ToLowerInvariant();
+
+            if (lower.IndexOf(
+                    "dashdot") >= 0)
+            {
+                return DashStyle.DashDot;
+            }
+
+            if (lower.IndexOf(
+                    "dash") >= 0)
+            {
+                return DashStyle.Dash;
+            }
+
+            if (lower.IndexOf(
+                    "dot") >= 0)
+            {
+                return DashStyle.Dot;
+            }
+
+            return DashStyle.Solid;
+        }
+
+        private static void DrawChartMarker(
+            Graphics g,
+            PointF point,
+            string symbol,
+            float size,
+            Color color)
+        {
+            size =
+                Math.Max(
+                    3f,
+                    Math.Min(
+                        24f,
+                        size));
+
+            float radius =
+                size /
+                2f;
+
+            RectangleF markerRect =
+                new RectangleF(
+                    point.X - radius,
+                    point.Y - radius,
+                    size,
+                    size);
+
+            string normalized =
+                string.IsNullOrEmpty(symbol)
+                    ? "circle"
+                    : symbol.ToLowerInvariant();
+
+            using (Brush brush =
+                new SolidBrush(color))
+            using (Pen pen =
+                new Pen(
+                    color,
+                    Math.Max(
+                        1f,
+                        size /
+                        7f)))
+            {
+                if (normalized == "square")
+                {
+                    g.FillRectangle(
+                        brush,
+                        markerRect);
+                }
+                else if (normalized == "diamond")
+                {
+                    PointF[] diamond =
+                        new PointF[]
+                        {
+                            new PointF(
+                                point.X,
+                                markerRect.Top),
+                            new PointF(
+                                markerRect.Right,
+                                point.Y),
+                            new PointF(
+                                point.X,
+                                markerRect.Bottom),
+                            new PointF(
+                                markerRect.Left,
+                                point.Y)
+                        };
+
+                    g.FillPolygon(
+                        brush,
+                        diamond);
+                }
+                else if (normalized == "triangle")
+                {
+                    PointF[] triangle =
+                        new PointF[]
+                        {
+                            new PointF(
+                                point.X,
+                                markerRect.Top),
+                            new PointF(
+                                markerRect.Right,
+                                markerRect.Bottom),
+                            new PointF(
+                                markerRect.Left,
+                                markerRect.Bottom)
+                        };
+
+                    g.FillPolygon(
+                        brush,
+                        triangle);
+                }
+                else if (normalized == "x")
+                {
+                    g.DrawLine(
+                        pen,
+                        markerRect.Left,
+                        markerRect.Top,
+                        markerRect.Right,
+                        markerRect.Bottom);
+
+                    g.DrawLine(
+                        pen,
+                        markerRect.Right,
+                        markerRect.Top,
+                        markerRect.Left,
+                        markerRect.Bottom);
+                }
+                else if (normalized == "plus")
+                {
+                    g.DrawLine(
+                        pen,
+                        point.X,
+                        markerRect.Top,
+                        point.X,
+                        markerRect.Bottom);
+
+                    g.DrawLine(
+                        pen,
+                        markerRect.Left,
+                        point.Y,
+                        markerRect.Right,
+                        point.Y);
+                }
+                else
+                {
+                    g.FillEllipse(
+                        brush,
+                        markerRect);
+                }
+            }
+        }
+
+        private static string ReadChartAxisTitle(
+            XmlDocument chartDoc,
+            string axisName)
+        {
+            if (chartDoc == null ||
+                string.IsNullOrEmpty(axisName))
+            {
+                return string.Empty;
+            }
+
+            XmlNode axis =
+                FindFirst(
+                    chartDoc,
+                    axisName);
+
+            if (axis == null)
+                return string.Empty;
+
+            XmlNode title =
+                DirectChild(
+                    axis,
+                    "title");
+
+            if (title == null)
+                return string.Empty;
+
+            return ReadChartTitleText(
+                title);
+        }
+
+        private static string ReadChartTitleText(
+            XmlNode title)
+        {
+            if (title == null)
+                return string.Empty;
+
+            StringBuilder text =
+                new StringBuilder();
+
+            foreach (XmlNode node in
+                FindAll(
+                    title,
+                    "t"))
+            {
+                text.Append(
+                    node.InnerText);
+            }
+
+            if (text.Length == 0)
+            {
+                foreach (XmlNode node in
+                    FindAll(
+                        title,
+                        "v"))
+                {
+                    text.Append(
+                        node.InnerText);
+                }
+            }
+
+            return text.ToString();
+        }
+
+        private static void DrawChartAxisTitles(
+            Graphics g,
+            RectangleF plot,
+            RectangleF chartRect,
+            string kind,
+            string valueTitle,
+            string categoryTitle)
+        {
+            using (Font font =
+                SafeFont(
+                    "Arial",
+                    Math.Max(
+                        7f,
+                        Math.Min(
+                            11f,
+                            chartRect.Height /
+                            30f)),
+                    FontStyle.Bold))
+            using (Brush brush =
+                new SolidBrush(
+                    Color.FromArgb(
+                        70,
+                        70,
+                        70)))
+            using (StringFormat format =
+                new StringFormat())
+            {
+                format.Alignment =
+                    StringAlignment.Center;
+                format.LineAlignment =
+                    StringAlignment.Center;
+                format.Trimming =
+                    StringTrimming.EllipsisCharacter;
+
+                if (kind == "bar")
+                {
+                    if (!string.IsNullOrEmpty(
+                            valueTitle))
+                    {
+                        g.DrawString(
+                            valueTitle,
+                            font,
+                            brush,
+                            new RectangleF(
+                                plot.Left,
+                                plot.Bottom + 24f,
+                                plot.Width,
+                                Math.Max(
+                                    18f,
+                                    font.Height + 4f)),
+                            format);
+                    }
+
+                    if (!string.IsNullOrEmpty(
+                            categoryTitle))
+                    {
+                        DrawRotatedChartAxisTitle(
+                            g,
+                            categoryTitle,
+                            font,
+                            brush,
+                            new PointF(
+                                chartRect.Left + 12f,
+                                plot.Top +
+                                plot.Height /
+                                2f),
+                            -90f);
+                    }
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(
+                            categoryTitle))
+                    {
+                        g.DrawString(
+                            categoryTitle,
+                            font,
+                            brush,
+                            new RectangleF(
+                                plot.Left,
+                                plot.Bottom + 24f,
+                                plot.Width,
+                                Math.Max(
+                                    18f,
+                                    font.Height + 4f)),
+                            format);
+                    }
+
+                    if (!string.IsNullOrEmpty(
+                            valueTitle))
+                    {
+                        DrawRotatedChartAxisTitle(
+                            g,
+                            valueTitle,
+                            font,
+                            brush,
+                            new PointF(
+                                chartRect.Left + 12f,
+                                plot.Top +
+                                plot.Height /
+                                2f),
+                            -90f);
+                    }
+                }
+            }
+        }
+
+        private static void DrawRotatedChartAxisTitle(
+            Graphics g,
+            string text,
+            Font font,
+            Brush brush,
+            PointF center,
+            float degrees)
+        {
+            GraphicsState state =
+                g.Save();
+
+            try
+            {
+                g.TranslateTransform(
+                    center.X,
+                    center.Y);
+                g.RotateTransform(
+                    degrees);
+
+                SizeF size =
+                    g.MeasureString(
+                        text,
+                        font);
+
+                g.DrawString(
+                    text,
+                    font,
+                    brush,
+                    -size.Width /
+                        2f,
+                    -size.Height /
+                        2f);
+            }
+            finally
+            {
+                g.Restore(state);
+            }
+        }
+
+        private static string FormatChartAxisNumber(
+            double value,
+            string formatCode)
+        {
+            if (string.IsNullOrEmpty(
+                    formatCode) ||
+                string.Equals(
+                    formatCode,
+                    "General",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return FormatChartNumber(
+                    value);
+            }
+
+            string code =
+                formatCode;
+
+            int section =
+                code.IndexOf(';');
+
+            if (section >= 0)
+            {
+                code =
+                    code.Substring(
+                        0,
+                        section);
+            }
+
+            if (code.IndexOf(
+                    '%') >= 0)
+            {
+                int decimals =
+                    CountChartFormatDecimals(
+                        code);
+
+                return value.ToString(
+                    "P" +
+                    decimals.ToString(),
+                    System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            bool thousands =
+                code.IndexOf(
+                    ',') >= 0;
+
+            int decimalPlaces =
+                CountChartFormatDecimals(
+                    code);
+
+            string numeric =
+                thousands
+                    ? "N" +
+                        decimalPlaces.ToString()
+                    : "F" +
+                        decimalPlaces.ToString();
+
+            return value.ToString(
+                numeric,
+                System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        private static int CountChartFormatDecimals(
+            string formatCode)
+        {
+            if (string.IsNullOrEmpty(
+                    formatCode))
+            {
+                return 0;
+            }
+
+            int dot =
+                formatCode.IndexOf('.');
+
+            if (dot < 0)
+                return 0;
+
+            int count = 0;
+
+            for (int i = dot + 1;
+                 i < formatCode.Length;
+                 i++)
+            {
+                char ch =
+                    formatCode[i];
+
+                if (ch == '0' ||
+                    ch == '#')
+                {
+                    count++;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return Math.Max(
+                0,
+                Math.Min(
+                    6,
+                    count));
+        }
+
         private static string ReadChartSeriesName(XmlNode ser)
         {
             XmlNode tx = DirectChild(ser, "tx");
@@ -1872,14 +2528,15 @@ internal static partial class InternalPptxRenderer
 
         private static string ReadChartTitle(XmlDocument chartDoc)
         {
-            XmlNode title = FindFirst(chartDoc, "title");
-            if (title == null) return "";
+            XmlNode title =
+                chartDoc == null
+                    ? null
+                    : FindFirst(
+                        chartDoc,
+                        "title");
 
-            StringBuilder sb = new StringBuilder();
-            foreach (XmlNode t in FindAll(title, "t")) sb.Append(t.InnerText);
-            if (sb.Length == 0)
-                foreach (XmlNode v in FindAll(title, "v")) sb.Append(v.InnerText);
-            return sb.ToString();
+            return ReadChartTitleText(
+                title);
         }
 
         private static void DrawChartLegend(

@@ -190,6 +190,11 @@ namespace PptxViewer
         {
             public string Name;
             public Color? ExplicitColor;
+            public float LineWidth = 2f;
+            public DashStyle LineDashStyle = DashStyle.Solid;
+            public string MarkerSymbol = "circle";
+            public float MarkerSize = 6f;
+            public bool MarkerEnabled = true;
             public readonly List<string> Categories = new List<string>();
             public readonly List<double> Values = new List<double>();
             public readonly List<Color?> PointColors = new List<Color?>();
