@@ -11706,6 +11706,18 @@ namespace PptxViewer
                     plot.Bottom);
             }
 
+            DrawChartAxisTickMarks(
+                g,
+                plot,
+                axisScale,
+                categoryCount,
+                "line",
+                0f,
+                zeroY,
+                chartDoc,
+                categoryAxisStyle,
+                valueAxisStyle);
+
             Color[] palette =
                 EnhancedChartPalette(
                     theme);
