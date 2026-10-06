@@ -11508,7 +11508,10 @@ namespace PptxViewer
                     valueTickLabelPosition,
                     "none",
                     StringComparison.OrdinalIgnoreCase),
-                valueTickLabelPosition);
+                valueTickLabelPosition,
+                ReadChartMajorGridlineStyle(
+                    chartDoc,
+                    theme));
 
             float zeroY =
                 plot.Bottom -
