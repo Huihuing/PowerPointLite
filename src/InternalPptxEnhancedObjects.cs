@@ -5684,7 +5684,9 @@ namespace PptxViewer
                 size,
                 size);
             Color[] palette = EnhancedChartPalette(theme);
-            float angle = -90f;
+            float angle =
+                ReadChartFirstSliceAngle(
+                    chartDoc);
 
             for (int i = 0; i < data.Values.Count; i++)
             {
@@ -5694,7 +5696,10 @@ namespace PptxViewer
                 angle += sweep;
             }
 
-            float holeSize = size * 0.52f;
+            float holeSize =
+                size *
+                ReadDoughnutHoleRatio(
+                    chartDoc);
             RectangleF hole = new RectangleF(
                 pie.Left + (pie.Width - holeSize) / 2f,
                 pie.Top + (pie.Height - holeSize) / 2f,
