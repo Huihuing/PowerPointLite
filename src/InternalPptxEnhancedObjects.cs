@@ -13553,30 +13553,78 @@ namespace PptxViewer
                      gap * (rows + 1)) /
                     rows);
 
-            for (int i = 0;
-                 i < nodes.Count;
-                 i++)
-            {
-                int row =
-                    i /
-                    columns;
-                int column =
-                    i %
-                    columns;
+            cellH =
+                Math.Min(
+                    cellH,
+                    Math.Max(
+                        44f,
+                        rect.Height *
+                        0.28f));
 
-                positions[
-                    nodes[i].Id] =
-                    new RectangleF(
-                        rect.Left +
-                            gap +
+            float totalHeight =
+                rows *
+                cellH +
+                Math.Max(
+                    0,
+                    rows - 1) *
+                gap;
+            float startY =
+                rect.Top +
+                Math.Max(
+                    gap,
+                    (rect.Height -
+                     totalHeight) /
+                    2f);
+
+            for (int row = 0;
+                 row < rows;
+                 row++)
+            {
+                int rowStart =
+                    row *
+                    columns;
+                int nodesInRow =
+                    Math.Min(
+                        columns,
+                        nodes.Count -
+                        rowStart);
+
+                if (nodesInRow <= 0)
+                    continue;
+
+                float rowWidth =
+                    nodesInRow *
+                    cellW +
+                    Math.Max(
+                        0,
+                        nodesInRow - 1) *
+                    gap;
+                float rowStartX =
+                    rect.Left +
+                    (rect.Width -
+                     rowWidth) /
+                    2f;
+
+                for (int column = 0;
+                     column < nodesInRow;
+                     column++)
+                {
+                    int index =
+                        rowStart +
+                        column;
+
+                    positions[
+                        nodes[index].Id] =
+                        new RectangleF(
+                            rowStartX +
                             column *
                             (cellW + gap),
-                        rect.Top +
-                            gap +
+                            startY +
                             row *
                             (cellH + gap),
-                        cellW,
-                        cellH);
+                            cellW,
+                            cellH);
+                }
             }
 
             return positions;
