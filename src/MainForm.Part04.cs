@@ -237,6 +237,7 @@ public sealed partial class MainForm : Form
                 });
             }
 
+            ApplicationTheme.ApplyContextMenu(menu);
             menu.Show(anchor, new Point(0, anchor.Height));
         }
 
@@ -288,6 +289,7 @@ public sealed partial class MainForm : Form
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("Presentation info", null, delegate { ShowPresentationInfo(); });
 
+            ApplicationTheme.ApplyContextMenu(menu);
             menu.Show(anchor, new Point(0, anchor.Height));
         }
 
