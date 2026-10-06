@@ -218,6 +218,55 @@ namespace PptxViewer
                     "Chart legend position was not parsed correctly.");
             }
 
+            XmlDocument stackedChart =
+                new XmlDocument();
+
+            stackedChart.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
+                "<c:chart><c:plotArea><c:barChart>" +
+                "<c:barDir val=\"col\"/><c:grouping val=\"percentStacked\"/>" +
+                "<c:gapWidth val=\"80\"/><c:overlap val=\"100\"/>" +
+                "</c:barChart></c:plotArea></c:chart></c:chartSpace>");
+
+            ChartBarOptions stackedOptions =
+                ReadChartBarOptions(
+                    stackedChart);
+
+            if (!stackedOptions.IsStacked ||
+                !stackedOptions.IsPercentStacked ||
+                Math.Abs(
+                    stackedOptions.GapWidth -
+                    80f) > 0.01f ||
+                Math.Abs(
+                    stackedOptions.Overlap -
+                    100f) > 0.01f)
+            {
+                throw new InvalidOperationException(
+                    "Stacked chart grouping/gap/overlap options were not parsed correctly.");
+            }
+
+            XmlDocument doughnutOptions =
+                new XmlDocument();
+
+            doughnutOptions.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
+                "<c:chart><c:plotArea><c:doughnutChart>" +
+                "<c:firstSliceAng val=\"120\"/><c:holeSize val=\"72\"/>" +
+                "</c:doughnutChart></c:plotArea></c:chart></c:chartSpace>");
+
+            if (Math.Abs(
+                    ReadChartFirstSliceAngle(
+                        doughnutOptions) -
+                    30f) > 0.01f ||
+                Math.Abs(
+                    ReadDoughnutHoleRatio(
+                        doughnutOptions) -
+                    0.72f) > 0.001f)
+            {
+                throw new InvalidOperationException(
+                    "Pie/doughnut rotation or hole-size options were not parsed correctly.");
+            }
+
             using (Bitmap bitmap =
                 new Bitmap(
                     1000,
@@ -686,6 +735,89 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Preset shadow approximation did not render outside the source shape.");
+                }
+
+                XmlDocument extrusionOnly =
+                    new XmlDocument();
+
+                extrusionOnly.LoadXml(
+                    "<a:spPr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                    "<a:solidFill><a:srgbClr val=\"4D78B8\"/></a:solidFill>" +
+                    "<a:scene3d><a:camera prst=\"perspectiveFront\"><a:rot lat=\"900000\" lon=\"-1200000\" rev=\"0\"/></a:camera>" +
+                    "<a:lightRig rig=\"balanced\" dir=\"tr\"/></a:scene3d>" +
+                    "<a:sp3d extrusionH=\"110000\"><a:extrusionClr><a:srgbClr val=\"203858\"/></a:extrusionClr></a:sp3d>" +
+                    "</a:spPr>");
+
+                RectangleF extrusionRect =
+                    new RectangleF(
+                        385f,
+                        255f,
+                        82f,
+                        52f);
+
+                using (GraphicsPath extrusionPath =
+                    new GraphicsPath())
+                {
+                    extrusionPath.AddRectangle(
+                        extrusionRect);
+
+                    DrawShapeVisualEffects(
+                        graphics,
+                        extrusionOnly.DocumentElement,
+                        extrusionPath,
+                        extrusionRect,
+                        theme);
+
+                    using (Brush extrusionFill =
+                        new SolidBrush(
+                            Color.FromArgb(
+                                77,
+                                120,
+                                184)))
+                    {
+                        graphics.FillPath(
+                            extrusionFill,
+                            extrusionPath);
+                    }
+                }
+
+                int extrusionPixels = 0;
+
+                for (int y = 245;
+                     y < 330;
+                     y += 3)
+                {
+                    for (int x = 375;
+                         x < 505;
+                         x += 3)
+                    {
+                        bool insideFront =
+                            x >= extrusionRect.Left &&
+                            x <= extrusionRect.Right &&
+                            y >= extrusionRect.Top &&
+                            y <= extrusionRect.Bottom;
+
+                        if (insideFront)
+                            continue;
+
+                        Color pixel =
+                            bitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.R < 235 ||
+                            pixel.G < 235 ||
+                            pixel.B < 235)
+                        {
+                            extrusionPixels++;
+                        }
+                    }
+                }
+
+                if (extrusionPixels < 4)
+                {
+                    throw new InvalidOperationException(
+                        "3D extrusion approximation did not render depth outside the front face.");
                 }
 
                 bitmap.Save(
