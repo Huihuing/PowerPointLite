@@ -33,6 +33,7 @@ namespace PptxViewer
                 "<stop offset=\"100%\" stop-color=\"#4b72e8\"/>" +
                 "</linearGradient>" +
                 "<clipPath id=\"clip\"><circle cx=\"100\" cy=\"78\" r=\"40\"/></clipPath>" +
+                "<clipPath id=\"nestedClip\"><g transform=\"translate(22 0)\"><rect x=\"10\" y=\"8\" width=\"18\" height=\"16\"/></g></clipPath>" +
                 "<pattern id=\"pat\" patternUnits=\"userSpaceOnUse\" width=\"12\" height=\"12\">" +
                 "<rect x=\"0\" y=\"0\" width=\"6\" height=\"12\" fill=\"#e85d75\"/>" +
                 "<rect x=\"6\" y=\"0\" width=\"6\" height=\"12\" fill=\"#4c78d6\"/>" +
@@ -41,6 +42,7 @@ namespace PptxViewer
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<circle cx=\"154\" cy=\"28\" r=\"18\" fill=\"url(#g)\" transform=\"skewX(8)\"/>" +
+                "<rect x=\"8\" y=\"6\" width=\"48\" height=\"22\" fill=\"#1677d2\" clip-path=\"url(#nestedClip)\"/>" +
                 "<path d=\"M 12 52 C 30 38 42 68 60 52 S 90 38 108 52 Q 126 70 142 52 T 184 52\" fill=\"none\" stroke=\"#6f42a8\" stroke-width=\"2\"/>" +
                 "<rect x=\"18\" y=\"66\" width=\"60\" height=\"42\" fill=\"url(#pat)\"/>" +
                 "<rect x=\"124\" y=\"64\" width=\"68\" height=\"48\" fill=\"#29b36b\" mask=\"url(#mask)\"/>" +
@@ -130,6 +132,25 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Synthetic SVG gradient/mixed-color rendering was not preserved.");
+                }
+
+                Color nestedClipOutside =
+                    bitmap.GetPixel(
+                        60,
+                        56);
+                Color nestedClipInside =
+                    bitmap.GetPixel(
+                        144,
+                        56);
+
+                if (nestedClipOutside.R < 245 ||
+                    nestedClipOutside.G < 245 ||
+                    nestedClipOutside.B < 245 ||
+                    nestedClipInside.B < 140 ||
+                    nestedClipInside.R > 100)
+                {
+                    throw new InvalidOperationException(
+                        "Nested transformed SVG clipPath geometry was not positioned correctly.");
                 }
 
                 Color patternA =

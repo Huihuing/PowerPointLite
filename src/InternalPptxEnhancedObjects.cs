@@ -2555,7 +2555,8 @@ namespace PptxViewer
                 pathMinY,
                 pathSx,
                 pathSy,
-                false);
+                false,
+                null);
 
             if (result.PointCount == 0)
             {
@@ -2639,7 +2640,8 @@ namespace PptxViewer
                 pathMinY,
                 pathSx,
                 pathSy,
-                true);
+                true,
+                null);
 
             if (result.PointCount == 0)
             {
@@ -2658,7 +2660,8 @@ namespace PptxViewer
             float minY,
             float sx,
             float sy,
-            bool maskMode)
+            bool maskMode,
+            Matrix inheritedTransform)
         {
             if (destination == null ||
                 parent == null)
@@ -2673,45 +2676,316 @@ namespace PptxViewer
                 XmlNode child =
                     parent.ChildNodes[i];
 
-                if (child.LocalName == "g")
-                {
-                    AppendSvgGeometryChildren(
-                        destination,
-                        child,
-                        target,
-                        minX,
-                        minY,
-                        sx,
-                        sy,
-                        maskMode);
-                    continue;
-                }
+                Matrix combined =
+                    inheritedTransform != null
+                        ? inheritedTransform.Clone()
+                        : new Matrix();
 
-                if (maskMode &&
-                    !SvgMaskNodeIsVisible(
-                        child))
+                try
                 {
-                    continue;
-                }
+                    string transform =
+                        GetAttr(
+                            child,
+                            "transform");
 
-                using (GraphicsPath childPath =
-                    BuildEnhancedSvgElementPath(
-                        child,
-                        target,
-                        minX,
-                        minY,
-                        sx,
-                        sy))
-                {
-                    if (childPath != null &&
-                        childPath.PointCount > 0)
+                    if (!string.IsNullOrEmpty(
+                            transform))
                     {
-                        destination.AddPath(
-                            childPath,
-                            false);
+                        using (Matrix local =
+                            BuildSvgGeometryTransformMatrix(
+                                transform,
+                                target,
+                                minX,
+                                minY,
+                                sx,
+                                sy))
+                        {
+                            if (local != null)
+                            {
+                                combined.Multiply(
+                                    local,
+                                    MatrixOrder.Append);
+                            }
+                        }
+                    }
+
+                    if (child.LocalName == "g")
+                    {
+                        AppendSvgGeometryChildren(
+                            destination,
+                            child,
+                            target,
+                            minX,
+                            minY,
+                            sx,
+                            sy,
+                            maskMode,
+                            combined);
+                        continue;
+                    }
+
+                    if (maskMode &&
+                        !SvgMaskNodeIsVisible(
+                            child))
+                    {
+                        continue;
+                    }
+
+                    using (GraphicsPath childPath =
+                        BuildEnhancedSvgElementPath(
+                            child,
+                            target,
+                            minX,
+                            minY,
+                            sx,
+                            sy))
+                    {
+                        if (childPath != null &&
+                            childPath.PointCount > 0)
+                        {
+                            if (!combined.IsIdentity)
+                            {
+                                childPath.Transform(
+                                    combined);
+                            }
+
+                            destination.AddPath(
+                                childPath,
+                                false);
+                        }
                     }
                 }
+                finally
+                {
+                    combined.Dispose();
+                }
             }
+        }
+
+        private static Matrix BuildSvgGeometryTransformMatrix(
+            string transform,
+            RectangleF target,
+            float minX,
+            float minY,
+            float sx,
+            float sy)
+        {
+            Matrix result =
+                new Matrix();
+
+            if (string.IsNullOrEmpty(transform))
+                return result;
+
+            int index = 0;
+
+            while (index < transform.Length)
+            {
+                while (index < transform.Length &&
+                    (char.IsWhiteSpace(
+                        transform[index]) ||
+                     transform[index] == ','))
+                {
+                    index++;
+                }
+
+                int nameStart =
+                    index;
+
+                while (index < transform.Length &&
+                    char.IsLetter(
+                        transform[index]))
+                {
+                    index++;
+                }
+
+                if (index <= nameStart)
+                {
+                    index++;
+                    continue;
+                }
+
+                string name =
+                    transform.Substring(
+                        nameStart,
+                        index -
+                        nameStart)
+                    .ToLowerInvariant();
+
+                while (index < transform.Length &&
+                    char.IsWhiteSpace(
+                        transform[index]))
+                {
+                    index++;
+                }
+
+                if (index >= transform.Length ||
+                    transform[index] != '(')
+                {
+                    continue;
+                }
+
+                int argumentStart =
+                    index + 1;
+                int close =
+                    transform.IndexOf(
+                        ')',
+                        argumentStart);
+
+                if (close < 0)
+                    break;
+
+                List<float> values =
+                    ParseSvgNumberList(
+                        transform.Substring(
+                            argumentStart,
+                            close -
+                            argumentStart));
+
+                if (name == "matrix" &&
+                    values.Count >= 6)
+                {
+                    float safeSx =
+                        Math.Abs(sx) <
+                        0.0001f
+                            ? 1f
+                            : sx;
+                    float safeSy =
+                        Math.Abs(sy) <
+                        0.0001f
+                            ? 1f
+                            : sy;
+
+                    using (Matrix operation =
+                        new Matrix(
+                            values[0],
+                            values[1] *
+                                safeSy /
+                                safeSx,
+                            values[2] *
+                                safeSx /
+                                safeSy,
+                            values[3],
+                            values[4] *
+                                sx,
+                            values[5] *
+                                sy))
+                    {
+                        result.Multiply(
+                            operation,
+                            MatrixOrder.Append);
+                    }
+                }
+                else if (name == "translate" &&
+                    values.Count > 0)
+                {
+                    result.Translate(
+                        values[0] *
+                            sx,
+                        (values.Count > 1
+                            ? values[1]
+                            : 0f) *
+                            sy,
+                        MatrixOrder.Append);
+                }
+                else if (name == "scale" &&
+                    values.Count > 0)
+                {
+                    result.Scale(
+                        values[0],
+                        values.Count > 1
+                            ? values[1]
+                            : values[0],
+                        MatrixOrder.Append);
+                }
+                else if (name == "rotate" &&
+                    values.Count > 0)
+                {
+                    if (values.Count >= 3)
+                    {
+                        float cx =
+                            SvgX(
+                                target,
+                                minX,
+                                sx,
+                                values[1]);
+                        float cy =
+                            SvgY(
+                                target,
+                                minY,
+                                sy,
+                                values[2]);
+
+                        result.Translate(
+                            cx,
+                            cy,
+                            MatrixOrder.Append);
+                        result.Rotate(
+                            values[0],
+                            MatrixOrder.Append);
+                        result.Translate(
+                            -cx,
+                            -cy,
+                            MatrixOrder.Append);
+                    }
+                    else
+                    {
+                        result.Rotate(
+                            values[0],
+                            MatrixOrder.Append);
+                    }
+                }
+                else if (name == "skewx" &&
+                    values.Count > 0)
+                {
+                    float tangent =
+                        (float)Math.Tan(
+                            values[0] *
+                            Math.PI /
+                            180.0);
+
+                    using (Matrix operation =
+                        new Matrix(
+                            1f,
+                            0f,
+                            tangent,
+                            1f,
+                            0f,
+                            0f))
+                    {
+                        result.Multiply(
+                            operation,
+                            MatrixOrder.Append);
+                    }
+                }
+                else if (name == "skewy" &&
+                    values.Count > 0)
+                {
+                    float tangent =
+                        (float)Math.Tan(
+                            values[0] *
+                            Math.PI /
+                            180.0);
+
+                    using (Matrix operation =
+                        new Matrix(
+                            1f,
+                            tangent,
+                            0f,
+                            1f,
+                            0f,
+                            0f))
+                    {
+                        result.Multiply(
+                            operation,
+                            MatrixOrder.Append);
+                    }
+                }
+
+                index =
+                    close + 1;
+            }
+
+            return result;
         }
 
         private static bool SvgMaskNodeIsVisible(
