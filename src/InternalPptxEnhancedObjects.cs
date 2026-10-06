@@ -5668,6 +5668,10 @@ namespace PptxViewer
                         !string.Equals(
                             mode,
                             "multiply",
+                            StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(
+                            mode,
+                            "screen",
                             StringComparison.OrdinalIgnoreCase))
                     {
                         return false;
@@ -6023,9 +6027,13 @@ namespace PptxViewer
                     if (string.Equals(
                             blendMode,
                             "multiply",
+                            StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(
+                            blendMode,
+                            "screen",
                             StringComparison.OrdinalIgnoreCase))
                     {
-                        DrawSvgMultiplyOverlapApproximation(
+                        DrawSvgBlendOverlapApproximation(
                             g,
                             path,
                             offsetX,
@@ -6035,7 +6043,8 @@ namespace PptxViewer
                             fill,
                             strokeAlpha,
                             stroke,
-                            strokeWidth);
+                            strokeWidth,
+                            blendMode);
                     }
                 }
 
@@ -6224,7 +6233,7 @@ namespace PptxViewer
             return true;
         }
 
-        private static void DrawSvgMultiplyOverlapApproximation(
+        private static void DrawSvgBlendOverlapApproximation(
             Graphics g,
             GraphicsPath sourcePath,
             float offsetX,
@@ -6234,7 +6243,8 @@ namespace PptxViewer
             Color fill,
             int strokeAlpha,
             Color stroke,
-            float strokeWidth)
+            float strokeWidth,
+            string blendMode)
         {
             if (g == null ||
                 sourcePath == null ||
@@ -6273,22 +6283,22 @@ namespace PptxViewer
                         if (hasSolidFill &&
                             fillAlpha > 0)
                         {
-                            Color multipliedFill =
+                            Color blendedFill =
                                 Color.FromArgb(
                                     fillAlpha,
-                                    fill.R *
-                                        fill.R /
-                                        255,
-                                    fill.G *
-                                        fill.G /
-                                        255,
-                                    fill.B *
-                                        fill.B /
-                                        255);
+                                    BlendSvgChannel(
+                                        fill.R,
+                                        blendMode),
+                                    BlendSvgChannel(
+                                        fill.G,
+                                        blendMode),
+                                    BlendSvgChannel(
+                                        fill.B,
+                                        blendMode));
 
                             using (Brush brush =
                                 new SolidBrush(
-                                    multipliedFill))
+                                    blendedFill))
                             {
                                 g.FillPath(
                                     brush,
@@ -6298,22 +6308,22 @@ namespace PptxViewer
 
                         if (strokeAlpha > 0)
                         {
-                            Color multipliedStroke =
+                            Color blendedStroke =
                                 Color.FromArgb(
                                     strokeAlpha,
-                                    stroke.R *
-                                        stroke.R /
-                                        255,
-                                    stroke.G *
-                                        stroke.G /
-                                        255,
-                                    stroke.B *
-                                        stroke.B /
-                                        255);
+                                    BlendSvgChannel(
+                                        stroke.R,
+                                        blendMode),
+                                    BlendSvgChannel(
+                                        stroke.G,
+                                        blendMode),
+                                    BlendSvgChannel(
+                                        stroke.B,
+                                        blendMode));
 
                             using (Pen pen =
                                 new Pen(
-                                    multipliedStroke,
+                                    blendedStroke,
                                     strokeWidth))
                             {
                                 g.DrawPath(
@@ -6329,6 +6339,37 @@ namespace PptxViewer
                     }
                 }
             }
+        }
+
+        private static int BlendSvgChannel(
+            int channel,
+            string blendMode)
+        {
+            channel =
+                Math.Max(
+                    0,
+                    Math.Min(
+                        255,
+                        channel));
+
+            if (string.Equals(
+                    blendMode,
+                    "screen",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                int inverse =
+                    255 -
+                    channel;
+
+                return 255 -
+                    inverse *
+                    inverse /
+                    255;
+            }
+
+            return channel *
+                channel /
+                255;
         }
 
         private static bool TryReadStandaloneSvgOffset(

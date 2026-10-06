@@ -54,6 +54,7 @@ namespace PptxViewer
                 "<filter id=\"offsetBlurChain\"><feOffset in=\"SourceGraphic\" dx=\"8\" dy=\"2\" result=\"shifted\"/><feGaussianBlur in=\"shifted\" stdDeviation=\"1\"/></filter>" +
                 "<filter id=\"offsetBlurBlend\"><feOffset in=\"SourceGraphic\" dx=\"8\" dy=\"2\" result=\"shifted2\"/><feGaussianBlur in=\"shifted2\" stdDeviation=\"1\" result=\"blurred2\"/><feBlend in=\"blurred2\" in2=\"SourceGraphic\" mode=\"normal\"/></filter>" +
                 "<filter id=\"offsetBlurMultiply\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedMul\"/><feGaussianBlur in=\"shiftedMul\" stdDeviation=\"0.6\" result=\"blurredMul\"/><feBlend in=\"SourceGraphic\" in2=\"blurredMul\" mode=\"multiply\"/></filter>" +
+                "<filter id=\"offsetBlurScreen\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedScreen\"/><feGaussianBlur in=\"shiftedScreen\" stdDeviation=\"0.6\" result=\"blurredScreen\"/><feBlend in=\"SourceGraphic\" in2=\"blurredScreen\" mode=\"screen\"/></filter>" +
                 "<filter id=\"offsetBlurComposite\"><feOffset in=\"SourceGraphic\" dx=\"8\" dy=\"2\" result=\"shifted3\"/><feGaussianBlur in=\"shifted3\" stdDeviation=\"1\" result=\"blurred3\"/><feComposite in=\"SourceGraphic\" in2=\"blurred3\" operator=\"over\"/></filter>" +
                 "<filter id=\"swapRedBlue\"><feColorMatrix in=\"SourceGraphic\" type=\"matrix\" values=\"0 0 1 0 0  0 1 0 0 0  1 0 0 0 0  0 0 0 1 0\"/></filter>" +
                 "<filter id=\"desaturate\"><feColorMatrix in=\"SourceGraphic\" type=\"saturate\" values=\"0\"/></filter>" +
@@ -62,6 +63,7 @@ namespace PptxViewer
                 "<rect id=\"offsetBlurBlendRect\" x=\"2\" y=\"12\" width=\"8\" height=\"6\" fill=\"#d64545\" filter=\"url(#offsetBlurBlend)\"/>" +
                 "<rect id=\"offsetBlurCompositeRect\" x=\"2\" y=\"22\" width=\"8\" height=\"6\" fill=\"#3f7fd1\" filter=\"url(#offsetBlurComposite)\"/>" +
                 "<rect id=\"offsetBlurMultiplyRect\" x=\"2\" y=\"32\" width=\"8\" height=\"6\" fill=\"#80c060\" filter=\"url(#offsetBlurMultiply)\"/>" +
+                "<rect id=\"offsetBlurScreenRect\" x=\"2\" y=\"42\" width=\"8\" height=\"6\" fill=\"#4060a0\" filter=\"url(#offsetBlurScreen)\"/>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<g color=\"hsl(326deg 53% 50% / 100%)\"><use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" color=\"inherit\" fill=\"currentColor\"/></g>" +
@@ -790,6 +792,91 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "SVG multiply feBlend overlap was not darkened.");
+                }
+            }
+
+            XmlNode offsetBlurScreenRect =
+                FindSvgNodeById(
+                    document,
+                    "offsetBlurScreenRect");
+
+            float screenOffsetX;
+            float screenOffsetY;
+            float screenBlurX;
+            float screenBlurY;
+            bool screenSourceGraphic;
+            string screenMode;
+
+            if (!TryReadSvgOffsetGaussianChain(
+                    offsetBlurScreenRect,
+                    document,
+                    4f,
+                    4f,
+                    out screenOffsetX,
+                    out screenOffsetY,
+                    out screenBlurX,
+                    out screenBlurY,
+                    out screenSourceGraphic,
+                    out screenMode) ||
+                !screenSourceGraphic ||
+                screenMode != "screen")
+            {
+                throw new InvalidOperationException(
+                    "SVG screen feBlend chain was not parsed correctly.");
+            }
+
+            using (GraphicsPath screenPath =
+                BuildEnhancedSvgElementPath(
+                    offsetBlurScreenRect,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        160f,
+                        220f),
+                    0f,
+                    0f,
+                    4f,
+                    4f))
+            using (Bitmap screenBitmap =
+                new Bitmap(
+                    160,
+                    220,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics screenGraphics =
+                Graphics.FromImage(
+                    screenBitmap))
+            {
+                screenGraphics.Clear(
+                    Color.White);
+
+                if (!DrawSvgOffsetGaussianChainApproximation(
+                        screenGraphics,
+                        offsetBlurScreenRect,
+                        document,
+                        screenPath,
+                        4f,
+                        4f))
+                {
+                    throw new InvalidOperationException(
+                        "SVG screen feBlend chain was not rendered.");
+                }
+
+                Color originalOnly =
+                    screenBitmap.GetPixel(
+                        12,
+                        180);
+                Color overlap =
+                    screenBitmap.GetPixel(
+                        24,
+                        180);
+
+                if (overlap.R <=
+                        originalOnly.R + 15 ||
+                    overlap.B <=
+                        originalOnly.B + 15)
+                {
+                    throw new InvalidOperationException(
+                        "SVG screen feBlend overlap was not lightened.");
                 }
             }
 
