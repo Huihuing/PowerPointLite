@@ -920,6 +920,51 @@ namespace PptxViewer
                                     "DrawingML blur approximation did not soften a hard image edge.");
                             }
                         }
+
+                        XmlDocument artisticBlurDocument =
+                            new XmlDocument();
+
+                        artisticBlurDocument.LoadXml(
+                            "<a14:artisticBlur xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" radius=\"40\"/>");
+
+                        using (Bitmap artisticBlurred =
+                            CreateArtisticBlurImageApproximation(
+                                edgeSource,
+                                artisticBlurDocument.DocumentElement))
+                        {
+                            if (artisticBlurred == null)
+                            {
+                                throw new InvalidOperationException(
+                                    "Office 2010 artistic blur approximation did not create an image.");
+                            }
+
+                            bool artisticIntermediate =
+                                false;
+
+                            for (int x = 4;
+                                 x < 20;
+                                 x++)
+                            {
+                                int red =
+                                    artisticBlurred.GetPixel(
+                                        x,
+                                        4).R;
+
+                                if (red > 16 &&
+                                    red < 239)
+                                {
+                                    artisticIntermediate =
+                                        true;
+                                    break;
+                                }
+                            }
+
+                            if (!artisticIntermediate)
+                            {
+                                throw new InvalidOperationException(
+                                    "Office 2010 artistic blur approximation did not soften the source edge.");
+                            }
+                        }
                     }
 
                     using (Bitmap impulse =

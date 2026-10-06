@@ -41,6 +41,7 @@ Microsoft PowerPoint (설치된 경우)
 - grayscale / bi-level / brightness / contrast 그림 효과의 GDI+ 근사
 - DrawingML picture blur의 downsample/upscale 기반 기본 근사
 - Office 2010 `a14:sharpenSoften`의 3×3 sharpen/soften 기본 근사
+- Office 2010 `a14:artisticBlur` radius 기반 기본 근사
 - duotone luminance 2색 매핑
 - clrChange from/to 색상 remap
 - PNG / JPEG / GIF / BMP
@@ -172,7 +173,7 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 - chart의 모든 axis/style/data-label/3D 조합
 - theme effect style 참조 전체 및 복합 shadow/effect 조합
 - SVG filter 및 복잡한 mask luminance/gradient 등 고급 SVG 기능
-- artistic preset 등 고급 image artistic effects
+- artisticBlur 외의 artistic preset 등 고급 image artistic effects
 - 3D extrusion / material / lighting 및 bevel profile의 정확한 PowerPoint parity
 - custom geometry의 복잡한 nested guide 의존성, 모든 preset formula/adjust-handle semantics
 - exact PowerPoint easing curve parity

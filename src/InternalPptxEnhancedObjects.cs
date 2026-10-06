@@ -469,6 +469,24 @@ namespace PptxViewer
                 blurredImage ??
                 image;
 
+            XmlNode artisticBlur =
+                blip == null
+                    ? null
+                    : FindFirst(
+                        blip,
+                        "artisticBlur");
+
+            Bitmap artisticBlurImage =
+                CreateArtisticBlurImageApproximation(
+                    renderImage,
+                    artisticBlur);
+
+            if (artisticBlurImage != null)
+            {
+                renderImage =
+                    artisticBlurImage;
+            }
+
             XmlNode sharpenSoften =
                 blip == null
                     ? null
@@ -817,6 +835,11 @@ namespace PptxViewer
                 if (sharpenSoftenImage != null)
                 {
                     sharpenSoftenImage.Dispose();
+                }
+
+                if (artisticBlurImage != null)
+                {
+                    artisticBlurImage.Dispose();
                 }
 
                 if (blurredImage != null)
@@ -1191,6 +1214,67 @@ namespace PptxViewer
                             radiusPoints *
                             96f /
                             72f)));
+
+            return CreateBlurredImageApproximation(
+                image,
+                radiusPixels);
+        }
+
+        private static Bitmap CreateArtisticBlurImageApproximation(
+            Bitmap image,
+            XmlNode effect)
+        {
+            if (image == null ||
+                effect == null)
+            {
+                return null;
+            }
+
+            int radius =
+                (int)Math.Max(
+                    0L,
+                    Math.Min(
+                        100L,
+                        GetLong(
+                            effect,
+                            "radius",
+                            10)));
+
+            if (radius <= 0)
+            {
+                return null;
+            }
+
+            int radiusPixels =
+                Math.Max(
+                    1,
+                    Math.Min(
+                        48,
+                        (int)Math.Ceiling(
+                            radius *
+                            0.48f)));
+
+            return CreateBlurredImageApproximation(
+                image,
+                radiusPixels);
+        }
+
+        private static Bitmap CreateBlurredImageApproximation(
+            Bitmap image,
+            int radiusPixels)
+        {
+            if (image == null ||
+                radiusPixels <= 0)
+            {
+                return null;
+            }
+
+            radiusPixels =
+                Math.Max(
+                    1,
+                    Math.Min(
+                        48,
+                        radiusPixels));
 
             int divisor =
                 Math.Max(
