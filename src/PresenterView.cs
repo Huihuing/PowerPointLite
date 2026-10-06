@@ -39,8 +39,8 @@ internal sealed class PresenterViewForm : Form
             Width = 1200;
             Height = 760;
             MinimumSize = new Size(900, 600);
-            BackColor = Color.FromArgb(20, 22, 26);
-            ForeColor = Color.WhiteSmoke;
+            BackColor = ApplicationTheme.Window;
+            ForeColor = ApplicationTheme.PrimaryText;
 
             TableLayoutPanel root = new TableLayoutPanel();
             root.Dock = DockStyle.Fill;
@@ -48,14 +48,16 @@ internal sealed class PresenterViewForm : Form
             root.RowCount = 3;
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 68f));
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 32f));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48f));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 56f));
+            root.BackColor = ApplicationTheme.Divider;
+            root.CellBorderStyle = TableLayoutPanelCellBorderStyle.Single;
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 62f));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 38f));
             Controls.Add(root);
 
             Panel top = new Panel();
             top.Dock = DockStyle.Fill;
-            top.BackColor = Color.FromArgb(30, 33, 39);
+            top.BackColor = ApplicationTheme.Toolbar;
             root.Controls.Add(top, 0, 0);
             root.SetColumnSpan(top, 2);
 
@@ -94,8 +96,10 @@ internal sealed class PresenterViewForm : Form
             };
             top.Controls.Add(go);
 
-            Button start = MakeButton("Start Show", 278);
-            start.Width = 100;
+            Button start = MakeButton("Start Show", 284);
+            start.Tag = "F5 Show";
+            start.Width = 104;
+            ApplicationTheme.ApplyButton(start);
             start.Click += delegate
             {
                 if (StartShowRequested != null)
@@ -105,7 +109,7 @@ internal sealed class PresenterViewForm : Form
 
             timerLabel = new Label();
             timerLabel.AutoSize = true;
-            timerLabel.ForeColor = Color.LightGreen;
+            timerLabel.ForeColor = Color.FromArgb(126, 214, 160);
             timerLabel.Font = new Font("Segoe UI", 12f, FontStyle.Bold);
             timerLabel.Left = 410;
             timerLabel.Top = 14;
@@ -113,7 +117,7 @@ internal sealed class PresenterViewForm : Form
 
             slideLabel = new Label();
             slideLabel.AutoSize = true;
-            slideLabel.ForeColor = Color.WhiteSmoke;
+            slideLabel.ForeColor = ApplicationTheme.PrimaryText;
             slideLabel.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
             slideLabel.Left = 560;
             slideLabel.Top = 15;
@@ -122,48 +126,51 @@ internal sealed class PresenterViewForm : Form
             currentPicture = new PictureBox();
             currentPicture.Dock = DockStyle.Fill;
             currentPicture.SizeMode = PictureBoxSizeMode.Zoom;
-            currentPicture.BackColor = Color.Black;
+            currentPicture.BackColor = ApplicationTheme.Canvas;
+            currentPicture.BorderStyle = BorderStyle.FixedSingle;
             root.Controls.Add(currentPicture, 0, 1);
 
             Panel nextPanel = new Panel();
             nextPanel.Dock = DockStyle.Fill;
-            nextPanel.Padding = new Padding(8);
-            nextPanel.BackColor = Color.FromArgb(28, 31, 36);
+            nextPanel.Padding = new Padding(12);
+            nextPanel.BackColor = ApplicationTheme.Surface;
             root.Controls.Add(nextPanel, 1, 1);
 
             Label nextLabel = new Label();
             nextLabel.Dock = DockStyle.Top;
-            nextLabel.Height = 28;
+            nextLabel.Height = 30;
             nextLabel.Text = "Next slide";
-            nextLabel.ForeColor = Color.Gainsboro;
+            nextLabel.ForeColor = ApplicationTheme.SecondaryText;
+            nextLabel.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
             nextPanel.Controls.Add(nextLabel);
 
             nextPicture = new PictureBox();
             nextPicture.Dock = DockStyle.Fill;
             nextPicture.SizeMode = PictureBoxSizeMode.Zoom;
-            nextPicture.BackColor = Color.Black;
+            nextPicture.BackColor = ApplicationTheme.Canvas;
+            nextPicture.BorderStyle = BorderStyle.FixedSingle;
             nextPanel.Controls.Add(nextPicture);
             nextPicture.BringToFront();
 
             Panel notesPanel = new Panel();
             notesPanel.Dock = DockStyle.Fill;
-            notesPanel.Padding = new Padding(8);
-            notesPanel.BackColor = Color.FromArgb(245, 245, 242);
+            notesPanel.Padding = new Padding(12);
+            notesPanel.BackColor = ApplicationTheme.Window;
             root.Controls.Add(notesPanel, 0, 2);
             root.SetColumnSpan(notesPanel, 2);
 
             titleLabel = new Label();
             titleLabel.Dock = DockStyle.Top;
-            titleLabel.Height = 30;
-            titleLabel.ForeColor = Color.FromArgb(25, 25, 25);
+            titleLabel.Height = 34;
+            titleLabel.ForeColor = ApplicationTheme.PrimaryText;
             titleLabel.Font = new Font("Segoe UI", 12f, FontStyle.Bold);
             notesPanel.Controls.Add(titleLabel);
 
             notes = new RichTextBox();
             notes.Dock = DockStyle.Fill;
             notes.ReadOnly = true;
-            notes.BackColor = Color.White;
-            notes.ForeColor = Color.FromArgb(25, 25, 25);
+            notes.BackColor = ApplicationTheme.Surface;
+            notes.ForeColor = ApplicationTheme.PrimaryText;
             notes.Font = new Font("Segoe UI", 12f);
             notes.BorderStyle = BorderStyle.FixedSingle;
             notesPanel.Controls.Add(notes);
@@ -269,9 +276,11 @@ internal sealed class PresenterViewForm : Form
             Button b = new Button();
             b.Text = text;
             b.Left = left;
-            b.Top = 8;
-            b.Width = 82;
-            b.Height = 30;
+            b.Top = 12;
+            b.Width = 84;
+            b.Height = 32;
+            b.Tag = text;
+            ApplicationTheme.ApplyButton(b);
             return b;
         }
 
