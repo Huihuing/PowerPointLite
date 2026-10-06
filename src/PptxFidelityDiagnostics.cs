@@ -145,6 +145,27 @@ namespace PptxViewer
                     "Chart marker/line visual style was not parsed.");
             }
 
+            List<ChartSeriesData> extendedSeries =
+                ReadStandardChartSeries(
+                    chart,
+                    theme);
+
+            if (extendedSeries.Count < 2 ||
+                !extendedSeries[0].ExplicitColor.HasValue ||
+                extendedSeries[0].ExplicitColor.Value.R != 0x33 ||
+                extendedSeries[0].ExplicitColor.Value.G != 0x66 ||
+                extendedSeries[0].ExplicitColor.Value.B != 0xCC ||
+                extendedSeries[0].LineDashStyle !=
+                    System.Drawing.Drawing2D.DashStyle.Dash ||
+                extendedSeries[0].MarkerSymbol != "diamond" ||
+                Math.Abs(
+                    extendedSeries[0].MarkerSize -
+                    9f) > 0.01f)
+            {
+                throw new InvalidOperationException(
+                    "Extended chart series parser did not preserve common series styling.");
+            }
+
             if (ReadChartAxisTitle(
                     chart,
                     "catAx") != "Quarter" ||
