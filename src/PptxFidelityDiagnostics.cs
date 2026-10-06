@@ -93,7 +93,7 @@ namespace PptxViewer
                     new double[] { -18.0, 34.0, 51.0, -39.0 }) +
                 "</c:barChart>" +
                 "<c:catAx><c:axId val=\"1\"/><c:tickLblPos val=\"none\"/><c:tickLblSkip val=\"2\"/><c:crossesAt val=\"20\"/><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"25400\"><a:solidFill><a:srgbClr val=\"3366CC\"/></a:solidFill><a:prstDash val=\"dash\"/></a:ln></c:spPr><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarter</a:t></a:r></a:p></c:rich></c:tx></c:title></c:catAx>" +
-                "<c:valAx><c:axId val=\"2\"/><c:tickLblPos val=\"none\"/><c:scaling><c:orientation val=\"minMax\"/><c:min val=\"-50\"/><c:max val=\"80\"/></c:scaling><c:majorUnit val=\"20\"/><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:majorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"12700\"><a:solidFill><a:srgbClr val=\"88AACC\"/></a:solidFill><a:prstDash val=\"dashDot\"/></a:ln></c:spPr></c:majorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"19050\"><a:solidFill><a:srgbClr val=\"CC5533\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Delta</a:t></a:r></a:p></c:rich></c:tx></c:title></c:valAx>" +
+                "<c:valAx><c:axId val=\"2\"/><c:tickLblPos val=\"none\"/><c:scaling><c:orientation val=\"minMax\"/><c:min val=\"-50\"/><c:max val=\"80\"/></c:scaling><c:majorUnit val=\"20\"/><c:minorUnit val=\"10\"/><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:majorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"12700\"><a:solidFill><a:srgbClr val=\"88AACC\"/></a:solidFill><a:prstDash val=\"dashDot\"/></a:ln></c:spPr></c:majorGridlines><c:minorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"9525\"><a:solidFill><a:srgbClr val=\"CCDDEE\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr></c:minorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"19050\"><a:solidFill><a:srgbClr val=\"CC5533\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Delta</a:t></a:r></a:p></c:rich></c:tx></c:title></c:valAx>" +
                 "<c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"FFF8EE\"/></a:solidFill></c:spPr>" +
                 "</c:plotArea>" +
                 "<c:legend><c:legendPos val=\"b\"/></c:legend>" +
@@ -281,6 +281,37 @@ namespace PptxViewer
                     "Chart major gridline color, width, or dash style was not parsed.");
             }
 
+            ChartLineStyle minorGridStyle =
+                ReadChartMinorGridlineStyle(
+                    chart,
+                    theme);
+
+            if (minorGridStyle == null ||
+                minorGridStyle.Color.R != 0xCC ||
+                minorGridStyle.Color.G != 0xDD ||
+                minorGridStyle.Color.B != 0xEE ||
+                minorGridStyle.Width < 1f ||
+                minorGridStyle.DashStyle !=
+                    DashStyle.Dot)
+            {
+                throw new InvalidOperationException(
+                    "Chart minor gridline color, width, or dash style was not parsed.");
+            }
+
+            List<double> diagnosticMajorTicks =
+                BuildChartAxisTicks(
+                    scale);
+            List<double> diagnosticMinorTicks =
+                BuildChartMinorAxisTicks(
+                    scale,
+                    diagnosticMajorTicks);
+
+            if (diagnosticMinorTicks.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "Chart minorUnit did not produce minor axis ticks.");
+            }
+
             ChartSeriesData highLabelSeries =
                 new ChartSeriesData();
             highLabelSeries.Categories.Add(
@@ -384,6 +415,7 @@ namespace PptxViewer
                     "column",
                     true,
                     "high",
+                    null,
                     null);
 
                 bool foundRightOfPlot =
@@ -436,6 +468,9 @@ namespace PptxViewer
                 Math.Abs(
                     scale.MajorUnit -
                     20.0) > 0.0001 ||
+                Math.Abs(
+                    scale.MinorUnit -
+                    10.0) > 0.0001 ||
                 scale.NumberFormat != "0.0" ||
                 scale.Reverse)
             {
