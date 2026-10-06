@@ -11250,7 +11250,10 @@ namespace PptxViewer
                     data,
                     labels,
                     ReadChartFirstSliceAngle(
-                        chartDoc));
+                        chartDoc),
+                    ReadChartLeaderLineStyle(
+                        chartDoc,
+                        theme));
             }
 
             DrawChartLegend(
@@ -11268,7 +11271,8 @@ namespace PptxViewer
             RectangleF hole,
             ChartSeriesData series,
             ChartLabelOptions options,
-            float startAngle)
+            float startAngle,
+            ChartLineStyle leaderLineStyle)
         {
             if (series == null ||
                 options == null ||
@@ -11416,6 +11420,61 @@ namespace PptxViewer
                                 labelRadius -
                                 size.Height /
                                 2f;
+
+                            if (normalizedPosition == "outend" &&
+                                pointLabels.ShowLeaderLines)
+                            {
+                                if (leaderLineStyle == null)
+                                {
+                                    leaderLineStyle =
+                                        new ChartLineStyle();
+                                    leaderLineStyle.Color =
+                                        Color.FromArgb(
+                                            120,
+                                            120,
+                                            120);
+                                    leaderLineStyle.Width = 1f;
+                                }
+
+                                PointF lineStart =
+                                    new PointF(
+                                        cx +
+                                        (float)Math.Cos(
+                                            radians) *
+                                        outerRadius *
+                                        0.96f,
+                                        cy +
+                                        (float)Math.Sin(
+                                            radians) *
+                                        outerRadius *
+                                        0.96f);
+                                PointF lineEnd =
+                                    new PointF(
+                                        cx +
+                                        (float)Math.Cos(
+                                            radians) *
+                                        outerRadius *
+                                        1.05f,
+                                        cy +
+                                        (float)Math.Sin(
+                                            radians) *
+                                        outerRadius *
+                                        1.05f);
+
+                                using (Pen leader =
+                                    new Pen(
+                                        leaderLineStyle.Color,
+                                        leaderLineStyle.Width))
+                                {
+                                    leader.DashStyle =
+                                        leaderLineStyle.DashStyle;
+
+                                    g.DrawLine(
+                                        leader,
+                                        lineStart,
+                                        lineEnd);
+                                }
+                            }
 
                             g.DrawString(
                                 label,
