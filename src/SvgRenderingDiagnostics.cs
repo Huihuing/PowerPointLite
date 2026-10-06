@@ -62,6 +62,7 @@ namespace PptxViewer
                 "<filter id=\"offsetCompositeOut\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedOut\"/><feGaussianBlur in=\"shiftedOut\" stdDeviation=\"0\" result=\"filteredOut\"/><feComposite in=\"SourceGraphic\" in2=\"filteredOut\" operator=\"out\"/></filter>" +
                 "<filter id=\"offsetCompositeXor\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedXor\"/><feGaussianBlur in=\"shiftedXor\" stdDeviation=\"0\" result=\"filteredXor\"/><feComposite in=\"SourceGraphic\" in2=\"filteredXor\" operator=\"xor\"/></filter>" +
                 "<filter id=\"offsetCompositeAtop\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedAtop\"/><feGaussianBlur in=\"shiftedAtop\" stdDeviation=\"0\" result=\"filteredAtop\"/><feComposite in=\"SourceGraphic\" in2=\"filteredAtop\" operator=\"atop\"/></filter>" +
+                "<filter id=\"offsetCompositeArithmetic\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedArithmetic\"/><feGaussianBlur in=\"shiftedArithmetic\" stdDeviation=\"0\" result=\"filteredArithmetic\"/><feComposite in=\"SourceGraphic\" in2=\"filteredArithmetic\" operator=\"arithmetic\" k1=\"-1\" k2=\"1\" k3=\"1\" k4=\"0\"/></filter>" +
                 "<filter id=\"swapRedBlue\"><feColorMatrix in=\"SourceGraphic\" type=\"matrix\" values=\"0 0 1 0 0  0 1 0 0 0  1 0 0 0 0  0 0 0 1 0\"/></filter>" +
                 "<filter id=\"desaturate\"><feColorMatrix in=\"SourceGraphic\" type=\"saturate\" values=\"0\"/></filter>" +
                 "<filter id=\"hueRotate\"><feColorMatrix in=\"SourceGraphic\" type=\"hueRotate\" values=\"240\"/></filter>" +
@@ -76,6 +77,7 @@ namespace PptxViewer
                 "<rect id=\"offsetCompositeOutRect\" x=\"12\" y=\"72\" width=\"8\" height=\"6\" fill=\"#3f7fd1\" filter=\"url(#offsetCompositeOut)\"/>" +
                 "<rect id=\"offsetCompositeXorRect\" x=\"22\" y=\"72\" width=\"8\" height=\"6\" fill=\"#3f7fd1\" filter=\"url(#offsetCompositeXor)\"/>" +
                 "<rect id=\"offsetCompositeAtopRect\" x=\"30\" y=\"72\" width=\"8\" height=\"6\" fill=\"#3f7fd1\" filter=\"url(#offsetCompositeAtop)\"/>" +
+                "<rect id=\"offsetCompositeArithmeticRect\" x=\"2\" y=\"82\" width=\"8\" height=\"6\" fill=\"#3f7fd1\" filter=\"url(#offsetCompositeArithmetic)\"/>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<g color=\"hsl(326deg 53% 50% / 100%)\"><use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" color=\"inherit\" fill=\"currentColor\"/></g>" +
@@ -1363,6 +1365,141 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "SVG feComposite atop did not preserve the second-input coverage.");
+                }
+            }
+
+            XmlNode offsetCompositeArithmeticRect =
+                FindSvgNodeById(
+                    document,
+                    "offsetCompositeArithmeticRect");
+
+            float compositeArithmeticOffsetX;
+            float compositeArithmeticOffsetY;
+            float compositeArithmeticBlurX;
+            float compositeArithmeticBlurY;
+            bool compositeArithmeticSourceGraphic;
+            string compositeArithmeticMode;
+
+            if (!TryReadSvgOffsetGaussianChain(
+                    offsetCompositeArithmeticRect,
+                    document,
+                    4f,
+                    4f,
+                    out compositeArithmeticOffsetX,
+                    out compositeArithmeticOffsetY,
+                    out compositeArithmeticBlurX,
+                    out compositeArithmeticBlurY,
+                    out compositeArithmeticSourceGraphic,
+                    out compositeArithmeticMode) ||
+                !compositeArithmeticSourceGraphic ||
+                compositeArithmeticMode !=
+                    "arithmetic")
+            {
+                throw new InvalidOperationException(
+                    "SVG feComposite arithmetic chain was not parsed correctly.");
+            }
+
+            float arithmeticK1;
+            float arithmeticK2;
+            float arithmeticK3;
+            float arithmeticK4;
+
+            if (!TryReadSvgCompositeArithmeticCoefficients(
+                    offsetCompositeArithmeticRect,
+                    document,
+                    out arithmeticK1,
+                    out arithmeticK2,
+                    out arithmeticK3,
+                    out arithmeticK4) ||
+                Math.Abs(
+                    arithmeticK1 +
+                    1f) > 0.001f ||
+                Math.Abs(
+                    arithmeticK2 -
+                    1f) > 0.001f ||
+                Math.Abs(
+                    arithmeticK3 -
+                    1f) > 0.001f ||
+                Math.Abs(
+                    arithmeticK4) > 0.001f)
+            {
+                throw new InvalidOperationException(
+                    "SVG feComposite arithmetic k1-k4 values were not retained.");
+            }
+
+            using (GraphicsPath compositeArithmeticPath =
+                BuildEnhancedSvgElementPath(
+                    offsetCompositeArithmeticRect,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        160f,
+                        380f),
+                    0f,
+                    0f,
+                    4f,
+                    4f))
+            using (Bitmap compositeArithmeticBitmap =
+                new Bitmap(
+                    160,
+                    380,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics compositeArithmeticGraphics =
+                Graphics.FromImage(
+                    compositeArithmeticBitmap))
+            {
+                compositeArithmeticGraphics.Clear(
+                    Color.White);
+
+                if (!DrawSvgOffsetGaussianChainApproximation(
+                        compositeArithmeticGraphics,
+                        offsetCompositeArithmeticRect,
+                        document,
+                        compositeArithmeticPath,
+                        4f,
+                        4f))
+                {
+                    throw new InvalidOperationException(
+                        "SVG feComposite arithmetic chain was not rendered.");
+                }
+
+                Color sourceOnly =
+                    compositeArithmeticBitmap.GetPixel(
+                        12,
+                        340);
+                Color overlap =
+                    compositeArithmeticBitmap.GetPixel(
+                        24,
+                        340);
+                Color shiftedOnly =
+                    compositeArithmeticBitmap.GetPixel(
+                        44,
+                        340);
+
+                bool sourceVisible =
+                    sourceOnly.B >
+                        sourceOnly.R + 80 &&
+                    sourceOnly.B >
+                        sourceOnly.G + 40;
+                bool shiftedVisible =
+                    shiftedOnly.B >
+                        shiftedOnly.R + 80 &&
+                    shiftedOnly.B >
+                        shiftedOnly.G + 40;
+                bool overlapBrighter =
+                    overlap.R >
+                        sourceOnly.R + 25 &&
+                    overlap.G >
+                        sourceOnly.G + 35 &&
+                    overlap.B >=
+                        sourceOnly.B + 20;
+
+                if (!sourceVisible ||
+                    !shiftedVisible ||
+                    !overlapBrighter)
+                {
+                    throw new InvalidOperationException(
+                        "SVG feComposite arithmetic did not apply the expected channel equation across source/overlap regions.");
                 }
             }
 
