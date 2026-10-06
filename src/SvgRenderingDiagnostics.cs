@@ -59,6 +59,7 @@ namespace PptxViewer
                 "<filter id=\"offsetBlurLighten\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedLighten\"/><feGaussianBlur in=\"shiftedLighten\" stdDeviation=\"0.6\" result=\"blurredLighten\"/><feBlend in=\"SourceGraphic\" in2=\"blurredLighten\" mode=\"lighten\"/></filter>" +
                 "<filter id=\"offsetBlurComposite\"><feOffset in=\"SourceGraphic\" dx=\"8\" dy=\"2\" result=\"shifted3\"/><feGaussianBlur in=\"shifted3\" stdDeviation=\"1\" result=\"blurred3\"/><feComposite in=\"SourceGraphic\" in2=\"blurred3\" operator=\"over\"/></filter>" +
                 "<filter id=\"offsetCompositeIn\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedIn\"/><feGaussianBlur in=\"shiftedIn\" stdDeviation=\"0\" result=\"filteredIn\"/><feComposite in=\"SourceGraphic\" in2=\"filteredIn\" operator=\"in\"/></filter>" +
+                "<filter id=\"offsetCompositeOut\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedOut\"/><feGaussianBlur in=\"shiftedOut\" stdDeviation=\"0\" result=\"filteredOut\"/><feComposite in=\"SourceGraphic\" in2=\"filteredOut\" operator=\"out\"/></filter>" +
                 "<filter id=\"swapRedBlue\"><feColorMatrix in=\"SourceGraphic\" type=\"matrix\" values=\"0 0 1 0 0  0 1 0 0 0  1 0 0 0 0  0 0 0 1 0\"/></filter>" +
                 "<filter id=\"desaturate\"><feColorMatrix in=\"SourceGraphic\" type=\"saturate\" values=\"0\"/></filter>" +
                 "<filter id=\"hueRotate\"><feColorMatrix in=\"SourceGraphic\" type=\"hueRotate\" values=\"240\"/></filter>" +
@@ -70,6 +71,7 @@ namespace PptxViewer
                 "<rect id=\"offsetBlurDarkenRect\" x=\"2\" y=\"52\" width=\"8\" height=\"6\" fill=\"#7090c0\" filter=\"url(#offsetBlurDarken)\"/>" +
                 "<rect id=\"offsetBlurLightenRect\" x=\"2\" y=\"62\" width=\"8\" height=\"6\" fill=\"#7090c0\" filter=\"url(#offsetBlurLighten)\"/>" +
                 "<rect id=\"offsetCompositeInRect\" x=\"2\" y=\"72\" width=\"8\" height=\"6\" fill=\"#3f7fd1\" filter=\"url(#offsetCompositeIn)\"/>" +
+                "<rect id=\"offsetCompositeOutRect\" x=\"12\" y=\"72\" width=\"8\" height=\"6\" fill=\"#3f7fd1\" filter=\"url(#offsetCompositeOut)\"/>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<g color=\"hsl(326deg 53% 50% / 100%)\"><use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" color=\"inherit\" fill=\"currentColor\"/></g>" +
@@ -1053,6 +1055,100 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "SVG feComposite in did not retain only the overlapping source region.");
+                }
+            }
+
+            XmlNode offsetCompositeOutRect =
+                FindSvgNodeById(
+                    document,
+                    "offsetCompositeOutRect");
+
+            float compositeOutOffsetX;
+            float compositeOutOffsetY;
+            float compositeOutBlurX;
+            float compositeOutBlurY;
+            bool compositeOutSourceGraphic;
+            string compositeOutMode;
+
+            if (!TryReadSvgOffsetGaussianChain(
+                    offsetCompositeOutRect,
+                    document,
+                    4f,
+                    4f,
+                    out compositeOutOffsetX,
+                    out compositeOutOffsetY,
+                    out compositeOutBlurX,
+                    out compositeOutBlurY,
+                    out compositeOutSourceGraphic,
+                    out compositeOutMode) ||
+                !compositeOutSourceGraphic ||
+                compositeOutMode != "out")
+            {
+                throw new InvalidOperationException(
+                    "SVG feComposite out chain was not parsed correctly.");
+            }
+
+            using (GraphicsPath compositeOutPath =
+                BuildEnhancedSvgElementPath(
+                    offsetCompositeOutRect,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        160f,
+                        340f),
+                    0f,
+                    0f,
+                    4f,
+                    4f))
+            using (Bitmap compositeOutBitmap =
+                new Bitmap(
+                    160,
+                    340,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics compositeOutGraphics =
+                Graphics.FromImage(
+                    compositeOutBitmap))
+            {
+                compositeOutGraphics.Clear(
+                    Color.White);
+
+                if (!DrawSvgOffsetGaussianChainApproximation(
+                        compositeOutGraphics,
+                        offsetCompositeOutRect,
+                        document,
+                        compositeOutPath,
+                        4f,
+                        4f))
+                {
+                    throw new InvalidOperationException(
+                        "SVG feComposite out chain was not rendered.");
+                }
+
+                Color sourceOnly =
+                    compositeOutBitmap.GetPixel(
+                        52,
+                        300);
+                Color overlap =
+                    compositeOutBitmap.GetPixel(
+                        64,
+                        300);
+
+                bool sourceOnlyVisible =
+                    sourceOnly.B >
+                        sourceOnly.R + 30 &&
+                    sourceOnly.B >
+                        sourceOnly.G + 5 &&
+                    sourceOnly.B < 250;
+                bool overlapEmpty =
+                    overlap.R > 245 &&
+                    overlap.G > 245 &&
+                    overlap.B > 245;
+
+                if (!sourceOnlyVisible ||
+                    !overlapEmpty)
+                {
+                    throw new InvalidOperationException(
+                        "SVG feComposite out did not remove the overlapping source region.");
                 }
             }
 
