@@ -6973,113 +6973,436 @@ namespace PptxViewer
             Dictionary<string, Color> theme)
         {
             RectangleF plot;
-            PrepareChartSurface(g, rect, chartDoc, out plot);
-            List<ChartSeriesData> series = ReadStandardChartSeries(chartDoc, theme);
+            PrepareChartSurface(
+                g,
+                rect,
+                chartDoc,
+                out plot);
+
+            List<ChartSeriesData> series =
+                ReadStandardChartSeries(
+                    chartDoc,
+                    theme);
+
             if (series.Count == 0)
             {
-                DrawPlaceholder(g, plot, "Area chart");
+                DrawPlaceholder(
+                    g,
+                    plot,
+                    "Area chart");
                 return;
             }
 
-            double max = 0.0;
-            int count = 0;
-            for (int s = 0; s < series.Count; s++)
-            {
-                count = Math.Max(count, series[s].Values.Count);
-                for (int i = 0; i < series[s].Values.Count; i++)
-                    max = Math.Max(max, Math.Abs(series[s].Values[i]));
-            }
-            if (max <= 0.0) max = 1.0;
-            if (count <= 0) count = 1;
+            int categoryCount = 0;
 
-            Color[] palette = EnhancedChartPalette(theme);
-            using (Pen axis = new Pen(Color.FromArgb(110, 110, 110), 1f))
+            for (int s = 0;
+                 s < series.Count;
+                 s++)
             {
-                g.DrawLine(axis, plot.Left, plot.Bottom, plot.Right, plot.Bottom);
-                g.DrawLine(axis, plot.Left, plot.Top, plot.Left, plot.Bottom);
+                categoryCount =
+                    Math.Max(
+                        categoryCount,
+                        series[s].Values.Count);
             }
 
-            for (int s = 0; s < series.Count; s++)
+            if (categoryCount <= 0)
             {
-                ChartSeriesData item = series[s];
-                if (item.Values.Count == 0) continue;
-                List<PointF> points = new List<PointF>();
-                points.Add(new PointF(plot.Left, plot.Bottom));
-                for (int i = 0; i < item.Values.Count; i++)
+                DrawPlaceholder(
+                    g,
+                    plot,
+                    "Area chart");
+                return;
+            }
+
+            string grouping =
+                ReadAreaChartGrouping(
+                    chartDoc);
+
+            bool stacked =
+                string.Equals(
+                    grouping,
+                    "stacked",
+                    StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(
+                    grouping,
+                    "percentStacked",
+                    StringComparison.OrdinalIgnoreCase);
+
+            bool percentStacked =
+                string.Equals(
+                    grouping,
+                    "percentStacked",
+                    StringComparison.OrdinalIgnoreCase);
+
+            double minimum = 0.0;
+            double maximum = 0.0;
+
+            if (stacked)
+            {
+                CalculateStackedChartRange(
+                    series,
+                    categoryCount,
+                    percentStacked,
+                    out minimum,
+                    out maximum);
+            }
+            else
+            {
+                for (int s = 0;
+                     s < series.Count;
+                     s++)
                 {
-                    float x = count <= 1
-                        ? plot.Left + plot.Width / 2f
-                        : plot.Left + plot.Width * i / (count - 1f);
-                    float y = plot.Bottom - (float)(plot.Height * item.Values[i] / max);
-                    points.Add(new PointF(x, y));
+                    for (int i = 0;
+                         i < series[s].Values.Count;
+                         i++)
+                    {
+                        double value =
+                            series[s].Values[i];
+
+                        minimum =
+                            Math.Min(
+                                minimum,
+                                value);
+                        maximum =
+                            Math.Max(
+                                maximum,
+                                value);
+                    }
                 }
-                points.Add(new PointF(
-                    item.Values.Count <= 1 ? plot.Right : plot.Right,
-                    plot.Bottom));
 
-                Color color =
-                    GetChartSeriesColor(
-                        series,
-                        s,
-                        palette);
-
-                using (Brush fill =
-                    new SolidBrush(
-                        Color.FromArgb(
-                            72,
-                            color)))
+                if (Math.Abs(
+                        maximum -
+                        minimum) <
+                    0.0000001)
                 {
-                    g.FillPolygon(
-                        fill,
-                        points.ToArray());
+                    maximum =
+                        minimum + 1.0;
                 }
+            }
 
-                using (Pen pen =
-                    new Pen(
-                        color,
-                        Math.Max(
-                            1f,
-                            item.LineWidth)))
+            ChartAxisScale axisScale =
+                ReadChartAxisScale(
+                    chartDoc,
+                    minimum,
+                    maximum);
+
+            if (percentStacked &&
+                string.IsNullOrEmpty(
+                    axisScale.NumberFormat))
+            {
+                axisScale.NumberFormat =
+                    "0%";
+            }
+
+            DrawChartValueGrid(
+                g,
+                plot,
+                axisScale,
+                "column");
+
+            float zeroY =
+                plot.Bottom -
+                (float)(
+                    ChartAxisFraction(
+                        0.0,
+                        axisScale) *
+                    plot.Height);
+
+            zeroY =
+                Math.Max(
+                    plot.Top,
+                    Math.Min(
+                        plot.Bottom,
+                        zeroY));
+
+            using (Pen axis =
+                new Pen(
+                    Color.FromArgb(
+                        100,
+                        100,
+                        100),
+                    1.2f))
+            {
+                g.DrawLine(
+                    axis,
+                    plot.Left,
+                    zeroY,
+                    plot.Right,
+                    zeroY);
+
+                g.DrawLine(
+                    axis,
+                    plot.Left,
+                    plot.Top,
+                    plot.Left,
+                    plot.Bottom);
+            }
+
+            Color[] palette =
+                EnhancedChartPalette(
+                    theme);
+
+            ChartLabelOptions labels =
+                ReadChartLabelOptions(
+                    chartDoc);
+
+            using (Font labelFont =
+                SafeFont(
+                    "Arial",
+                    Math.Max(
+                        6f,
+                        Math.Min(
+                            9f,
+                            plot.Height /
+                            36f))))
+            using (Brush labelBrush =
+                new SolidBrush(
+                    Color.FromArgb(
+                        70,
+                        70,
+                        70)))
+            {
+                for (int s = 0;
+                     s < series.Count;
+                     s++)
                 {
-                    pen.DashStyle =
-                        item.LineDashStyle;
+                    ChartSeriesData item =
+                        series[s];
 
-                    PointF[] line =
-                        points.GetRange(
-                            1,
-                            points.Count - 2)
-                            .ToArray();
+                    if (item.Values.Count == 0)
+                        continue;
 
-                    if (line.Length > 1)
-                        g.DrawLines(
-                            pen,
-                            line);
+                    List<PointF> topPoints =
+                        new List<PointF>();
+                    List<PointF> bottomPoints =
+                        new List<PointF>();
+
+                    for (int i = 0;
+                         i < categoryCount;
+                         i++)
+                    {
+                        double startValue = 0.0;
+                        double endValue = 0.0;
+
+                        if (i <
+                            item.Values.Count)
+                        {
+                            if (stacked)
+                            {
+                                GetStackedChartSegment(
+                                    series,
+                                    i,
+                                    s,
+                                    percentStacked,
+                                    out startValue,
+                                    out endValue);
+                            }
+                            else
+                            {
+                                endValue =
+                                    item.Values[i];
+                            }
+                        }
+
+                        float x =
+                            categoryCount <= 1
+                                ? plot.Left +
+                                  plot.Width /
+                                  2f
+                                : plot.Left +
+                                  plot.Width *
+                                  i /
+                                  (categoryCount -
+                                   1f);
+
+                        float topY =
+                            plot.Bottom -
+                            (float)(
+                                ChartAxisFraction(
+                                    endValue,
+                                    axisScale) *
+                                plot.Height);
+
+                        float bottomY =
+                            plot.Bottom -
+                            (float)(
+                                ChartAxisFraction(
+                                    startValue,
+                                    axisScale) *
+                                plot.Height);
+
+                        topPoints.Add(
+                            new PointF(
+                                x,
+                                topY));
+
+                        bottomPoints.Add(
+                            new PointF(
+                                x,
+                                bottomY));
+                    }
+
+                    List<PointF> polygon =
+                        new List<PointF>();
+
+                    for (int i = 0;
+                         i < topPoints.Count;
+                         i++)
+                    {
+                        polygon.Add(
+                            topPoints[i]);
+                    }
+
+                    for (int i =
+                             bottomPoints.Count -
+                             1;
+                         i >= 0;
+                         i--)
+                    {
+                        polygon.Add(
+                            bottomPoints[i]);
+                    }
+
+                    Color color =
+                        GetChartSeriesColor(
+                            series,
+                            s,
+                            palette);
+
+                    if (polygon.Count >= 3)
+                    {
+                        using (Brush fill =
+                            new SolidBrush(
+                                Color.FromArgb(
+                                    72,
+                                    color)))
+                        {
+                            g.FillPolygon(
+                                fill,
+                                polygon.ToArray());
+                        }
+                    }
+
+                    using (Pen pen =
+                        new Pen(
+                            color,
+                            Math.Max(
+                                1f,
+                                item.LineWidth)))
+                    {
+                        pen.DashStyle =
+                            item.LineDashStyle;
+
+                        if (topPoints.Count > 1)
+                        {
+                            g.DrawLines(
+                                pen,
+                                topPoints.ToArray());
+                        }
+                    }
 
                     if (item.MarkerEnabled)
                     {
                         for (int i = 0;
-                             i < line.Length;
+                             i < topPoints.Count;
                              i++)
                         {
                             DrawChartMarker(
                                 g,
-                                line[i],
+                                topPoints[i],
                                 item.MarkerSymbol,
                                 item.MarkerSize,
                                 color);
                         }
                     }
+
+                    if (labels.HasAny)
+                    {
+                        for (int i = 0;
+                             i < item.Values.Count &&
+                             i < topPoints.Count;
+                             i++)
+                        {
+                            string label =
+                                BuildChartDataLabel(
+                                    labels,
+                                    item,
+                                    i,
+                                    false);
+
+                            DrawChartValueLabel(
+                                g,
+                                labelFont,
+                                labelBrush,
+                                label,
+                                topPoints[i].X,
+                                topPoints[i].Y -
+                                    labelFont.Height -
+                                    2f,
+                                true);
+                        }
+                    }
                 }
             }
 
-            DrawChartCategoryLabels(g, plot, series[0], count, "column");
+            DrawChartCategoryLabels(
+                g,
+                plot,
+                series[0],
+                categoryCount,
+                "column");
+
+            DrawChartAxisTitles(
+                g,
+                plot,
+                rect,
+                "column",
+                ReadChartAxisTitle(
+                    chartDoc,
+                    "valAx"),
+                ReadChartAxisTitle(
+                    chartDoc,
+                    "catAx"));
+
             DrawChartLegend(
                 g,
                 rect,
                 series,
                 palette,
                 "area",
-                ReadChartLegendPosition(chartDoc));
+                ReadChartLegendPosition(
+                    chartDoc));
+        }
+
+        private static string ReadAreaChartGrouping(
+            XmlDocument chartDoc)
+        {
+            XmlNode areaChart =
+                chartDoc == null
+                    ? null
+                    : FindFirst(
+                        chartDoc,
+                        "areaChart");
+
+            if (areaChart == null)
+                return "standard";
+
+            XmlNode grouping =
+                DirectChild(
+                    areaChart,
+                    "grouping");
+
+            string value =
+                grouping != null
+                    ? GetAttr(
+                        grouping,
+                        "val")
+                    : null;
+
+            return string.IsNullOrEmpty(
+                    value)
+                ? "standard"
+                : value;
         }
 
         private static void DrawScatterChart(
