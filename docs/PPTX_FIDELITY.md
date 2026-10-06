@@ -50,6 +50,7 @@ Microsoft PowerPoint (설치된 경우)
 - SVG primitive와 path
   - rect / circle / ellipse / line / polygon / polyline / text 혼합 렌더
   - use href/xlink:href의 기본 geometry 참조 + x/y 이동
+  - fill/stroke의 currentColor를 상속 color 속성으로 해석
   - M / L / H / V / C / S / Q / T / A / Z
   - absolute / relative path
   - linearGradient / radialGradient 기본 stop interpolation

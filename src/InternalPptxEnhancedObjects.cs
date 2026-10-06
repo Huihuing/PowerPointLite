@@ -5280,10 +5280,55 @@ namespace PptxViewer
 
             raw = raw.Trim();
 
-            if (raw == "none")
-                return Color.Transparent;
+            if (string.Equals(
+                    raw,
+                    "currentColor",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                string current =
+                    GetSvgStyleInherited(
+                        node,
+                        "color");
 
-            if (raw.StartsWith("#"))
+                if (string.IsNullOrEmpty(current) ||
+                    string.Equals(
+                        current.Trim(),
+                        "currentColor",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return Color.Black;
+                }
+
+                return ParseSvgColorValue(
+                    current,
+                    Color.Black);
+            }
+
+            return ParseSvgColorValue(
+                raw,
+                fallback);
+        }
+
+        private static Color ParseSvgColorValue(
+            string raw,
+            Color fallback)
+        {
+            if (string.IsNullOrEmpty(raw))
+                return fallback;
+
+            raw = raw.Trim();
+
+            if (string.Equals(
+                    raw,
+                    "none",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return Color.Transparent;
+            }
+
+            if (raw.StartsWith(
+                    "#",
+                    StringComparison.Ordinal))
             {
                 Color? parsed =
                     ParseHexColor(

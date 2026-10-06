@@ -47,7 +47,7 @@ namespace PptxViewer
                 "<filter id=\"offsetOnly\"><feOffset in=\"SourceGraphic\" dx=\"3\" dy=\"3\"/></filter>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
-                "<use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" fill=\"#c43d8d\"/>" +
+                "<use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" color=\"#c43d8d\" fill=\"currentColor\"/>" +
                 "<circle cx=\"154\" cy=\"28\" r=\"18\" fill=\"url(#g)\" transform=\"skewX(8)\"/>" +
                 "<rect id=\"clipRuleTarget\" x=\"176\" y=\"2\" width=\"20\" height=\"20\" fill=\"#7b61ff\" clip-path=\"url(#evenoddClip)\"/>" +
                 "<rect x=\"8\" y=\"6\" width=\"48\" height=\"22\" fill=\"#1677d2\" clip-path=\"url(#nestedClip)\"/>" +
@@ -362,6 +362,20 @@ namespace PptxViewer
                 FindSvgNodeById(
                     document,
                     "useTriangle");
+
+            Color currentColorFill =
+                ReadSvgColorInherited(
+                    useTriangle,
+                    "fill",
+                    Color.Transparent);
+
+            if (currentColorFill.R < 180 ||
+                currentColorFill.B < 120 ||
+                currentColorFill.G > 100)
+            {
+                throw new InvalidOperationException(
+                    "SVG currentColor did not resolve from the inherited color property.");
+            }
 
             using (GraphicsPath reusedGeometry =
                 BuildEnhancedSvgElementPath(
