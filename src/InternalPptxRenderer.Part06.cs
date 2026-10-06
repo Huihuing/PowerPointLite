@@ -2699,13 +2699,13 @@ internal static partial class InternalPptxRenderer
                         rect.Width *
                         0.17f);
 
-                float x =
+                float legendX =
                     position == "l"
                         ? rect.Left + 10f
                         : rect.Right -
                             legendWidth;
 
-                float y =
+                float legendY =
                     position == "tr"
                         ? rect.Top + 10f
                         : rect.Top +
@@ -2724,16 +2724,16 @@ internal static partial class InternalPptxRenderer
                     {
                         g.FillRectangle(
                             swatch,
-                            x,
-                            y + 3f,
+                            legendX,
+                            legendY + 3f,
                             10f,
                             10f);
                     }
 
                     RectangleF labelRect =
                         new RectangleF(
-                            x + 14f,
-                            y,
+                            legendX + 14f,
+                            legendY,
                             Math.Max(
                                 20f,
                                 legendWidth -
@@ -2757,7 +2757,7 @@ internal static partial class InternalPptxRenderer
                             format);
                     }
 
-                    y +=
+                    legendY +=
                         font.Height +
                         4f;
                 }

@@ -559,7 +559,10 @@ namespace PptxViewer
                         indent,
                         false,
                         displayBaseStyle,
-                        g);
+                        g,
+                        result.TabStops,
+                        result.DefaultTabSize,
+                        result.RightToLeft);
 
                     if (whitespaceOnly)
                         continue;

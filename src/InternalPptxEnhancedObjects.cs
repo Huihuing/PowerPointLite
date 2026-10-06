@@ -3695,7 +3695,13 @@ namespace PptxViewer
             using (Brush white = new SolidBrush(Color.White))
                 g.FillEllipse(white, hole);
 
-            DrawChartLegend(g, rect, series, palette);
+            DrawChartLegend(
+                g,
+                rect,
+                series,
+                palette,
+                "pie",
+                ReadChartLegendPosition(chartDoc));
         }
 
         private static void DrawAreaChart(
@@ -3760,7 +3766,13 @@ namespace PptxViewer
             }
 
             DrawChartCategoryLabels(g, plot, series[0], count, "column");
-            DrawChartLegend(g, rect, series, palette);
+            DrawChartLegend(
+                g,
+                rect,
+                series,
+                palette,
+                "area",
+                ReadChartLegendPosition(chartDoc));
         }
 
         private static void DrawScatterChart(
@@ -3904,7 +3916,13 @@ namespace PptxViewer
                 using (Pen pen = new Pen(color, 2f))
                     g.DrawPolygon(pen, points);
             }
-            DrawChartLegend(g, rect, series, palette);
+            DrawChartLegend(
+                g,
+                rect,
+                series,
+                palette,
+                "radar",
+                ReadChartLegendPosition(chartDoc));
         }
 
         private static List<double> ReadCachedNumbers(XmlNode parent)
