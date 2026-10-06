@@ -13089,7 +13089,8 @@ namespace PptxViewer
                     SmartNode item =
                         level[i];
 
-                    RectangleF parentBox;
+                    RectangleF parentBox =
+                        RectangleF.Empty;
                     bool hasParent =
                         depth > 0 &&
                         !string.IsNullOrEmpty(
