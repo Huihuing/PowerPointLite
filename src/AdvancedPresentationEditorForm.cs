@@ -1259,9 +1259,9 @@ namespace PptxViewer
             slideRectangle = CalculateSlideRectangle();
 
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            e.Graphics.FillRectangle(Brushes.White, slideRectangle);
-            using (Pen border = new Pen(Color.FromArgb(75, 80, 88)))
-                e.Graphics.DrawRectangle(border, slideRectangle);
+            ApplicationTheme.DrawSlideSurface(
+                e.Graphics,
+                slideRectangle);
 
             if (slide == null)
                 return;
