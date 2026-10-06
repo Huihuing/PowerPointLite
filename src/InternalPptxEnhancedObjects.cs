@@ -5672,6 +5672,10 @@ namespace PptxViewer
                         !string.Equals(
                             mode,
                             "screen",
+                            StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(
+                            mode,
+                            "darken",
                             StringComparison.OrdinalIgnoreCase))
                     {
                         return false;
@@ -6031,6 +6035,10 @@ namespace PptxViewer
                         string.Equals(
                             blendMode,
                             "screen",
+                            StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(
+                            blendMode,
+                            "darken",
                             StringComparison.OrdinalIgnoreCase))
                     {
                         DrawSvgBlendOverlapApproximation(
@@ -6218,6 +6226,10 @@ namespace PptxViewer
                     string.Equals(
                         blendMode,
                         "screen",
+                        StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(
+                        blendMode,
+                        "darken",
                         StringComparison.OrdinalIgnoreCase))
                 {
                     DrawSvgBlendOverlapApproximation(
@@ -6370,6 +6382,14 @@ namespace PptxViewer
                     inverse *
                     inverse /
                     255;
+            }
+
+            if (string.Equals(
+                    blendMode,
+                    "darken",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return channel;
             }
 
             return channel *
