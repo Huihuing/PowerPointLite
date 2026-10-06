@@ -452,6 +452,24 @@ namespace PptxViewer
                         blip,
                         "clrChange");
 
+            XmlNode blur =
+                blip == null
+                    ? null
+                    : FindFirst(
+                        blip,
+                        "blur");
+
+            Bitmap blurredImage =
+                CreateBlurredImageApproximation(
+                    image,
+                    blur);
+
+            Bitmap renderImage =
+                blurredImage ??
+                image;
+
+            try
+            {
             float brightness =
                 lum == null
                     ? 0f
@@ -510,7 +528,7 @@ namespace PptxViewer
             if (!needsAttributes)
             {
                 g.DrawImage(
-                    image,
+                    renderImage,
                     Rectangle.Round(target),
                     source.X,
                     source.Y,
@@ -765,7 +783,7 @@ namespace PptxViewer
                 }
 
                 g.DrawImage(
-                    image,
+                    renderImage,
                     Rectangle.Round(target),
                     source.X,
                     source.Y,
@@ -773,6 +791,145 @@ namespace PptxViewer
                     source.Height,
                     GraphicsUnit.Pixel,
                     attributes);
+            }
+            }
+            finally
+            {
+                if (blurredImage != null)
+                {
+                    blurredImage.Dispose();
+                }
+            }
+        }
+
+        private static Bitmap CreateBlurredImageApproximation(
+            Bitmap image,
+            XmlNode blur)
+        {
+            if (image == null ||
+                blur == null)
+            {
+                return null;
+            }
+
+            long radiusEmu =
+                Math.Max(
+                    0L,
+                    GetLong(
+                        blur,
+                        "rad",
+                        0));
+
+            if (radiusEmu <= 0L)
+            {
+                return null;
+            }
+
+            float radiusPoints =
+                radiusEmu /
+                12700f;
+
+            int radiusPixels =
+                Math.Max(
+                    1,
+                    Math.Min(
+                        48,
+                        (int)Math.Ceiling(
+                            radiusPoints *
+                            96f /
+                            72f)));
+
+            int divisor =
+                Math.Max(
+                    2,
+                    Math.Min(
+                        16,
+                        1 +
+                        radiusPixels /
+                        2));
+
+            int reducedWidth =
+                Math.Max(
+                    1,
+                    image.Width /
+                    divisor);
+            int reducedHeight =
+                Math.Max(
+                    1,
+                    image.Height /
+                    divisor);
+
+            using (Bitmap reduced =
+                new Bitmap(
+                    reducedWidth,
+                    reducedHeight,
+                    PixelFormat.Format32bppArgb))
+            {
+                using (Graphics reducedGraphics =
+                    Graphics.FromImage(
+                        reduced))
+                {
+                    reducedGraphics.CompositingMode =
+                        CompositingMode.SourceCopy;
+                    reducedGraphics.CompositingQuality =
+                        CompositingQuality.HighQuality;
+                    reducedGraphics.InterpolationMode =
+                        InterpolationMode.HighQualityBilinear;
+                    reducedGraphics.PixelOffsetMode =
+                        PixelOffsetMode.HighQuality;
+                    reducedGraphics.SmoothingMode =
+                        SmoothingMode.HighQuality;
+
+                    reducedGraphics.DrawImage(
+                        image,
+                        new Rectangle(
+                            0,
+                            0,
+                            reducedWidth,
+                            reducedHeight),
+                        0,
+                        0,
+                        image.Width,
+                        image.Height,
+                        GraphicsUnit.Pixel);
+                }
+
+                Bitmap result =
+                    new Bitmap(
+                        image.Width,
+                        image.Height,
+                        PixelFormat.Format32bppArgb);
+
+                using (Graphics resultGraphics =
+                    Graphics.FromImage(
+                        result))
+                {
+                    resultGraphics.CompositingMode =
+                        CompositingMode.SourceCopy;
+                    resultGraphics.CompositingQuality =
+                        CompositingQuality.HighQuality;
+                    resultGraphics.InterpolationMode =
+                        InterpolationMode.HighQualityBicubic;
+                    resultGraphics.PixelOffsetMode =
+                        PixelOffsetMode.HighQuality;
+                    resultGraphics.SmoothingMode =
+                        SmoothingMode.HighQuality;
+
+                    resultGraphics.DrawImage(
+                        reduced,
+                        new Rectangle(
+                            0,
+                            0,
+                            result.Width,
+                            result.Height),
+                        0,
+                        0,
+                        reduced.Width,
+                        reduced.Height,
+                        GraphicsUnit.Pixel);
+                }
+
+                return result;
             }
         }
 

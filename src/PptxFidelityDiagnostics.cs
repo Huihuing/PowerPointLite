@@ -842,6 +842,86 @@ namespace PptxViewer
                             "clrChange image effect did not remap the configured source color.");
                     }
 
+                    using (Bitmap edgeSource =
+                        new Bitmap(
+                            24,
+                            8,
+                            PixelFormat.Format32bppArgb))
+                    {
+                        for (int y = 0;
+                             y < edgeSource.Height;
+                             y++)
+                        {
+                            for (int x = 0;
+                                 x < edgeSource.Width;
+                                 x++)
+                            {
+                                edgeSource.SetPixel(
+                                    x,
+                                    y,
+                                    x < 12
+                                        ? Color.Black
+                                        : Color.White);
+                            }
+                        }
+
+                        XmlDocument blurDocument =
+                            new XmlDocument();
+
+                        blurDocument.LoadXml(
+                            "<a:blur xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" rad=\"127000\" grow=\"0\"/>");
+
+                        using (Bitmap blurred =
+                            CreateBlurredImageApproximation(
+                                edgeSource,
+                                blurDocument.DocumentElement))
+                        {
+                            if (blurred == null)
+                            {
+                                throw new InvalidOperationException(
+                                    "DrawingML blur approximation did not create an image.");
+                            }
+
+                            bool foundIntermediate =
+                                false;
+
+                            for (int x = 4;
+                                 x < 20;
+                                 x++)
+                            {
+                                Color sample =
+                                    blurred.GetPixel(
+                                        x,
+                                        4);
+
+                                if (sample.R > 16 &&
+                                    sample.R < 239)
+                                {
+                                    foundIntermediate =
+                                        true;
+                                    break;
+                                }
+                            }
+
+                            Color farLeft =
+                                blurred.GetPixel(
+                                    0,
+                                    4);
+                            Color farRight =
+                                blurred.GetPixel(
+                                    23,
+                                    4);
+
+                            if (!foundIntermediate ||
+                                farLeft.R > 120 ||
+                                farRight.R < 135)
+                            {
+                                throw new InvalidOperationException(
+                                    "DrawingML blur approximation did not soften a hard image edge.");
+                            }
+                        }
+                    }
+
                     output.Save(
                         outputPath,
                         ImageFormat.Png);
