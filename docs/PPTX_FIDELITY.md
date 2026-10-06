@@ -123,6 +123,7 @@ Microsoft PowerPoint (설치된 경우)
   - catAx tickLblPos=none 카테고리 축 레이블 숨김
   - catAx tickLblPos=high: column/area 위쪽, bar 오른쪽 레이블 배치
   - valAx tickLblPos=none 값 축 숫자 레이블 숨김 (gridline 유지)
+  - valAx tickLblPos=high: column/area 오른쪽, bar 위쪽 숫자 레이블 배치
   - valAx numFmt의 기본 소수/천단위/퍼센트 표시
   - line chart series 선 굵기/prstDash 및 circle/square/diamond/triangle/x/plus marker
   - bar/column grouping: clustered / stacked / percentStacked

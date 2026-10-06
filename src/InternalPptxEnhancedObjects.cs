@@ -10969,17 +10969,21 @@ namespace PptxViewer
                     "0%";
             }
 
+            string valueTickLabelPosition =
+                ReadChartAxisTickLabelPosition(
+                    chartDoc,
+                    "valAx");
+
             DrawChartValueGrid(
                 g,
                 plot,
                 axisScale,
                 "column",
                 !string.Equals(
-                    ReadChartAxisTickLabelPosition(
-                        chartDoc,
-                        "valAx"),
+                    valueTickLabelPosition,
                     "none",
-                    StringComparison.OrdinalIgnoreCase));
+                    StringComparison.OrdinalIgnoreCase),
+                valueTickLabelPosition);
 
             float zeroY =
                 plot.Bottom -

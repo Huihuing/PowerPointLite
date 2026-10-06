@@ -494,17 +494,21 @@ internal static partial class InternalPptxRenderer
             maxValue =
                 axisScale.Maximum;
 
+            string valueTickLabelPosition =
+                ReadChartAxisTickLabelPosition(
+                    chartDoc,
+                    "valAx");
+
             DrawChartValueGrid(
                 g,
                 plot,
                 axisScale,
                 kind,
                 !string.Equals(
-                    ReadChartAxisTickLabelPosition(
-                        chartDoc,
-                        "valAx"),
+                    valueTickLabelPosition,
                     "none",
-                    StringComparison.OrdinalIgnoreCase));
+                    StringComparison.OrdinalIgnoreCase),
+                valueTickLabelPosition);
 
             double range =
                 Math.Max(
@@ -1866,7 +1870,8 @@ internal static partial class InternalPptxRenderer
             RectangleF plot,
             ChartAxisScale scale,
             string kind,
-            bool showLabels)
+            bool showLabels,
+            string tickLabelPosition)
         {
             if (scale == null)
                 return;
@@ -1896,6 +1901,12 @@ internal static partial class InternalPptxRenderer
                         105,
                         105)))
             {
+                bool high =
+                    string.Equals(
+                        tickLabelPosition,
+                        "high",
+                        StringComparison.OrdinalIgnoreCase);
+
                 for (int i = 0;
                      i < ticks.Count;
                      i++)
@@ -1941,7 +1952,12 @@ internal static partial class InternalPptxRenderer
                                 x -
                                     size.Width /
                                     2f,
-                                plot.Bottom + 2f);
+                                high
+                                    ? plot.Top -
+                                      size.Height -
+                                      2f
+                                    : plot.Bottom +
+                                      2f);
                         }
                     }
                     else
@@ -1974,9 +1990,12 @@ internal static partial class InternalPptxRenderer
                                 label,
                                 font,
                                 text,
-                                plot.Left -
-                                    size.Width -
-                                    4f,
+                                high
+                                    ? plot.Right +
+                                      4f
+                                    : plot.Left -
+                                      size.Width -
+                                      4f,
                                 y -
                                     size.Height /
                                     2f);

@@ -271,6 +271,77 @@ namespace PptxViewer
                 }
             }
 
+            ChartAxisScale highValueScale =
+                new ChartAxisScale();
+            highValueScale.Minimum =
+                0.0;
+            highValueScale.Maximum =
+                10.0;
+            highValueScale.MajorUnit =
+                10.0;
+
+            using (Bitmap valueLabelBitmap =
+                new Bitmap(
+                    260,
+                    150,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics valueLabelGraphics =
+                Graphics.FromImage(
+                    valueLabelBitmap))
+            {
+                valueLabelGraphics.Clear(
+                    Color.White);
+
+                RectangleF valuePlot =
+                    new RectangleF(
+                        60f,
+                        35f,
+                        120f,
+                        80f);
+
+                DrawChartValueGrid(
+                    valueLabelGraphics,
+                    valuePlot,
+                    highValueScale,
+                    "column",
+                    true,
+                    "high");
+
+                bool foundRightOfPlot =
+                    false;
+
+                for (int y = 25;
+                     y < 125 &&
+                     !foundRightOfPlot;
+                     y++)
+                {
+                    for (int x = 184;
+                         x < 240;
+                         x++)
+                    {
+                        Color pixel =
+                            valueLabelBitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.R < 220 ||
+                            pixel.G < 220 ||
+                            pixel.B < 220)
+                        {
+                            foundRightOfPlot =
+                                true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!foundRightOfPlot)
+                {
+                    throw new InvalidOperationException(
+                        "Chart value tickLblPos=high did not move labels to the opposite side.");
+                }
+            }
+
             ChartAxisScale scale =
                 ReadChartAxisScale(
                     chart,
