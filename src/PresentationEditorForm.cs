@@ -631,9 +631,9 @@ namespace PptxViewer
             PresentationSlide slide = Document.Slides[SelectedSlideIndex];
             slideRectangle = CalculateSlideRectangle();
 
-            e.Graphics.FillRectangle(Brushes.White, slideRectangle);
-            using (Pen border = new Pen(Color.FromArgb(75, 80, 88)))
-                e.Graphics.DrawRectangle(border, slideRectangle);
+            ApplicationTheme.DrawSlideSurface(
+                e.Graphics,
+                slideRectangle);
 
             if (slide == null)
                 return;
