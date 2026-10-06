@@ -10,6 +10,7 @@ namespace PptxViewer
         private sealed class PlaceholderTextStyleContext
         {
             public readonly List<XmlNode>[] Levels = new List<XmlNode>[9];
+            public readonly List<XmlNode> BodyProperties = new List<XmlNode>();
 
             public PlaceholderTextStyleContext()
             {
@@ -20,6 +21,9 @@ namespace PptxViewer
 
         [ThreadStatic]
         private static Dictionary<string, PlaceholderTextStyleContext> activePlaceholderTextStyles;
+
+        [ThreadStatic]
+        private static PlaceholderTextStyleContext activePresentationDefaultTextStyle;
 
         [ThreadStatic]
         private static PlaceholderTextStyleContext activeMasterTitleStyle;
@@ -36,12 +40,25 @@ namespace PptxViewer
         {
             activePlaceholderTextStyles =
                 new Dictionary<string, PlaceholderTextStyleContext>(StringComparer.OrdinalIgnoreCase);
-            activeMasterTitleStyle = new PlaceholderTextStyleContext();
-            activeMasterBodyStyle = new PlaceholderTextStyleContext();
-            activeMasterOtherStyle = new PlaceholderTextStyleContext();
+            activePresentationDefaultTextStyle =
+                new PlaceholderTextStyleContext();
+            activeMasterTitleStyle =
+                new PlaceholderTextStyleContext();
+            activeMasterBodyStyle =
+                new PlaceholderTextStyleContext();
+            activeMasterOtherStyle =
+                new PlaceholderTextStyleContext();
 
             if (zip == null || layers == null)
                 return;
+
+            XmlDocument presentation =
+                LoadXml(
+                    zip,
+                    "ppt/presentation.xml");
+
+            ReadPresentationDefaultTextStyle(
+                presentation);
 
             // Master/layout are processed before the slide. Sources are kept
             // in that order so a more specific layout can override master
@@ -81,6 +98,25 @@ namespace PptxViewer
                         AddPlaceholderTextStyle("type:body", listStyle, txBody);
                 }
             }
+        }
+
+        private static void ReadPresentationDefaultTextStyle(
+            XmlDocument document)
+        {
+            if (document == null ||
+                activePresentationDefaultTextStyle == null)
+            {
+                return;
+            }
+
+            XmlNode defaultTextStyle =
+                FindFirst(
+                    document,
+                    "defaultTextStyle");
+
+            AddMasterStyleNode(
+                activePresentationDefaultTextStyle,
+                defaultTextStyle);
         }
 
         private static void ReadMasterTextStyles(XmlDocument document)
@@ -124,6 +160,20 @@ namespace PptxViewer
                 activePlaceholderTextStyles.Add(key, context);
             }
 
+            if (txBody != null)
+            {
+                XmlNode bodyProperties =
+                    DirectChild(
+                        txBody,
+                        "bodyPr");
+
+                if (bodyProperties != null)
+                {
+                    context.BodyProperties.Add(
+                        bodyProperties.CloneNode(true));
+                }
+            }
+
             if (listStyle != null)
             {
                 for (int level = 0; level < 9; level++)
@@ -151,46 +201,321 @@ namespace PptxViewer
             }
         }
 
-        private static XmlNode BuildRichInheritedShape(XmlNode shape)
+        private static XmlNode BuildRichInheritedShape(
+            XmlNode shape)
         {
-            if (shape == null || FindFirst(shape, "ph") == null)
+            if (shape == null)
                 return shape;
 
-            XmlNode clone = shape.CloneNode(true);
-            XmlNode txBody = DirectChild(clone, "txBody");
+            XmlNode clone =
+                shape.CloneNode(true);
+
+            XmlNode txBody =
+                DirectChild(
+                    clone,
+                    "txBody");
+
             if (txBody == null)
                 return clone;
 
-            foreach (XmlNode paragraph in txBody.ChildNodes)
+            MergeInheritedTextBodyProperties(
+                clone,
+                txBody);
+
+            XmlNode listStyle =
+                DirectChild(
+                    txBody,
+                    "lstStyle");
+
+            foreach (XmlNode paragraph in
+                txBody.ChildNodes)
             {
                 if (paragraph.LocalName != "p")
                     continue;
 
-                List<XmlNode> inherited = GetInheritedRichParagraphProperties(clone, paragraph);
-                if (inherited.Count == 0)
+                XmlNode localPPr =
+                    DirectChild(
+                        paragraph,
+                        "pPr");
+
+                int level =
+                    (int)Math.Max(
+                        0,
+                        Math.Min(
+                            8,
+                            GetLong(
+                                localPPr,
+                                "lvl",
+                                0)));
+
+                List<XmlNode> inherited =
+                    GetInheritedRichParagraphProperties(
+                        clone,
+                        paragraph);
+
+                XmlNode listStyleLevel =
+                    listStyle != null
+                        ? DirectChild(
+                            listStyle,
+                            "lvl" +
+                            (level + 1).ToString() +
+                            "pPr")
+                        : null;
+
+                if (inherited.Count == 0 &&
+                    listStyleLevel == null &&
+                    localPPr == null)
+                {
                     continue;
+                }
 
-                XmlNode localPPr = DirectChild(paragraph, "pPr");
-                XmlElement merged = paragraph.OwnerDocument.CreateElement(
-                    "a",
-                    "pPr",
-                    "http://schemas.openxmlformats.org/drawingml/2006/main");
+                XmlElement merged =
+                    paragraph.OwnerDocument.CreateElement(
+                        "a",
+                        "pPr",
+                        "http://schemas.openxmlformats.org/drawingml/2006/main");
 
-                for (int i = 0; i < inherited.Count; i++)
-                    MergeRichParagraphProperties(merged, inherited[i]);
+                for (int i = 0;
+                     i < inherited.Count;
+                     i++)
+                {
+                    MergeRichParagraphProperties(
+                        merged,
+                        inherited[i]);
+                }
+
+                if (listStyleLevel != null)
+                {
+                    MergeRichParagraphProperties(
+                        merged,
+                        listStyleLevel);
+                }
 
                 if (localPPr != null)
-                    MergeRichParagraphProperties(merged, localPPr);
+                {
+                    MergeRichParagraphProperties(
+                        merged,
+                        localPPr);
+                }
 
                 if (localPPr != null)
-                    paragraph.ReplaceChild(merged, localPPr);
+                {
+                    paragraph.ReplaceChild(
+                        merged,
+                        localPPr);
+                }
                 else if (paragraph.FirstChild != null)
-                    paragraph.InsertBefore(merged, paragraph.FirstChild);
+                {
+                    paragraph.InsertBefore(
+                        merged,
+                        paragraph.FirstChild);
+                }
                 else
-                    paragraph.AppendChild(merged);
+                {
+                    paragraph.AppendChild(
+                        merged);
+                }
             }
 
             return clone;
+        }
+
+        private static void MergeInheritedTextBodyProperties(
+            XmlNode shape,
+            XmlNode txBody)
+        {
+            if (shape == null ||
+                txBody == null)
+            {
+                return;
+            }
+
+            List<XmlNode> inherited =
+                GetInheritedTextBodyProperties(
+                    shape);
+
+            XmlNode localBody =
+                DirectChild(
+                    txBody,
+                    "bodyPr");
+
+            if (inherited.Count == 0 &&
+                localBody == null)
+            {
+                return;
+            }
+
+            XmlElement merged =
+                txBody.OwnerDocument.CreateElement(
+                    "a",
+                    "bodyPr",
+                    "http://schemas.openxmlformats.org/drawingml/2006/main");
+
+            for (int i = 0;
+                 i < inherited.Count;
+                 i++)
+            {
+                MergeRichBodyProperties(
+                    merged,
+                    inherited[i]);
+            }
+
+            if (localBody != null)
+            {
+                MergeRichBodyProperties(
+                    merged,
+                    localBody);
+
+                txBody.ReplaceChild(
+                    merged,
+                    localBody);
+            }
+            else if (txBody.FirstChild != null)
+            {
+                txBody.InsertBefore(
+                    merged,
+                    txBody.FirstChild);
+            }
+            else
+            {
+                txBody.AppendChild(
+                    merged);
+            }
+        }
+
+        private static List<XmlNode> GetInheritedTextBodyProperties(
+            XmlNode shape)
+        {
+            List<XmlNode> result =
+                new List<XmlNode>();
+
+            XmlNode placeholder =
+                FindFirst(
+                    shape,
+                    "ph");
+
+            if (placeholder == null ||
+                activePlaceholderTextStyles == null)
+            {
+                return result;
+            }
+
+            string type =
+                GetAttr(
+                    placeholder,
+                    "type");
+            string idx =
+                GetAttr(
+                    placeholder,
+                    "idx");
+
+            PlaceholderTextStyleContext specific =
+                null;
+
+            if (!string.IsNullOrEmpty(idx))
+            {
+                activePlaceholderTextStyles.TryGetValue(
+                    "idx:" + idx,
+                    out specific);
+            }
+
+            if (specific == null &&
+                !string.IsNullOrEmpty(type))
+            {
+                activePlaceholderTextStyles.TryGetValue(
+                    "type:" + type,
+                    out specific);
+            }
+
+            if (specific == null)
+            {
+                activePlaceholderTextStyles.TryGetValue(
+                    "type:body",
+                    out specific);
+            }
+
+            if (specific != null)
+            {
+                for (int i = 0;
+                     i < specific.BodyProperties.Count;
+                     i++)
+                {
+                    result.Add(
+                        specific.BodyProperties[i]);
+                }
+            }
+
+            return result;
+        }
+
+        private static void MergeRichBodyProperties(
+            XmlElement target,
+            XmlNode source)
+        {
+            if (target == null ||
+                source == null)
+            {
+                return;
+            }
+
+            if (source.Attributes != null)
+            {
+                foreach (XmlAttribute attribute in
+                    source.Attributes)
+                {
+                    if (attribute == null ||
+                        attribute.Prefix == "xmlns" ||
+                        attribute.Name == "xmlns")
+                    {
+                        continue;
+                    }
+
+                    XmlAttribute copy =
+                        target.OwnerDocument.CreateAttribute(
+                            attribute.Prefix,
+                            attribute.LocalName,
+                            attribute.NamespaceURI ??
+                            string.Empty);
+
+                    copy.Value =
+                        attribute.Value;
+
+                    target.Attributes.SetNamedItem(
+                        copy);
+                }
+            }
+
+            foreach (XmlNode child in
+                source.ChildNodes)
+            {
+                if (child.NodeType !=
+                    XmlNodeType.Element)
+                {
+                    continue;
+                }
+
+                XmlNode existing =
+                    DirectChild(
+                        target,
+                        child.LocalName);
+
+                XmlNode imported =
+                    target.OwnerDocument.ImportNode(
+                        child,
+                        true);
+
+                if (existing != null)
+                {
+                    target.ReplaceChild(
+                        imported,
+                        existing);
+                }
+                else
+                {
+                    target.AppendChild(
+                        imported);
+                }
+            }
         }
 
         private static void MergeRichParagraphProperties(
@@ -281,31 +606,88 @@ namespace PptxViewer
             XmlNode shape,
             XmlNode paragraph)
         {
-            List<XmlNode> result = new List<XmlNode>();
-            XmlNode localPPr = paragraph != null ? DirectChild(paragraph, "pPr") : null;
-            int level = (int)Math.Max(0, Math.Min(8, GetLong(localPPr, "lvl", 0)));
+            List<XmlNode> result =
+                new List<XmlNode>();
 
-            XmlNode placeholder = FindFirst(shape, "ph");
-            string type = placeholder != null ? GetAttr(placeholder, "type") : "";
-            string idx = placeholder != null ? GetAttr(placeholder, "idx") : "";
+            XmlNode localPPr =
+                paragraph != null
+                    ? DirectChild(
+                        paragraph,
+                        "pPr")
+                    : null;
 
-            PlaceholderTextStyleContext master = SelectMasterTextStyle(type);
-            AppendTextStyleLevel(result, master, level);
+            int level =
+                (int)Math.Max(
+                    0,
+                    Math.Min(
+                        8,
+                        GetLong(
+                            localPPr,
+                            "lvl",
+                            0)));
+
+            AppendTextStyleLevel(
+                result,
+                activePresentationDefaultTextStyle,
+                level);
+
+            XmlNode placeholder =
+                FindFirst(
+                    shape,
+                    "ph");
+
+            if (placeholder == null)
+                return result;
+
+            string type =
+                GetAttr(
+                    placeholder,
+                    "type");
+            string idx =
+                GetAttr(
+                    placeholder,
+                    "idx");
+
+            PlaceholderTextStyleContext master =
+                SelectMasterTextStyle(
+                    type);
+
+            AppendTextStyleLevel(
+                result,
+                master,
+                level);
 
             if (activePlaceholderTextStyles != null)
             {
-                PlaceholderTextStyleContext specific = null;
+                PlaceholderTextStyleContext specific =
+                    null;
 
                 if (!string.IsNullOrEmpty(idx))
-                    activePlaceholderTextStyles.TryGetValue("idx:" + idx, out specific);
+                {
+                    activePlaceholderTextStyles.TryGetValue(
+                        "idx:" + idx,
+                        out specific);
+                }
 
-                if (specific == null && !string.IsNullOrEmpty(type))
-                    activePlaceholderTextStyles.TryGetValue("type:" + type, out specific);
+                if (specific == null &&
+                    !string.IsNullOrEmpty(type))
+                {
+                    activePlaceholderTextStyles.TryGetValue(
+                        "type:" + type,
+                        out specific);
+                }
 
                 if (specific == null)
-                    activePlaceholderTextStyles.TryGetValue("type:body", out specific);
+                {
+                    activePlaceholderTextStyles.TryGetValue(
+                        "type:body",
+                        out specific);
+                }
 
-                AppendTextStyleLevel(result, specific, level);
+                AppendTextStyleLevel(
+                    result,
+                    specific,
+                    level);
             }
 
             return result;
@@ -330,11 +712,38 @@ namespace PptxViewer
             if (target == null || context == null)
                 return;
 
-            level = Math.Max(0, Math.Min(8, level));
-            List<XmlNode> source = context.Levels[level];
+            level =
+                Math.Max(
+                    0,
+                    Math.Min(
+                        8,
+                        level));
 
-            for (int i = 0; i < source.Count; i++)
-                target.Add(source[i]);
+            List<XmlNode> source =
+                context.Levels[level];
+
+            if (source.Count == 0)
+            {
+                for (int fallback = level - 1;
+                     fallback >= 0;
+                     fallback--)
+                {
+                    if (context.Levels[fallback].Count > 0)
+                    {
+                        source =
+                            context.Levels[fallback];
+                        break;
+                    }
+                }
+            }
+
+            for (int i = 0;
+                 i < source.Count;
+                 i++)
+            {
+                target.Add(
+                    source[i]);
+            }
         }
     }
 }

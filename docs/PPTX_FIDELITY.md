@@ -25,6 +25,7 @@ Microsoft PowerPoint (설치된 경우)
   - paragraph alignment
   - bullet
   - before/after spacing
+  - placeholder bodyPr margin/anchor/autofit inheritance
   - body margins / wrap / vertical anchor / vertical text 일부
   - normAutofit fontScale + overflow 추가 축소 근사
   - spAutoFit 텍스트 영역 확장 근사 / noAutofit

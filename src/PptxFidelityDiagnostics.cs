@@ -19,6 +19,8 @@ namespace PptxViewer
                 Path.Combine(
                     Path.GetFullPath(outputDirectory),
                     "rich-text-layout.png"));
+
+            ValidateSyntheticTextInheritance();
         }
 
         public static void ValidateChartAndSmartArtRendering(
@@ -220,6 +222,153 @@ namespace PptxViewer
             }
 
             RequireDiagnosticFile(outputPath);
+        }
+
+        private static void ValidateSyntheticTextInheritance()
+        {
+            Dictionary<string, PlaceholderTextStyleContext>
+                previousPlaceholders =
+                    activePlaceholderTextStyles;
+
+            PlaceholderTextStyleContext previousDefault =
+                activePresentationDefaultTextStyle;
+            PlaceholderTextStyleContext previousTitle =
+                activeMasterTitleStyle;
+            PlaceholderTextStyleContext previousBody =
+                activeMasterBodyStyle;
+            PlaceholderTextStyleContext previousOther =
+                activeMasterOtherStyle;
+
+            try
+            {
+                activePlaceholderTextStyles =
+                    new Dictionary<string, PlaceholderTextStyleContext>(
+                        StringComparer.OrdinalIgnoreCase);
+                activePresentationDefaultTextStyle =
+                    new PlaceholderTextStyleContext();
+                activeMasterTitleStyle =
+                    new PlaceholderTextStyleContext();
+                activeMasterBodyStyle =
+                    new PlaceholderTextStyleContext();
+                activeMasterOtherStyle =
+                    new PlaceholderTextStyleContext();
+
+                XmlDocument source =
+                    new XmlDocument();
+
+                source.LoadXml(
+                    "<root xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                    "<a:lvl2pPr marL=\"300000\"><a:defRPr sz=\"1700\"/></a:lvl2pPr>" +
+                    "<a:master marR=\"200000\"><a:defRPr b=\"1\"/></a:master>" +
+                    "<a:layout spcAft=\"0\"><a:defRPr i=\"1\"/></a:layout>" +
+                    "<a:bodyPr lIns=\"120000\" tIns=\"60000\"><a:normAutofit fontScale=\"90000\"/></a:bodyPr>" +
+                    "</root>");
+
+                activePresentationDefaultTextStyle
+                    .Levels[1]
+                    .Add(
+                        source.DocumentElement
+                            .ChildNodes[0]
+                            .CloneNode(true));
+
+                activeMasterBodyStyle
+                    .Levels[1]
+                    .Add(
+                        source.DocumentElement
+                            .ChildNodes[1]
+                            .CloneNode(true));
+
+                PlaceholderTextStyleContext specific =
+                    new PlaceholderTextStyleContext();
+
+                specific.Levels[1].Add(
+                    source.DocumentElement
+                        .ChildNodes[2]
+                        .CloneNode(true));
+
+                specific.BodyProperties.Add(
+                    source.DocumentElement
+                        .ChildNodes[3]
+                        .CloneNode(true));
+
+                activePlaceholderTextStyles.Add(
+                    "type:body",
+                    specific);
+
+                XmlDocument shapeDocument =
+                    new XmlDocument();
+
+                shapeDocument.LoadXml(
+                    "<p:sp xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" " +
+                    "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                    "<p:nvSpPr><p:nvPr><p:ph type=\"body\"/></p:nvPr></p:nvSpPr>" +
+                    "<p:txBody>" +
+                    "<a:bodyPr anchor=\"ctr\"/>" +
+                    "<a:lstStyle><a:lvl2pPr indent=\"-100000\"/></a:lstStyle>" +
+                    "<a:p><a:pPr lvl=\"1\" algn=\"r\"/><a:r><a:t>Inherited</a:t></a:r></a:p>" +
+                    "</p:txBody></p:sp>");
+
+                XmlNode resolved =
+                    BuildRichInheritedShape(
+                        shapeDocument.DocumentElement);
+
+                XmlNode bodyPr =
+                    FindFirst(
+                        resolved,
+                        "bodyPr");
+
+                if (bodyPr == null ||
+                    GetAttr(bodyPr, "lIns") != "120000" ||
+                    GetAttr(bodyPr, "tIns") != "60000" ||
+                    GetAttr(bodyPr, "anchor") != "ctr" ||
+                    DirectChild(bodyPr, "normAutofit") == null)
+                {
+                    throw new InvalidOperationException(
+                        "Inherited placeholder bodyPr properties were not merged.");
+                }
+
+                XmlNode paragraph =
+                    FindFirst(
+                        resolved,
+                        "p");
+                XmlNode pPr =
+                    DirectChild(
+                        paragraph,
+                        "pPr");
+                XmlNode defRPr =
+                    pPr != null
+                        ? DirectChild(
+                            pPr,
+                            "defRPr")
+                        : null;
+
+                if (pPr == null ||
+                    GetAttr(pPr, "marL") != "300000" ||
+                    GetAttr(pPr, "marR") != "200000" ||
+                    GetAttr(pPr, "indent") != "-100000" ||
+                    GetAttr(pPr, "algn") != "r" ||
+                    defRPr == null ||
+                    GetAttr(defRPr, "sz") != "1700" ||
+                    GetAttr(defRPr, "b") != "1" ||
+                    GetAttr(defRPr, "i") != "1")
+                {
+                    throw new InvalidOperationException(
+                        "Presentation/master/layout/list/local text inheritance order was not preserved.");
+                }
+            }
+            finally
+            {
+                activePlaceholderTextStyles =
+                    previousPlaceholders;
+                activePresentationDefaultTextStyle =
+                    previousDefault;
+                activeMasterTitleStyle =
+                    previousTitle;
+                activeMasterBodyStyle =
+                    previousBody;
+                activeMasterOtherStyle =
+                    previousOther;
+            }
         }
 
         private static void ValidateSyntheticRichText(
