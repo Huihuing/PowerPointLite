@@ -29,170 +29,1003 @@ internal static partial class InternalPptxRenderer
 
             string kind = "column";
 
-            if (FindFirst(chartDoc, "pieChart") != null || FindFirst(chartDoc, "doughnutChart") != null)
+            if (FindFirst(chartDoc, "pieChart") != null ||
+                FindFirst(chartDoc, "doughnutChart") != null)
+            {
                 kind = "pie";
+            }
             else if (FindFirst(chartDoc, "lineChart") != null)
+            {
                 kind = "line";
+            }
             else if (FindFirst(chartDoc, "barChart") != null)
             {
                 XmlNode barDir = FindFirst(chartDoc, "barDir");
-                kind = barDir != null && GetAttr(barDir, "val") == "bar" ? "bar" : "column";
+                kind = barDir != null &&
+                    GetAttr(barDir, "val") == "bar"
+                        ? "bar"
+                        : "column";
             }
             else if (FindFirst(chartDoc, "areaChart") != null)
+            {
                 kind = "line";
+            }
 
-            List<ChartSeriesData> series = new List<ChartSeriesData>();
+            List<ChartSeriesData> series =
+                new List<ChartSeriesData>();
 
             foreach (XmlNode ser in FindAll(chartDoc, "ser"))
             {
-                ChartSeriesData data = new ChartSeriesData();
-                data.Name = ReadChartSeriesName(ser);
-                ReadChartCategories(ser, data.Categories);
-                ReadChartValues(ser, data.Values);
+                ChartSeriesData data =
+                    new ChartSeriesData();
+
+                data.Name =
+                    ReadChartSeriesName(ser);
+                ReadChartCategories(
+                    ser,
+                    data.Categories);
+                ReadChartValues(
+                    ser,
+                    data.Values);
 
                 if (data.Values.Count > 0)
                     series.Add(data);
             }
 
-            using (Brush bg = new SolidBrush(Color.White))
+            using (Brush bg =
+                new SolidBrush(Color.White))
+            {
                 g.FillRectangle(bg, rect);
+            }
 
-            using (Pen border = new Pen(Color.FromArgb(210, 210, 210), 1f))
-                g.DrawRectangle(border, rect.X, rect.Y, rect.Width, rect.Height);
+            using (Pen border =
+                new Pen(
+                    Color.FromArgb(
+                        210,
+                        210,
+                        210),
+                    1f))
+            {
+                g.DrawRectangle(
+                    border,
+                    rect.X,
+                    rect.Y,
+                    rect.Width,
+                    rect.Height);
+            }
 
             if (series.Count == 0)
             {
-                DrawPlaceholder(g, rect, "Chart (no cached data)");
+                DrawPlaceholder(
+                    g,
+                    rect,
+                    "Chart (no cached data)");
                 return;
             }
 
-            string title = ReadChartTitle(chartDoc);
-            float topPad = string.IsNullOrEmpty(title) ? 12f : Math.Max(34f, rect.Height * 0.10f);
+            string title =
+                ReadChartTitle(chartDoc);
+
+            float topPad =
+                string.IsNullOrEmpty(title)
+                    ? 12f
+                    : Math.Max(
+                        34f,
+                        rect.Height * 0.10f);
 
             if (!string.IsNullOrEmpty(title))
             {
-                using (Font font = SafeFont("Arial", Math.Max(10f, Math.Min(18f, rect.Height / 18f)), FontStyle.Bold))
-                using (Brush brush = new SolidBrush(Color.FromArgb(45, 45, 45)))
-                using (StringFormat sf = new StringFormat())
+                using (Font font = SafeFont(
+                    "Arial",
+                    Math.Max(
+                        10f,
+                        Math.Min(
+                            18f,
+                            rect.Height / 18f)),
+                    FontStyle.Bold))
+                using (Brush brush =
+                    new SolidBrush(
+                        Color.FromArgb(
+                            45,
+                            45,
+                            45)))
+                using (StringFormat sf =
+                    new StringFormat())
                 {
-                    sf.Alignment = StringAlignment.Center;
-                    sf.LineAlignment = StringAlignment.Center;
-                    g.DrawString(title, font, brush,
-                        new RectangleF(rect.Left + 5, rect.Top + 4, rect.Width - 10, topPad - 4), sf);
+                    sf.Alignment =
+                        StringAlignment.Center;
+                    sf.LineAlignment =
+                        StringAlignment.Center;
+
+                    g.DrawString(
+                        title,
+                        font,
+                        brush,
+                        new RectangleF(
+                            rect.Left + 5,
+                            rect.Top + 4,
+                            rect.Width - 10,
+                            topPad - 4),
+                        sf);
                 }
             }
 
-            RectangleF plot = new RectangleF(
-                rect.Left + Math.Max(28f, rect.Width * 0.08f),
-                rect.Top + topPad,
-                Math.Max(10f, rect.Width - Math.Max(70f, rect.Width * 0.18f)),
-                Math.Max(10f, rect.Height - topPad - Math.Max(30f, rect.Height * 0.10f)));
+            RectangleF plot =
+                new RectangleF(
+                    rect.Left +
+                        Math.Max(
+                            36f,
+                            rect.Width * 0.09f),
+                    rect.Top + topPad,
+                    Math.Max(
+                        10f,
+                        rect.Width -
+                            Math.Max(
+                                82f,
+                                rect.Width * 0.20f)),
+                    Math.Max(
+                        10f,
+                        rect.Height -
+                            topPad -
+                            Math.Max(
+                                36f,
+                                rect.Height * 0.11f)));
 
-            Color[] palette = new Color[]
-            {
-                ThemeOrDefault(theme, "accent1", Color.FromArgb(79,129,189)),
-                ThemeOrDefault(theme, "accent2", Color.FromArgb(192,80,77)),
-                ThemeOrDefault(theme, "accent3", Color.FromArgb(155,187,89)),
-                ThemeOrDefault(theme, "accent4", Color.FromArgb(128,100,162)),
-                ThemeOrDefault(theme, "accent5", Color.FromArgb(75,172,198)),
-                ThemeOrDefault(theme, "accent6", Color.FromArgb(247,150,70))
-            };
+            Color[] palette =
+                new Color[]
+                {
+                    ThemeOrDefault(
+                        theme,
+                        "accent1",
+                        Color.FromArgb(
+                            79,
+                            129,
+                            189)),
+                    ThemeOrDefault(
+                        theme,
+                        "accent2",
+                        Color.FromArgb(
+                            192,
+                            80,
+                            77)),
+                    ThemeOrDefault(
+                        theme,
+                        "accent3",
+                        Color.FromArgb(
+                            155,
+                            187,
+                            89)),
+                    ThemeOrDefault(
+                        theme,
+                        "accent4",
+                        Color.FromArgb(
+                            128,
+                            100,
+                            162)),
+                    ThemeOrDefault(
+                        theme,
+                        "accent5",
+                        Color.FromArgb(
+                            75,
+                            172,
+                            198)),
+                    ThemeOrDefault(
+                        theme,
+                        "accent6",
+                        Color.FromArgb(
+                            247,
+                            150,
+                            70))
+                };
+
+            bool showValues =
+                ChartShowsValues(chartDoc);
 
             if (kind == "pie")
             {
-                DrawPieChart(g, plot, series[0], palette);
+                DrawPieChart(
+                    g,
+                    plot,
+                    series[0],
+                    palette);
+
+                if (showValues)
+                {
+                    DrawPieChartValueLabels(
+                        g,
+                        plot,
+                        series[0]);
+                }
+
                 return;
             }
 
-            double max = 0;
+            double minValue = 0.0;
+            double maxValue = 0.0;
             int categoryCount = 0;
 
-            for (int sIndex = 0; sIndex < series.Count; sIndex++)
+            for (int sIndex = 0;
+                 sIndex < series.Count;
+                 sIndex++)
             {
-                categoryCount = Math.Max(categoryCount, series[sIndex].Values.Count);
-                for (int i = 0; i < series[sIndex].Values.Count; i++)
-                    max = Math.Max(max, Math.Abs(series[sIndex].Values[i]));
-            }
+                categoryCount =
+                    Math.Max(
+                        categoryCount,
+                        series[sIndex].Values.Count);
 
-            if (max <= 0) max = 1;
-            if (categoryCount <= 0) categoryCount = 1;
-
-            using (Pen axis = new Pen(Color.FromArgb(100, 100, 100), 1f))
-            {
-                g.DrawLine(axis, plot.Left, plot.Bottom, plot.Right, plot.Bottom);
-                g.DrawLine(axis, plot.Left, plot.Top, plot.Left, plot.Bottom);
-            }
-
-            if (kind == "line")
-            {
-                for (int si = 0; si < series.Count; si++)
+                for (int i = 0;
+                     i < series[sIndex].Values.Count;
+                     i++)
                 {
-                    ChartSeriesData sd = series[si];
-                    if (sd.Values.Count == 0) continue;
+                    double value =
+                        series[sIndex].Values[i];
 
-                    List<PointF> points = new List<PointF>();
-
-                    for (int i = 0; i < sd.Values.Count; i++)
-                    {
-                        float x = categoryCount <= 1
-                            ? plot.Left + plot.Width / 2f
-                            : plot.Left + plot.Width * i / (categoryCount - 1f);
-                        float y = plot.Bottom - (float)(plot.Height * sd.Values[i] / max);
-                        points.Add(new PointF(x, y));
-                    }
-
-                    using (Pen pen = new Pen(palette[si % palette.Length], Math.Max(2f, plot.Width / 250f)))
-                    using (Brush marker = new SolidBrush(palette[si % palette.Length]))
-                    {
-                        if (points.Count > 1)
-                            g.DrawLines(pen, points.ToArray());
-
-                        foreach (PointF point in points)
-                            g.FillEllipse(marker, point.X - 3, point.Y - 3, 6, 6);
-                    }
+                    minValue =
+                        Math.Min(
+                            minValue,
+                            value);
+                    maxValue =
+                        Math.Max(
+                            maxValue,
+                            value);
                 }
             }
-            else if (kind == "bar")
+
+            if (categoryCount <= 0)
+                categoryCount = 1;
+
+            if (Math.Abs(
+                    maxValue -
+                    minValue) < 0.0000001)
             {
-                float groupH = plot.Height / categoryCount;
-                float barH = Math.Max(2f, groupH * 0.75f / series.Count);
+                maxValue =
+                    minValue + 1.0;
+            }
 
-                for (int ci = 0; ci < categoryCount; ci++)
-                {
-                    for (int si = 0; si < series.Count; si++)
-                    {
-                        if (ci >= series[si].Values.Count) continue;
+            DrawChartValueGrid(
+                g,
+                plot,
+                minValue,
+                maxValue,
+                kind);
 
-                        float y = plot.Top + ci * groupH + groupH * 0.12f + si * barH;
-                        float w = (float)(plot.Width * Math.Abs(series[si].Values[ci]) / max);
+            double range =
+                Math.Max(
+                    0.0000001,
+                    maxValue - minValue);
 
-                        using (Brush brush = new SolidBrush(palette[si % palette.Length]))
-                            g.FillRectangle(brush, plot.Left, y, w, Math.Max(1f, barH - 1));
-                    }
-                }
+            float zeroY =
+                plot.Bottom -
+                (float)(
+                    (0.0 - minValue) /
+                    range *
+                    plot.Height);
+
+            float zeroX =
+                plot.Left +
+                (float)(
+                    (0.0 - minValue) /
+                    range *
+                    plot.Width);
+
+            if (kind == "bar")
+            {
+                zeroX =
+                    Math.Max(
+                        plot.Left,
+                        Math.Min(
+                            plot.Right,
+                            zeroX));
             }
             else
             {
-                float groupW = plot.Width / categoryCount;
-                float barW = Math.Max(2f, groupW * 0.75f / series.Count);
+                zeroY =
+                    Math.Max(
+                        plot.Top,
+                        Math.Min(
+                            plot.Bottom,
+                            zeroY));
+            }
 
-                for (int ci = 0; ci < categoryCount; ci++)
+            using (Pen axis =
+                new Pen(
+                    Color.FromArgb(
+                        100,
+                        100,
+                        100),
+                    1.2f))
+            {
+                if (kind == "bar")
                 {
-                    for (int si = 0; si < series.Count; si++)
+                    g.DrawLine(
+                        axis,
+                        zeroX,
+                        plot.Top,
+                        zeroX,
+                        plot.Bottom);
+
+                    g.DrawLine(
+                        axis,
+                        plot.Left,
+                        plot.Bottom,
+                        plot.Right,
+                        plot.Bottom);
+                }
+                else
+                {
+                    g.DrawLine(
+                        axis,
+                        plot.Left,
+                        zeroY,
+                        plot.Right,
+                        zeroY);
+
+                    g.DrawLine(
+                        axis,
+                        plot.Left,
+                        plot.Top,
+                        plot.Left,
+                        plot.Bottom);
+                }
+            }
+
+            using (Font valueFont = SafeFont(
+                "Arial",
+                Math.Max(
+                    6f,
+                    Math.Min(
+                        9f,
+                        plot.Height / 36f))))
+            using (Brush valueBrush =
+                new SolidBrush(
+                    Color.FromArgb(
+                        75,
+                        75,
+                        75)))
+            {
+                if (kind == "line")
+                {
+                    for (int si = 0;
+                         si < series.Count;
+                         si++)
                     {
-                        if (ci >= series[si].Values.Count) continue;
+                        ChartSeriesData sd =
+                            series[si];
 
-                        float x = plot.Left + ci * groupW + groupW * 0.12f + si * barW;
-                        float h = (float)(plot.Height * Math.Abs(series[si].Values[ci]) / max);
+                        if (sd.Values.Count == 0)
+                            continue;
 
-                        using (Brush brush = new SolidBrush(palette[si % palette.Length]))
-                            g.FillRectangle(brush, x, plot.Bottom - h, Math.Max(1f, barW - 1), h);
+                        List<PointF> points =
+                            new List<PointF>();
+
+                        for (int i = 0;
+                             i < sd.Values.Count;
+                             i++)
+                        {
+                            float x =
+                                categoryCount <= 1
+                                    ? plot.Left +
+                                        plot.Width / 2f
+                                    : plot.Left +
+                                        plot.Width *
+                                        i /
+                                        (categoryCount - 1f);
+
+                            float y =
+                                plot.Bottom -
+                                (float)(
+                                    (sd.Values[i] -
+                                     minValue) /
+                                    range *
+                                    plot.Height);
+
+                            points.Add(
+                                new PointF(
+                                    x,
+                                    y));
+                        }
+
+                        Color color =
+                            palette[
+                                si %
+                                palette.Length];
+
+                        using (Pen pen =
+                            new Pen(
+                                color,
+                                Math.Max(
+                                    2f,
+                                    plot.Width /
+                                    250f)))
+                        using (Brush marker =
+                            new SolidBrush(color))
+                        {
+                            if (points.Count > 1)
+                            {
+                                g.DrawLines(
+                                    pen,
+                                    points.ToArray());
+                            }
+
+                            for (int i = 0;
+                                 i < points.Count;
+                                 i++)
+                            {
+                                PointF point =
+                                    points[i];
+
+                                g.FillEllipse(
+                                    marker,
+                                    point.X - 3,
+                                    point.Y - 3,
+                                    6,
+                                    6);
+
+                                if (showValues &&
+                                    i < sd.Values.Count)
+                                {
+                                    DrawChartValueLabel(
+                                        g,
+                                        valueFont,
+                                        valueBrush,
+                                        FormatChartNumber(
+                                            sd.Values[i]),
+                                        point.X,
+                                        point.Y - 16f,
+                                        true);
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (kind == "bar")
+                {
+                    float groupH =
+                        plot.Height /
+                        categoryCount;
+
+                    float barH =
+                        Math.Max(
+                            2f,
+                            groupH *
+                            0.75f /
+                            series.Count);
+
+                    for (int ci = 0;
+                         ci < categoryCount;
+                         ci++)
+                    {
+                        for (int si = 0;
+                             si < series.Count;
+                             si++)
+                        {
+                            if (ci >=
+                                series[si].Values.Count)
+                            {
+                                continue;
+                            }
+
+                            double value =
+                                series[si].Values[ci];
+
+                            float valueX =
+                                plot.Left +
+                                (float)(
+                                    (value -
+                                     minValue) /
+                                    range *
+                                    plot.Width);
+
+                            float left =
+                                Math.Min(
+                                    zeroX,
+                                    valueX);
+
+                            float width =
+                                Math.Max(
+                                    1f,
+                                    Math.Abs(
+                                        valueX -
+                                        zeroX));
+
+                            float y =
+                                plot.Top +
+                                ci * groupH +
+                                groupH * 0.12f +
+                                si * barH;
+
+                            Color color =
+                                palette[
+                                    si %
+                                    palette.Length];
+
+                            using (Brush brush =
+                                new SolidBrush(color))
+                            {
+                                g.FillRectangle(
+                                    brush,
+                                    left,
+                                    y,
+                                    width,
+                                    Math.Max(
+                                        1f,
+                                        barH - 1));
+                            }
+
+                            if (showValues)
+                            {
+                                float labelX =
+                                    value >= 0.0
+                                        ? valueX + 4f
+                                        : valueX - 4f;
+
+                                DrawChartValueLabel(
+                                    g,
+                                    valueFont,
+                                    valueBrush,
+                                    FormatChartNumber(
+                                        value),
+                                    labelX,
+                                    y +
+                                        Math.Max(
+                                            0f,
+                                            (barH -
+                                             valueFont.Height) /
+                                            2f),
+                                    value < 0.0);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    float groupW =
+                        plot.Width /
+                        categoryCount;
+
+                    float barW =
+                        Math.Max(
+                            2f,
+                            groupW *
+                            0.75f /
+                            series.Count);
+
+                    for (int ci = 0;
+                         ci < categoryCount;
+                         ci++)
+                    {
+                        for (int si = 0;
+                             si < series.Count;
+                             si++)
+                        {
+                            if (ci >=
+                                series[si].Values.Count)
+                            {
+                                continue;
+                            }
+
+                            double value =
+                                series[si].Values[ci];
+
+                            float valueY =
+                                plot.Bottom -
+                                (float)(
+                                    (value -
+                                     minValue) /
+                                    range *
+                                    plot.Height);
+
+                            float top =
+                                Math.Min(
+                                    zeroY,
+                                    valueY);
+
+                            float height =
+                                Math.Max(
+                                    1f,
+                                    Math.Abs(
+                                        valueY -
+                                        zeroY));
+
+                            float x =
+                                plot.Left +
+                                ci * groupW +
+                                groupW * 0.12f +
+                                si * barW;
+
+                            Color color =
+                                palette[
+                                    si %
+                                    palette.Length];
+
+                            using (Brush brush =
+                                new SolidBrush(color))
+                            {
+                                g.FillRectangle(
+                                    brush,
+                                    x,
+                                    top,
+                                    Math.Max(
+                                        1f,
+                                        barW - 1),
+                                    height);
+                            }
+
+                            if (showValues)
+                            {
+                                float labelY =
+                                    value >= 0.0
+                                        ? valueY -
+                                            valueFont.Height -
+                                            2f
+                                        : valueY + 2f;
+
+                                DrawChartValueLabel(
+                                    g,
+                                    valueFont,
+                                    valueBrush,
+                                    FormatChartNumber(
+                                        value),
+                                    x +
+                                        Math.Max(
+                                            1f,
+                                            (barW - 1f) /
+                                            2f),
+                                    labelY,
+                                    true);
+                            }
+                        }
                     }
                 }
             }
 
-            DrawChartCategoryLabels(g, plot, series[0], categoryCount, kind);
-            DrawChartLegend(g, rect, series, palette);
+            DrawChartCategoryLabels(
+                g,
+                plot,
+                series[0],
+                categoryCount,
+                kind);
+
+            DrawChartLegend(
+                g,
+                rect,
+                series,
+                palette);
+        }
+
+        private static bool ChartShowsValues(
+            XmlDocument chartDoc)
+        {
+            XmlNode labels =
+                FindFirst(
+                    chartDoc,
+                    "dLbls");
+
+            if (labels == null)
+                return false;
+
+            XmlNode showVal =
+                FindFirst(
+                    labels,
+                    "showVal");
+
+            if (showVal == null)
+                return false;
+
+            string value =
+                GetAttr(
+                    showVal,
+                    "val");
+
+            return value == "1" ||
+                string.Equals(
+                    value,
+                    "true",
+                    StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void DrawChartValueGrid(
+            Graphics g,
+            RectangleF plot,
+            double minValue,
+            double maxValue,
+            string kind)
+        {
+            const int divisions = 5;
+            double range =
+                Math.Max(
+                    0.0000001,
+                    maxValue -
+                    minValue);
+
+            using (Pen grid =
+                new Pen(
+                    Color.FromArgb(
+                        225,
+                        228,
+                        232),
+                    1f))
+            using (Font font = SafeFont(
+                "Arial",
+                Math.Max(
+                    6f,
+                    Math.Min(
+                        9f,
+                        plot.Height / 38f))))
+            using (Brush text =
+                new SolidBrush(
+                    Color.FromArgb(
+                        105,
+                        105,
+                        105)))
+            {
+                for (int i = 0;
+                     i <= divisions;
+                     i++)
+                {
+                    double value =
+                        minValue +
+                        range *
+                        i /
+                        divisions;
+
+                    if (kind == "bar")
+                    {
+                        float x =
+                            plot.Left +
+                            plot.Width *
+                            i /
+                            divisions;
+
+                        g.DrawLine(
+                            grid,
+                            x,
+                            plot.Top,
+                            x,
+                            plot.Bottom);
+
+                        string label =
+                            FormatChartNumber(
+                                value);
+
+                        SizeF size =
+                            g.MeasureString(
+                                label,
+                                font);
+
+                        g.DrawString(
+                            label,
+                            font,
+                            text,
+                            x -
+                                size.Width /
+                                2f,
+                            plot.Bottom + 2f);
+                    }
+                    else
+                    {
+                        float y =
+                            plot.Bottom -
+                            plot.Height *
+                            i /
+                            divisions;
+
+                        g.DrawLine(
+                            grid,
+                            plot.Left,
+                            y,
+                            plot.Right,
+                            y);
+
+                        string label =
+                            FormatChartNumber(
+                                value);
+
+                        SizeF size =
+                            g.MeasureString(
+                                label,
+                                font);
+
+                        g.DrawString(
+                            label,
+                            font,
+                            text,
+                            plot.Left -
+                                size.Width -
+                                4f,
+                            y -
+                                size.Height /
+                                2f);
+                    }
+                }
+            }
+        }
+
+        private static void DrawChartValueLabel(
+            Graphics g,
+            Font font,
+            Brush brush,
+            string text,
+            float x,
+            float y,
+            bool centered)
+        {
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            SizeF size =
+                g.MeasureString(
+                    text,
+                    font);
+
+            float drawX =
+                centered
+                    ? x - size.Width / 2f
+                    : x;
+
+            g.DrawString(
+                text,
+                font,
+                brush,
+                drawX,
+                y);
+        }
+
+        private static string FormatChartNumber(
+            double value)
+        {
+            double abs =
+                Math.Abs(value);
+
+            if (abs >= 1000000.0)
+            {
+                return (
+                    value /
+                    1000000.0)
+                    .ToString(
+                        "0.##",
+                        System.Globalization.CultureInfo.InvariantCulture) +
+                    "M";
+            }
+
+            if (abs >= 1000.0)
+            {
+                return (
+                    value /
+                    1000.0)
+                    .ToString(
+                        "0.##",
+                        System.Globalization.CultureInfo.InvariantCulture) +
+                    "K";
+            }
+
+            return value.ToString(
+                "0.##",
+                System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        private static void DrawPieChartValueLabels(
+            Graphics g,
+            RectangleF plot,
+            ChartSeriesData series)
+        {
+            if (series == null ||
+                series.Values.Count == 0)
+            {
+                return;
+            }
+
+            double total = 0.0;
+            for (int i = 0;
+                 i < series.Values.Count;
+                 i++)
+            {
+                total +=
+                    Math.Abs(
+                        series.Values[i]);
+            }
+
+            if (total <= 0.0)
+                return;
+
+            float diameter =
+                Math.Min(
+                    plot.Width,
+                    plot.Height) *
+                0.82f;
+
+            float radius =
+                diameter *
+                0.34f;
+
+            float cx =
+                plot.Left +
+                plot.Width /
+                2f;
+
+            float cy =
+                plot.Top +
+                plot.Height /
+                2f;
+
+            float start =
+                -90f;
+
+            using (Font font = SafeFont(
+                "Arial",
+                Math.Max(
+                    7f,
+                    Math.Min(
+                        10f,
+                        plot.Height /
+                        30f)),
+                FontStyle.Bold))
+            using (Brush brush =
+                new SolidBrush(
+                    Color.FromArgb(
+                        55,
+                        55,
+                        55)))
+            {
+                for (int i = 0;
+                     i < series.Values.Count;
+                     i++)
+                {
+                    double value =
+                        Math.Abs(
+                            series.Values[i]);
+
+                    float sweep =
+                        (float)(
+                            360.0 *
+                            value /
+                            total);
+
+                    float angle =
+                        start +
+                        sweep /
+                        2f;
+
+                    double radians =
+                        angle *
+                        Math.PI /
+                        180.0;
+
+                    string label =
+                        FormatChartNumber(
+                            series.Values[i]);
+
+                    SizeF size =
+                        g.MeasureString(
+                            label,
+                            font);
+
+                    float x =
+                        cx +
+                        (float)Math.Cos(
+                            radians) *
+                        radius -
+                        size.Width /
+                        2f;
+
+                    float y =
+                        cy +
+                        (float)Math.Sin(
+                            radians) *
+                        radius -
+                        size.Height /
+                        2f;
+
+                    g.DrawString(
+                        label,
+                        font,
+                        brush,
+                        x,
+                        y);
+
+                    start += sweep;
+                }
+            }
         }
 
         private static void DrawChartCategoryLabels(
