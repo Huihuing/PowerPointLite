@@ -504,6 +504,103 @@ namespace PptxViewer
                     "Chart data-label options were not parsed correctly.");
             }
 
+            XmlDocument leaderLineDoc =
+                new XmlDocument();
+
+            leaderLineDoc.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<c:chart><c:plotArea><c:pieChart>" +
+                "<c:dLbls><c:showVal val=\"1\"/><c:dLblPos val=\"outEnd\"/><c:showLeaderLines val=\"1\"/>" +
+                "<c:leaderLines><c:spPr><a:ln w=\"19050\"><a:solidFill><a:srgbClr val=\"228866\"/></a:solidFill><a:prstDash val=\"dashDot\"/></a:ln></c:spPr></c:leaderLines>" +
+                "</c:dLbls></c:pieChart></c:plotArea></c:chart></c:chartSpace>");
+
+            ChartLabelOptions leaderLabels =
+                ReadChartLabelOptions(
+                    leaderLineDoc);
+            ChartLineStyle leaderStyle =
+                ReadChartLeaderLineStyle(
+                    leaderLineDoc,
+                    theme);
+
+            if (!leaderLabels.ShowLeaderLines ||
+                leaderLabels.Position != "outEnd" ||
+                leaderStyle.Color.R != 0x22 ||
+                leaderStyle.Color.G != 0x88 ||
+                leaderStyle.Color.B != 0x66 ||
+                leaderStyle.Width <= 1f ||
+                leaderStyle.DashStyle !=
+                    DashStyle.DashDot)
+            {
+                throw new InvalidOperationException(
+                    "Chart leader-line visibility or style was not parsed correctly.");
+            }
+
+            ChartSeriesData leaderSeries =
+                new ChartSeriesData();
+            leaderSeries.Name = "Only";
+            leaderSeries.Categories.Add(
+                "Only");
+            leaderSeries.Values.Add(
+                100.0);
+
+            using (Bitmap leaderBitmap =
+                new Bitmap(
+                    220,
+                    220,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics leaderGraphics =
+                Graphics.FromImage(
+                    leaderBitmap))
+            {
+                leaderGraphics.Clear(
+                    Color.White);
+
+                DrawPieChartValueLabels(
+                    leaderGraphics,
+                    new RectangleF(
+                        10f,
+                        10f,
+                        200f,
+                        200f),
+                    leaderSeries,
+                    leaderLabels,
+                    0f,
+                    leaderStyle);
+
+                bool leaderVisible =
+                    false;
+
+                for (int y = 106;
+                     y <= 114 &&
+                     !leaderVisible;
+                     y++)
+                {
+                    for (int x = 17;
+                         x <= 33;
+                         x++)
+                    {
+                        Color pixel =
+                            leaderBitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.G > pixel.R + 25 &&
+                            pixel.G > pixel.B + 5 &&
+                            pixel.G > 70)
+                        {
+                            leaderVisible = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!leaderVisible)
+                {
+                    throw new InvalidOperationException(
+                        "Chart showLeaderLines did not render an outside-end leader line.");
+                }
+            }
+
             XmlDocument pointOverrideDoc =
                 new XmlDocument();
 
