@@ -27,6 +27,18 @@ internal static partial class InternalPptxRenderer
             public string NumberFormat;
         }
 
+        private sealed class ChartLineStyle
+        {
+            public Color Color =
+                Color.FromArgb(
+                    100,
+                    100,
+                    100);
+            public float Width = 1.2f;
+            public DashStyle DashStyle =
+                DashStyle.Solid;
+        }
+
         private sealed class ChartLabelOptions
         {
             public bool ShowValue;
@@ -579,25 +591,42 @@ internal static partial class InternalPptxRenderer
                             zeroY));
             }
 
-            using (Pen axis =
+            ChartLineStyle categoryAxisStyle =
+                ReadChartAxisLineStyle(
+                    chartDoc,
+                    "catAx",
+                    theme);
+            ChartLineStyle valueAxisStyle =
+                ReadChartAxisLineStyle(
+                    chartDoc,
+                    "valAx",
+                    theme);
+
+            using (Pen categoryAxis =
                 new Pen(
-                    Color.FromArgb(
-                        100,
-                        100,
-                        100),
-                    1.2f))
+                    categoryAxisStyle.Color,
+                    categoryAxisStyle.Width))
+            using (Pen valueAxis =
+                new Pen(
+                    valueAxisStyle.Color,
+                    valueAxisStyle.Width))
             {
+                categoryAxis.DashStyle =
+                    categoryAxisStyle.DashStyle;
+                valueAxis.DashStyle =
+                    valueAxisStyle.DashStyle;
+
                 if (kind == "bar")
                 {
                     g.DrawLine(
-                        axis,
+                        categoryAxis,
                         zeroX,
                         plot.Top,
                         zeroX,
                         plot.Bottom);
 
                     g.DrawLine(
-                        axis,
+                        valueAxis,
                         plot.Left,
                         plot.Bottom,
                         plot.Right,
@@ -606,14 +635,14 @@ internal static partial class InternalPptxRenderer
                 else
                 {
                     g.DrawLine(
-                        axis,
+                        categoryAxis,
                         plot.Left,
                         zeroY,
                         plot.Right,
                         zeroY);
 
                     g.DrawLine(
-                        axis,
+                        valueAxis,
                         plot.Left,
                         plot.Top,
                         plot.Left,
@@ -2884,6 +2913,85 @@ internal static partial class InternalPptxRenderer
                         markerRect);
                 }
             }
+        }
+
+        private static ChartLineStyle ReadChartAxisLineStyle(
+            XmlDocument chartDoc,
+            string axisName,
+            Dictionary<string, Color> theme)
+        {
+            ChartLineStyle style =
+                new ChartLineStyle();
+
+            if (chartDoc == null ||
+                string.IsNullOrEmpty(
+                    axisName))
+            {
+                return style;
+            }
+
+            XmlNode axis =
+                FindFirst(
+                    chartDoc,
+                    axisName);
+
+            if (axis == null)
+                return style;
+
+            XmlNode shapeProperties =
+                DirectChild(
+                    axis,
+                    "spPr");
+            XmlNode line =
+                shapeProperties == null
+                    ? null
+                    : DirectChild(
+                        shapeProperties,
+                        "ln");
+
+            if (line == null)
+                return style;
+
+            Color? color =
+                ReadSolidFill(
+                    line,
+                    theme);
+
+            if (color.HasValue)
+            {
+                style.Color =
+                    color.Value;
+            }
+
+            long width =
+                GetLong(
+                    line,
+                    "w",
+                    0);
+
+            if (width > 0)
+            {
+                style.Width =
+                    Math.Max(
+                        1f,
+                        EmuToRenderPixels(
+                            width));
+            }
+
+            XmlNode dash =
+                DirectChild(
+                    line,
+                    "prstDash");
+
+            style.DashStyle =
+                ParseChartDashStyle(
+                    dash == null
+                        ? string.Empty
+                        : GetAttr(
+                            dash,
+                            "val"));
+
+            return style;
         }
 
         private static double ReadChartCategoryAxisCrossValue(
