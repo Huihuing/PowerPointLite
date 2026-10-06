@@ -196,7 +196,6 @@ namespace PptxViewer
 
             viewer.LocationChanged += invalidateCanvas;
             viewer.SizeChanged += invalidateCanvas;
-            viewer.ImageChanged += invalidateCanvas;
             viewerPanel.Resize += invalidateCanvas;
 
             status.Height = 30;
