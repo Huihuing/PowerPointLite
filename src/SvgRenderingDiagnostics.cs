@@ -56,6 +56,7 @@ namespace PptxViewer
                 "<filter id=\"offsetBlurMultiply\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedMul\"/><feGaussianBlur in=\"shiftedMul\" stdDeviation=\"0.6\" result=\"blurredMul\"/><feBlend in=\"SourceGraphic\" in2=\"blurredMul\" mode=\"multiply\"/></filter>" +
                 "<filter id=\"offsetBlurScreen\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedScreen\"/><feGaussianBlur in=\"shiftedScreen\" stdDeviation=\"0.6\" result=\"blurredScreen\"/><feBlend in=\"SourceGraphic\" in2=\"blurredScreen\" mode=\"screen\"/></filter>" +
                 "<filter id=\"offsetBlurDarken\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedDarken\"/><feGaussianBlur in=\"shiftedDarken\" stdDeviation=\"0.6\" result=\"blurredDarken\"/><feBlend in=\"SourceGraphic\" in2=\"blurredDarken\" mode=\"darken\"/></filter>" +
+                "<filter id=\"offsetBlurLighten\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedLighten\"/><feGaussianBlur in=\"shiftedLighten\" stdDeviation=\"0.6\" result=\"blurredLighten\"/><feBlend in=\"SourceGraphic\" in2=\"blurredLighten\" mode=\"lighten\"/></filter>" +
                 "<filter id=\"offsetBlurComposite\"><feOffset in=\"SourceGraphic\" dx=\"8\" dy=\"2\" result=\"shifted3\"/><feGaussianBlur in=\"shifted3\" stdDeviation=\"1\" result=\"blurred3\"/><feComposite in=\"SourceGraphic\" in2=\"blurred3\" operator=\"over\"/></filter>" +
                 "<filter id=\"swapRedBlue\"><feColorMatrix in=\"SourceGraphic\" type=\"matrix\" values=\"0 0 1 0 0  0 1 0 0 0  1 0 0 0 0  0 0 0 1 0\"/></filter>" +
                 "<filter id=\"desaturate\"><feColorMatrix in=\"SourceGraphic\" type=\"saturate\" values=\"0\"/></filter>" +
@@ -66,6 +67,7 @@ namespace PptxViewer
                 "<rect id=\"offsetBlurMultiplyRect\" x=\"2\" y=\"32\" width=\"8\" height=\"6\" fill=\"#80c060\" filter=\"url(#offsetBlurMultiply)\"/>" +
                 "<rect id=\"offsetBlurScreenRect\" x=\"2\" y=\"42\" width=\"8\" height=\"6\" fill=\"#4060a0\" filter=\"url(#offsetBlurScreen)\"/>" +
                 "<rect id=\"offsetBlurDarkenRect\" x=\"2\" y=\"52\" width=\"8\" height=\"6\" fill=\"#7090c0\" filter=\"url(#offsetBlurDarken)\"/>" +
+                "<rect id=\"offsetBlurLightenRect\" x=\"2\" y=\"62\" width=\"8\" height=\"6\" fill=\"#7090c0\" filter=\"url(#offsetBlurLighten)\"/>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<g color=\"hsl(326deg 53% 50% / 100%)\"><use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" color=\"inherit\" fill=\"currentColor\"/></g>" +
@@ -918,6 +920,44 @@ namespace PptxViewer
             {
                 throw new InvalidOperationException(
                     "SVG darken channel blend did not preserve the darker source channel.");
+            }
+
+            XmlNode offsetBlurLightenRect =
+                FindSvgNodeById(
+                    document,
+                    "offsetBlurLightenRect");
+
+            float lightenOffsetX;
+            float lightenOffsetY;
+            float lightenBlurX;
+            float lightenBlurY;
+            bool lightenSourceGraphic;
+            string lightenMode;
+
+            if (!TryReadSvgOffsetGaussianChain(
+                    offsetBlurLightenRect,
+                    document,
+                    4f,
+                    4f,
+                    out lightenOffsetX,
+                    out lightenOffsetY,
+                    out lightenBlurX,
+                    out lightenBlurY,
+                    out lightenSourceGraphic,
+                    out lightenMode) ||
+                !lightenSourceGraphic ||
+                lightenMode != "lighten")
+            {
+                throw new InvalidOperationException(
+                    "SVG lighten feBlend chain was not parsed correctly.");
+            }
+
+            if (BlendSvgChannel(
+                    160,
+                    "lighten") != 160)
+            {
+                throw new InvalidOperationException(
+                    "SVG lighten channel blend did not preserve the lighter source channel in the basic same-color approximation.");
             }
 
             XmlNode colorMatrixRect =
