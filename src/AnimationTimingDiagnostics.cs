@@ -75,6 +75,46 @@ namespace PptxViewer
                 using (Stream input = entry.Open())
                     slide.Load(input);
 
+                List<XmlNode> shapes =
+                    FindAll(
+                        slide.DocumentElement,
+                        "sp");
+
+                for (int i = 0;
+                     i < shapes.Count;
+                     i++)
+                {
+                    XmlNode properties =
+                        FindFirst(
+                            shapes[i],
+                            "cNvPr");
+
+                    if (properties == null ||
+                        GetAttr(
+                            properties,
+                            "id") != "3")
+                    {
+                        continue;
+                    }
+
+                    XmlNode transform =
+                        FindFirst(
+                            shapes[i],
+                            "xfrm");
+
+                    XmlElement transformElement =
+                        transform as XmlElement;
+
+                    if (transformElement != null)
+                    {
+                        transformElement.SetAttribute(
+                            "rot",
+                            "2700000");
+                    }
+
+                    break;
+                }
+
                 XmlNode oldTiming = FindFirst(slide.DocumentElement, "timing");
                 if (oldTiming != null && oldTiming.ParentNode != null)
                     oldTiming.ParentNode.RemoveChild(oldTiming);
@@ -180,10 +220,36 @@ namespace PptxViewer
                     if (region != null &&
                         region.ShapeId == "3" &&
                         region.Bounds.Width > 0f &&
-                        region.Bounds.Height > 0f)
+                        region.Bounds.Height > 0f &&
+                        Math.Abs(
+                            region.RotationDegrees -
+                            45f) < 0.01f)
                     {
+                        float centerX =
+                            region.Bounds.Left +
+                            region.Bounds.Width *
+                            0.5f;
+                        float centerY =
+                            region.Bounds.Top +
+                            region.Bounds.Height *
+                            0.5f;
+
+                        bool centerHit =
+                            region.Contains(
+                                centerX,
+                                centerY);
+                        bool cornerMiss =
+                            !region.Contains(
+                                region.Bounds.Left +
+                                    region.Bounds.Width *
+                                    0.02f,
+                                region.Bounds.Top +
+                                    region.Bounds.Height *
+                                    0.02f);
+
                         foundTriggerShape =
-                            true;
+                            centerHit &&
+                            cornerMiss;
                         break;
                     }
                 }
@@ -192,7 +258,7 @@ namespace PptxViewer
             if (!foundTriggerShape)
             {
                 throw new InvalidOperationException(
-                    "Animation trigger shape bounds were not preserved for hit testing.");
+                    "Animation trigger shape rotation or rotated hit testing was not preserved.");
             }
 
             InternalPptxRenderer.SlideAnimationTimeline timeline = timelines[0];

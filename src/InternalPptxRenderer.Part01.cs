@@ -44,6 +44,67 @@ internal static partial class InternalPptxRenderer
         {
             public RectangleF Bounds;
             public string ShapeId = string.Empty;
+            public float RotationDegrees;
+
+            public bool Contains(
+                float x,
+                float y)
+            {
+                if (Math.Abs(
+                        RotationDegrees) <
+                    0.001f)
+                {
+                    return Bounds.Contains(
+                        x,
+                        y);
+                }
+
+                float centerX =
+                    Bounds.Left +
+                    Bounds.Width *
+                    0.5f;
+                float centerY =
+                    Bounds.Top +
+                    Bounds.Height *
+                    0.5f;
+
+                double radians =
+                    -RotationDegrees *
+                    Math.PI /
+                    180.0;
+                double cosine =
+                    Math.Cos(
+                        radians);
+                double sine =
+                    Math.Sin(
+                        radians);
+
+                float dx =
+                    x -
+                    centerX;
+                float dy =
+                    y -
+                    centerY;
+
+                float localX =
+                    centerX +
+                    (float)(
+                        dx *
+                        cosine -
+                        dy *
+                        sine);
+                float localY =
+                    centerY +
+                    (float)(
+                        dx *
+                        sine +
+                        dy *
+                        cosine);
+
+                return Bounds.Contains(
+                    localX,
+                    localY);
+            }
         }
 
         public sealed class TransitionSpec
@@ -671,11 +732,27 @@ internal static partial class InternalPptxRenderer
                     continue;
                 }
 
+                XmlNode transform =
+                    FindFirst(
+                        child,
+                        "xfrm");
+
+                float rotationDegrees =
+                    transform == null
+                        ? 0f
+                        : GetLong(
+                            transform,
+                            "rot",
+                            0) /
+                          60000f;
+
                 regions.Add(
                     new ShapeRegion
                     {
                         Bounds = rect,
-                        ShapeId = shapeId
+                        ShapeId = shapeId,
+                        RotationDegrees =
+                            rotationDegrees
                     });
             }
         }

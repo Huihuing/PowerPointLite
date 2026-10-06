@@ -272,7 +272,7 @@ namespace PptxViewer
                         region.ShapeId,
                         step.TriggerShapeId,
                         StringComparison.OrdinalIgnoreCase) ||
-                    !region.Bounds.Contains(
+                    !region.Contains(
                         nx,
                         ny))
                 {
