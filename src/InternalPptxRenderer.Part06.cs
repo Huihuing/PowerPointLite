@@ -96,6 +96,17 @@ internal static partial class InternalPptxRenderer
                     ser,
                     data.Values);
 
+                data.ExplicitColor =
+                    ReadChartSeriesColor(
+                        ser,
+                        theme);
+
+                ReadChartPointColors(
+                    ser,
+                    theme,
+                    data.PointColors,
+                    data.Values.Count);
+
                 if (data.Values.Count > 0)
                     series.Add(data);
             }
@@ -520,9 +531,10 @@ internal static partial class InternalPptxRenderer
                         }
 
                         Color color =
-                            palette[
-                                si %
-                                palette.Length];
+                            GetChartSeriesColor(
+                                series,
+                                si,
+                                palette);
 
                         using (Pen pen =
                             new Pen(
@@ -635,9 +647,10 @@ internal static partial class InternalPptxRenderer
                                 si * barH;
 
                             Color color =
-                                palette[
-                                    si %
-                                    palette.Length];
+                                GetChartSeriesColor(
+                                    series,
+                                    si,
+                                    palette);
 
                             using (Brush brush =
                                 new SolidBrush(color))
@@ -1654,6 +1667,156 @@ internal static partial class InternalPptxRenderer
             return theme != null && theme.ContainsKey(key) ? theme[key] : fallback;
         }
 
+        private static Color? ReadChartSeriesColor(
+            XmlNode series,
+            Dictionary<string, Color> theme)
+        {
+            if (series == null)
+                return null;
+
+            XmlNode shapeProperties =
+                DirectChild(
+                    series,
+                    "spPr");
+
+            if (shapeProperties == null)
+                return null;
+
+            return ReadSolidFill(
+                shapeProperties,
+                theme);
+        }
+
+        private static void ReadChartPointColors(
+            XmlNode series,
+            Dictionary<string, Color> theme,
+            List<Color?> output,
+            int pointCount)
+        {
+            output.Clear();
+
+            for (int i = 0;
+                 i < pointCount;
+                 i++)
+            {
+                output.Add(null);
+            }
+
+            if (series == null)
+                return;
+
+            foreach (XmlNode point in
+                FindAll(
+                    series,
+                    "dPt"))
+            {
+                XmlNode index =
+                    DirectChild(
+                        point,
+                        "idx");
+
+                int pointIndex;
+                if (index == null ||
+                    !int.TryParse(
+                        GetAttr(
+                            index,
+                            "val"),
+                        out pointIndex) ||
+                    pointIndex < 0 ||
+                    pointIndex >= output.Count)
+                {
+                    continue;
+                }
+
+                XmlNode shapeProperties =
+                    DirectChild(
+                        point,
+                        "spPr");
+
+                if (shapeProperties == null)
+                    continue;
+
+                Color? color =
+                    ReadSolidFill(
+                        shapeProperties,
+                        theme);
+
+                if (color.HasValue)
+                {
+                    output[pointIndex] =
+                        color.Value;
+                }
+            }
+        }
+
+        private static Color GetChartSeriesColor(
+            List<ChartSeriesData> series,
+            int index,
+            Color[] palette)
+        {
+            if (series != null &&
+                index >= 0 &&
+                index < series.Count &&
+                series[index] != null &&
+                series[index].ExplicitColor.HasValue)
+            {
+                return series[index]
+                    .ExplicitColor
+                    .Value;
+            }
+
+            if (palette == null ||
+                palette.Length == 0)
+            {
+                return Color.FromArgb(
+                    79,
+                    129,
+                    189);
+            }
+
+            return palette[
+                Math.Abs(index) %
+                palette.Length];
+        }
+
+        private static Color GetChartPointColor(
+            ChartSeriesData series,
+            int index,
+            Color[] palette)
+        {
+            if (series != null &&
+                index >= 0 &&
+                index <
+                series.PointColors.Count &&
+                series.PointColors[index].HasValue)
+            {
+                return series
+                    .PointColors[index]
+                    .Value;
+            }
+
+            if (series != null &&
+                series.ExplicitColor.HasValue)
+            {
+                return series
+                    .ExplicitColor
+                    .Value;
+            }
+
+            if (palette == null ||
+                palette.Length == 0)
+            {
+                return Color.FromArgb(
+                    79,
+                    129,
+                    189);
+            }
+
+            return palette[
+                Math.Abs(index) %
+                palette.Length];
+        }
+
         private static string ReadChartSeriesName(XmlNode ser)
         {
             XmlNode tx = DirectChild(ser, "tx");
@@ -1757,9 +1920,10 @@ internal static partial class InternalPptxRenderer
                             : series[0].Categories[i]);
 
                     colors.Add(
-                        palette[
-                            i %
-                            palette.Length]);
+                        GetChartPointColor(
+                            series[0],
+                            i,
+                            palette));
                 }
             }
             else
@@ -1776,9 +1940,10 @@ internal static partial class InternalPptxRenderer
                             : series[i].Name);
 
                     colors.Add(
-                        palette[
-                            i %
-                            palette.Length]);
+                        GetChartSeriesColor(
+                            series,
+                            i,
+                            palette));
                 }
             }
 
@@ -1966,8 +2131,25 @@ internal static partial class InternalPptxRenderer
             for (int i = 0; i < series.Values.Count; i++)
             {
                 float sweep = (float)(360.0 * Math.Abs(series.Values[i]) / total);
-                using (Brush brush = new SolidBrush(palette[i % palette.Length]))
-                    g.FillPie(brush, pie.X, pie.Y, pie.Width, pie.Height, start, sweep);
+                Color sliceColor =
+                    GetChartPointColor(
+                        series,
+                        i,
+                        palette);
+
+                using (Brush brush =
+                    new SolidBrush(
+                        sliceColor))
+                {
+                    g.FillPie(
+                        brush,
+                        pie.X,
+                        pie.Y,
+                        pie.Width,
+                        pie.Height,
+                        start,
+                        sweep);
+                }
                 start += sweep;
             }
         }

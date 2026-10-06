@@ -80,6 +80,31 @@ namespace PptxViewer
             theme["accent2"] =
                 Color.FromArgb(210, 86, 72);
 
+            List<XmlNode> syntheticSeries =
+                FindAll(
+                    chart,
+                    "ser");
+
+            if (syntheticSeries.Count < 2)
+            {
+                throw new InvalidOperationException(
+                    "Synthetic chart series were not created.");
+            }
+
+            Color? firstSeriesColor =
+                ReadChartSeriesColor(
+                    syntheticSeries[0],
+                    theme);
+
+            if (!firstSeriesColor.HasValue ||
+                firstSeriesColor.Value.R != 0x33 ||
+                firstSeriesColor.Value.G != 0x66 ||
+                firstSeriesColor.Value.B != 0xCC)
+            {
+                throw new InvalidOperationException(
+                    "Explicit chart series color was not parsed.");
+            }
+
             ChartAxisScale scale =
                 ReadChartAxisScale(
                     chart,
@@ -435,6 +460,17 @@ namespace PptxViewer
                 System.Security.SecurityElement.Escape(
                     name ?? string.Empty));
             xml.Append("</c:v></c:tx>");
+
+            string color =
+                index == 0
+                    ? "3366CC"
+                    : "CC5533";
+
+            xml.Append(
+                "<c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"");
+            xml.Append(color);
+            xml.Append(
+                "\"/></a:solidFill></c:spPr>");
 
             xml.Append("<c:cat><c:strLit>");
             for (int i = 0;

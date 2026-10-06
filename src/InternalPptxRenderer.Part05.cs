@@ -189,8 +189,10 @@ namespace PptxViewer
         private sealed class ChartSeriesData
         {
             public string Name;
+            public Color? ExplicitColor;
             public readonly List<string> Categories = new List<string>();
             public readonly List<double> Values = new List<double>();
+            public readonly List<Color?> PointColors = new List<Color?>();
         }
     }
 }

@@ -66,6 +66,7 @@ Microsoft PowerPoint (설치된 경우)
   - 데이터 레이블 separator 기본 반영
   - legendPos 좌/우/상/하/우상단 배치 및 plot 영역 조정
   - 파이/도넛 category 범례 및 percent 레이블
+  - c:ser/c:spPr series 색상 및 c:dPt point 색상 우선 반영
 - SmartArt / diagram
   - data model의 node / connection을 읽어 hierarchy로 표시
   - 구조를 알 수 없는 경우 기존 static approximation으로 fallback
