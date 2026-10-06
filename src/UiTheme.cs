@@ -123,6 +123,112 @@ namespace PptxViewer
             button.AutoEllipsis = true;
         }
 
+        public static void ApplySlideList(
+            ListBox list)
+        {
+            if (list == null)
+                return;
+
+            list.DrawMode =
+                DrawMode.OwnerDrawFixed;
+            list.ItemHeight = 38;
+            list.BorderStyle =
+                BorderStyle.None;
+            list.BackColor =
+                Sidebar;
+            list.ForeColor =
+                PrimaryText;
+            list.IntegralHeight =
+                false;
+
+            list.DrawItem +=
+                delegate(
+                    object sender,
+                    DrawItemEventArgs e)
+                {
+                    if (e.Index < 0 ||
+                        e.Index >=
+                            list.Items.Count)
+                    {
+                        return;
+                    }
+
+                    bool selected =
+                        (e.State &
+                         DrawItemState.Selected) != 0;
+
+                    Rectangle bounds =
+                        e.Bounds;
+
+                    using (Brush background =
+                        new SolidBrush(
+                            selected
+                                ? Surface
+                                : Sidebar))
+                    {
+                        e.Graphics.FillRectangle(
+                            background,
+                            bounds);
+                    }
+
+                    if (selected)
+                    {
+                        using (Brush accent =
+                            new SolidBrush(
+                                Accent))
+                        {
+                            e.Graphics.FillRectangle(
+                                accent,
+                                bounds.Left,
+                                bounds.Top + 4,
+                                3,
+                                Math.Max(
+                                    1,
+                                    bounds.Height - 8));
+                        }
+                    }
+
+                    Rectangle textBounds =
+                        new Rectangle(
+                            bounds.Left + 12,
+                            bounds.Top + 1,
+                            Math.Max(
+                                1,
+                                bounds.Width - 18),
+                            Math.Max(
+                                1,
+                                bounds.Height - 2));
+
+                    TextRenderer.DrawText(
+                        e.Graphics,
+                        list.Items[e.Index]
+                            .ToString(),
+                        list.Font,
+                        textBounds,
+                        selected
+                            ? PrimaryText
+                            : SecondaryText,
+                        TextFormatFlags.Left |
+                        TextFormatFlags.VerticalCenter |
+                        TextFormatFlags.EndEllipsis |
+                        TextFormatFlags.NoPrefix);
+
+                    using (Pen divider =
+                        new Pen(
+                            Divider))
+                    {
+                        e.Graphics.DrawLine(
+                            divider,
+                            bounds.Left + 10,
+                            bounds.Bottom - 1,
+                            Math.Max(
+                                bounds.Left + 10,
+                                bounds.Right - 8),
+                            bounds.Bottom - 1);
+                    }
+                };
+        }
+
         public static void ApplyContextMenu(ContextMenuStrip menu)
         {
             if (menu == null)
