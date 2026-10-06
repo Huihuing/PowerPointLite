@@ -233,6 +233,8 @@ namespace PptxViewer
             slideList.BackColor = ApplicationTheme.Sidebar;
             slideList.ForeColor = ApplicationTheme.PrimaryText;
             slideList.IntegralHeight = false;
+            ApplicationTheme.ApplySlideList(
+                slideList);
             slidePanel.Controls.Add(slideList);
             slideList.BringToFront();
 
