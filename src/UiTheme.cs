@@ -123,6 +123,69 @@ namespace PptxViewer
             button.AutoEllipsis = true;
         }
 
+        public static void DrawSlideSurface(
+            Graphics graphics,
+            Rectangle slideBounds)
+        {
+            if (graphics == null ||
+                slideBounds.Width <= 0 ||
+                slideBounds.Height <= 0)
+            {
+                return;
+            }
+
+            Rectangle outerShadow =
+                slideBounds;
+            outerShadow.Offset(
+                7,
+                8);
+
+            Rectangle innerShadow =
+                slideBounds;
+            innerShadow.Offset(
+                3,
+                4);
+
+            using (Brush outer =
+                new SolidBrush(
+                    Color.FromArgb(
+                        28,
+                        0,
+                        0,
+                        0)))
+            using (Brush inner =
+                new SolidBrush(
+                    Color.FromArgb(
+                        42,
+                        0,
+                        0,
+                        0)))
+            using (Brush paper =
+                new SolidBrush(
+                    Color.White))
+            using (Pen frame =
+                new Pen(
+                    Color.FromArgb(
+                        116,
+                        122,
+                        132),
+                    1f))
+            {
+                graphics.FillRectangle(
+                    outer,
+                    outerShadow);
+                graphics.FillRectangle(
+                    inner,
+                    innerShadow);
+                graphics.FillRectangle(
+                    paper,
+                    slideBounds);
+                graphics.DrawRectangle(
+                    frame,
+                    slideBounds);
+            }
+        }
+
         public static void ApplySlideList(
             ListBox list)
         {
