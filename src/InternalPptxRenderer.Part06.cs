@@ -33,6 +33,7 @@ internal static partial class InternalPptxRenderer
             public bool ShowCategoryName;
             public bool ShowSeriesName;
             public bool ShowPercent;
+            public string NumberFormat;
             public string Separator = ", ";
 
             public bool HasAny
@@ -908,6 +909,19 @@ internal static partial class InternalPptxRenderer
                     labels,
                     "showPercent");
 
+            XmlNode numberFormat =
+                DirectChild(
+                    labels,
+                    "numFmt");
+
+            if (numberFormat != null)
+            {
+                result.NumberFormat =
+                    GetAttr(
+                        numberFormat,
+                        "formatCode");
+            }
+
             XmlNode separator =
                 DirectChild(
                     labels,
@@ -989,8 +1003,9 @@ internal static partial class InternalPptxRenderer
             if (options.ShowValue)
             {
                 parts.Add(
-                    FormatChartNumber(
-                        series.Values[index]));
+                    FormatChartAxisNumber(
+                        series.Values[index],
+                        options.NumberFormat));
             }
 
             if (options.ShowPercent &&

@@ -84,6 +84,7 @@ Microsoft PowerPoint (설치된 경우)
   - 음수 값과 0 기준선
   - valAx min/max/majorUnit/orientation 기본 반영
   - showVal/showCatName/showSerName/showPercent 데이터 레이블
+  - dLbls numFmt 숫자 서식 기본 반영
   - 데이터 레이블 separator 기본 반영
   - legendPos 좌/우/상/하/우상단 배치 및 plot 영역 조정
   - 파이/도넛 category 범례 및 percent 레이블

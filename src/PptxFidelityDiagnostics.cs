@@ -74,7 +74,7 @@ namespace PptxViewer
                 "<c:chart>" +
                 "<c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarterly Delta</a:t></a:r></a:p></c:rich></c:tx></c:title>" +
                 "<c:plotArea><c:barChart><c:barDir val=\"col\"/>" +
-                "<c:dLbls><c:showVal val=\"1\"/><c:showCatName val=\"1\"/><c:separator> · </c:separator></c:dLbls>" +
+                "<c:dLbls><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:showVal val=\"1\"/><c:showCatName val=\"1\"/><c:separator> · </c:separator></c:dLbls>" +
                 BuildSyntheticChartSeries(
                     0,
                     "North",
@@ -186,10 +186,30 @@ namespace PptxViewer
                 !labels.ShowCategoryName ||
                 labels.ShowSeriesName ||
                 labels.ShowPercent ||
+                labels.NumberFormat != "0.0" ||
                 labels.Separator != " · ")
             {
                 throw new InvalidOperationException(
                     "Chart data-label options were not parsed correctly.");
+            }
+
+            ChartSeriesData labelSeries =
+                new ChartSeriesData();
+            labelSeries.Categories.Add("Q1");
+            labelSeries.Values.Add(42.0);
+
+            string formattedLabel =
+                BuildChartDataLabel(
+                    labels,
+                    labelSeries,
+                    0,
+                    false);
+
+            if (formattedLabel != "Q1 · 42.0")
+            {
+                throw new InvalidOperationException(
+                    "Chart data-label number format was not applied: " +
+                    formattedLabel);
             }
 
             if (ReadChartLegendPosition(chart) != "b")
