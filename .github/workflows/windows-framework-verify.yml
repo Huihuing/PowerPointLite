@@ -29,17 +29,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Show Framework compiler
+      - name: Locate Framework compiler
         shell: cmd
         run: |
           if exist "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" (
-            "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /version
-          ) else if exist "%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe" (
-            "%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe" /version
-          ) else (
-            echo .NET Framework csc.exe was not found.
-            exit /b 2
+            echo Using %WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe
+            exit /b 0
           )
+          if exist "%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe" (
+            echo Using %WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe
+            exit /b 0
+          )
+          echo .NET Framework csc.exe was not found.
+          exit /b 2
 
       - name: Run pre-merge checks
         shell: cmd
