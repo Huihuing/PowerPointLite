@@ -5250,7 +5250,16 @@ namespace PptxViewer
                 if (!string.IsNullOrEmpty(
                         value))
                 {
-                    return value;
+                    value =
+                        value.Trim();
+
+                    if (!string.Equals(
+                            value,
+                            "inherit",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        return value;
+                    }
                 }
 
                 if (current.LocalName ==
