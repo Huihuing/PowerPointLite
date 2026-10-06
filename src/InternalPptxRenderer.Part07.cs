@@ -1083,6 +1083,13 @@ internal static partial class InternalPptxRenderer
                 return;
             }
 
+            DrawPresetShadowEffect(
+                g,
+                spPr,
+                path,
+                rect,
+                theme);
+
             DrawOuterShadowEffect(
                 g,
                 spPr,
@@ -1108,6 +1115,436 @@ internal static partial class InternalPptxRenderer
                 path,
                 rect,
                 theme);
+        }
+
+        private static void DrawPresetShadowEffect(
+            Graphics g,
+            XmlNode spPr,
+            GraphicsPath path,
+            RectangleF rect,
+            Dictionary<string, Color> theme)
+        {
+            if (FindFirst(spPr, "outerShdw") != null)
+                return;
+
+            XmlNode shadow =
+                FindFirst(
+                    spPr,
+                    "prstShdw");
+
+            if (shadow == null)
+                return;
+
+            string preset =
+                GetAttr(
+                    shadow,
+                    "prst");
+
+            long defaultDistance =
+                12700L * 4L;
+
+            if (!string.IsNullOrEmpty(preset) &&
+                (preset.IndexOf("17", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                 preset.IndexOf("18", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                 preset.IndexOf("19", StringComparison.OrdinalIgnoreCase) >= 0))
+            {
+                defaultDistance =
+                    12700L * 2L;
+            }
+
+            float distance =
+                EmuEffectToPixels(
+                    GetLong(
+                        shadow,
+                        "dist",
+                        defaultDistance));
+
+            long direction =
+                GetLong(
+                    shadow,
+                    "dir",
+                    2700000);
+
+            float radians =
+                direction /
+                60000f *
+                (float)Math.PI /
+                180f;
+
+            float dx =
+                (float)Math.Cos(
+                    radians) *
+                distance;
+            float dy =
+                (float)Math.Sin(
+                    radians) *
+                distance;
+
+            Color raw =
+                ReadColorFromFill(
+                    shadow,
+                    theme) ??
+                Color.Black;
+
+            int alpha =
+                raw.A < 255
+                    ? raw.A
+                    : 68;
+
+            Color color =
+                Color.FromArgb(
+                    Math.Max(
+                        18,
+                        Math.Min(
+                            160,
+                            alpha)),
+                    raw.R,
+                    raw.G,
+                    raw.B);
+
+            using (GraphicsPath shadowPath =
+                (GraphicsPath)path.Clone())
+            using (Matrix transform =
+                new Matrix())
+            using (Brush brush =
+                new SolidBrush(color))
+            {
+                transform.Translate(
+                    dx,
+                    dy);
+                shadowPath.Transform(
+                    transform);
+
+                g.FillPath(
+                    brush,
+                    shadowPath);
+            }
+        }
+
+        private static void DrawShapePostFillEffects(
+            Graphics g,
+            XmlNode spPr,
+            GraphicsPath path,
+            RectangleF rect,
+            Dictionary<string, Color> theme)
+        {
+            if (g == null ||
+                spPr == null ||
+                path == null)
+            {
+                return;
+            }
+
+            DrawInnerShadowEffect(
+                g,
+                spPr,
+                path,
+                rect,
+                theme);
+
+            DrawThreeDimensionalBevelApproximation(
+                g,
+                spPr,
+                path,
+                rect,
+                theme);
+        }
+
+        private static void DrawInnerShadowEffect(
+            Graphics g,
+            XmlNode spPr,
+            GraphicsPath path,
+            RectangleF rect,
+            Dictionary<string, Color> theme)
+        {
+            XmlNode shadow =
+                FindFirst(
+                    spPr,
+                    "innerShdw");
+
+            if (shadow == null)
+                return;
+
+            Color raw =
+                ReadColorFromFill(
+                    shadow,
+                    theme) ??
+                Color.Black;
+
+            int alpha =
+                raw.A < 255
+                    ? raw.A
+                    : 92;
+
+            float blur =
+                Math.Max(
+                    1f,
+                    Math.Min(
+                        32f,
+                        EmuEffectToPixels(
+                            GetLong(
+                                shadow,
+                                "blurRad",
+                                25400))));
+
+            float distance =
+                EmuEffectToPixels(
+                    GetLong(
+                        shadow,
+                        "dist",
+                        0));
+
+            long direction =
+                GetLong(
+                    shadow,
+                    "dir",
+                    2700000);
+
+            float radians =
+                direction /
+                60000f *
+                (float)Math.PI /
+                180f;
+
+            float dx =
+                (float)Math.Cos(
+                    radians) *
+                distance;
+            float dy =
+                (float)Math.Sin(
+                    radians) *
+                distance;
+
+            GraphicsState state =
+                g.Save();
+
+            try
+            {
+                g.SetClip(
+                    path,
+                    CombineMode.Intersect);
+
+                using (GraphicsPath translated =
+                    (GraphicsPath)path.Clone())
+                using (Matrix transform =
+                    new Matrix())
+                using (Pen pen =
+                    new Pen(
+                        Color.FromArgb(
+                            Math.Max(
+                                24,
+                                Math.Min(
+                                    180,
+                                    alpha)),
+                            raw.R,
+                            raw.G,
+                            raw.B),
+                        Math.Max(
+                            2f,
+                            blur *
+                            2.2f)))
+                {
+                    transform.Translate(
+                        dx,
+                        dy);
+                    translated.Transform(
+                        transform);
+
+                    pen.LineJoin =
+                        LineJoin.Round;
+
+                    g.DrawPath(
+                        pen,
+                        translated);
+                }
+            }
+            finally
+            {
+                g.Restore(state);
+            }
+        }
+
+        private static void DrawThreeDimensionalBevelApproximation(
+            Graphics g,
+            XmlNode spPr,
+            GraphicsPath path,
+            RectangleF rect,
+            Dictionary<string, Color> theme)
+        {
+            XmlNode shape3d =
+                FindFirst(
+                    spPr,
+                    "sp3d");
+
+            if (shape3d == null)
+                return;
+
+            XmlNode topBevel =
+                DirectChild(
+                    shape3d,
+                    "bevelT");
+            XmlNode bottomBevel =
+                DirectChild(
+                    shape3d,
+                    "bevelB");
+
+            long topWidthEmu =
+                topBevel != null
+                    ? GetLong(
+                        topBevel,
+                        "w",
+                        50800)
+                    : 0;
+
+            long topHeightEmu =
+                topBevel != null
+                    ? GetLong(
+                        topBevel,
+                        "h",
+                        topWidthEmu)
+                    : 0;
+
+            long bottomWidthEmu =
+                bottomBevel != null
+                    ? GetLong(
+                        bottomBevel,
+                        "w",
+                        50800)
+                    : 0;
+
+            long bottomHeightEmu =
+                bottomBevel != null
+                    ? GetLong(
+                        bottomBevel,
+                        "h",
+                        bottomWidthEmu)
+                    : 0;
+
+            float topSize =
+                Math.Max(
+                    EmuEffectToPixels(
+                        topWidthEmu),
+                    EmuEffectToPixels(
+                        topHeightEmu));
+
+            float bottomSize =
+                Math.Max(
+                    EmuEffectToPixels(
+                        bottomWidthEmu),
+                    EmuEffectToPixels(
+                        bottomHeightEmu));
+
+            if (topSize < 0.5f &&
+                bottomSize < 0.5f)
+            {
+                return;
+            }
+
+            Color fill =
+                ReadSolidFill(
+                    spPr,
+                    theme) ??
+                Color.FromArgb(
+                    160,
+                    160,
+                    160);
+
+            float size =
+                Math.Max(
+                    1f,
+                    Math.Min(
+                        18f,
+                        Math.Max(
+                            topSize,
+                            bottomSize)));
+
+            GraphicsState state =
+                g.Save();
+
+            try
+            {
+                g.SetClip(
+                    path,
+                    CombineMode.Intersect);
+
+                if (topSize >= 0.5f)
+                {
+                    using (GraphicsPath highlightPath =
+                        (GraphicsPath)path.Clone())
+                    using (Matrix highlightTransform =
+                        new Matrix())
+                    using (Pen highlight =
+                        new Pen(
+                            Color.FromArgb(
+                                96,
+                                255,
+                                255,
+                                255),
+                            Math.Max(
+                                1f,
+                                size)))
+                    {
+                        highlightTransform.Translate(
+                            -size *
+                            0.28f,
+                            -size *
+                            0.28f);
+                        highlightPath.Transform(
+                            highlightTransform);
+                        highlight.LineJoin =
+                            LineJoin.Round;
+                        g.DrawPath(
+                            highlight,
+                            highlightPath);
+                    }
+                }
+
+                if (bottomSize >= 0.5f ||
+                    topSize >= 0.5f)
+                {
+                    using (GraphicsPath shadePath =
+                        (GraphicsPath)path.Clone())
+                    using (Matrix shadeTransform =
+                        new Matrix())
+                    using (Pen shade =
+                        new Pen(
+                            Color.FromArgb(
+                                92,
+                                Math.Max(
+                                    0,
+                                    fill.R -
+                                    70),
+                                Math.Max(
+                                    0,
+                                    fill.G -
+                                    70),
+                                Math.Max(
+                                    0,
+                                    fill.B -
+                                    70)),
+                            Math.Max(
+                                1f,
+                                size)))
+                    {
+                        shadeTransform.Translate(
+                            size *
+                            0.28f,
+                            size *
+                            0.28f);
+                        shadePath.Transform(
+                            shadeTransform);
+                        shade.LineJoin =
+                            LineJoin.Round;
+                        g.DrawPath(
+                            shade,
+                            shadePath);
+                    }
+                }
+            }
+            finally
+            {
+                g.Restore(state);
+            }
         }
 
         private static void DrawOuterShadowEffect(
