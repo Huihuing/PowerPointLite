@@ -79,6 +79,7 @@ namespace PptxViewer
 
             languageMenu.Items.Add(korean);
             languageMenu.Items.Add(english);
+            ApplicationTheme.ApplyContextMenu(languageMenu);
 
             languageButton.Click += delegate
             {
