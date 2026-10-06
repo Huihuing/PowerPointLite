@@ -5709,6 +5709,10 @@ namespace PptxViewer
                         !string.Equals(
                             op,
                             "in",
+                            StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(
+                            op,
+                            "out",
                             StringComparison.OrdinalIgnoreCase))
                     {
                         return false;
@@ -5761,10 +5765,14 @@ namespace PptxViewer
                     return false;
                 }
 
-                if (string.Equals(
-                        blendMode,
-                        "in",
-                        StringComparison.OrdinalIgnoreCase) &&
+                if ((string.Equals(
+                         blendMode,
+                         "in",
+                         StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(
+                         blendMode,
+                         "out",
+                         StringComparison.OrdinalIgnoreCase)) &&
                     !secondIsChain)
                 {
                     return false;
@@ -5980,6 +5988,26 @@ namespace PptxViewer
                     StringComparison.OrdinalIgnoreCase))
             {
                 DrawSvgCompositeInApproximation(
+                    g,
+                    path,
+                    offsetX,
+                    offsetY,
+                    hasSolidFill,
+                    fillAlpha,
+                    fill,
+                    strokeAlpha,
+                    stroke,
+                    strokeWidth);
+                return true;
+            }
+
+            if (blendSourceGraphic &&
+                string.Equals(
+                    blendMode,
+                    "out",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                DrawSvgCompositeOutApproximation(
                     g,
                     path,
                     offsetX,
@@ -6344,6 +6372,91 @@ namespace PptxViewer
                     {
                         g.SetClip(
                             overlap,
+                            CombineMode.Intersect);
+
+                        if (hasSolidFill &&
+                            fillAlpha > 0)
+                        {
+                            using (Brush brush =
+                                new SolidBrush(
+                                    Color.FromArgb(
+                                        fillAlpha,
+                                        fill)))
+                            {
+                                g.FillPath(
+                                    brush,
+                                    sourcePath);
+                            }
+                        }
+
+                        if (strokeAlpha > 0)
+                        {
+                            using (Pen pen =
+                                new Pen(
+                                    Color.FromArgb(
+                                        strokeAlpha,
+                                        stroke),
+                                    strokeWidth))
+                            {
+                                g.DrawPath(
+                                    pen,
+                                    sourcePath);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        g.Restore(
+                            state);
+                    }
+                }
+            }
+        }
+
+        private static void DrawSvgCompositeOutApproximation(
+            Graphics g,
+            GraphicsPath sourcePath,
+            float offsetX,
+            float offsetY,
+            bool hasSolidFill,
+            int fillAlpha,
+            Color fill,
+            int strokeAlpha,
+            Color stroke,
+            float strokeWidth)
+        {
+            if (g == null ||
+                sourcePath == null ||
+                sourcePath.PointCount == 0)
+            {
+                return;
+            }
+
+            using (GraphicsPath shifted =
+                (GraphicsPath)sourcePath.Clone())
+            using (Matrix translation =
+                new Matrix())
+            {
+                translation.Translate(
+                    offsetX,
+                    offsetY);
+                shifted.Transform(
+                    translation);
+
+                using (Region outside =
+                    new Region(
+                        sourcePath))
+                {
+                    outside.Exclude(
+                        shifted);
+
+                    GraphicsState state =
+                        g.Save();
+
+                    try
+                    {
+                        g.SetClip(
+                            outside,
                             CombineMode.Intersect);
 
                         if (hasSolidFill &&
