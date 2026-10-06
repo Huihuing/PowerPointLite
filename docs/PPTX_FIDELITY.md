@@ -179,6 +179,7 @@ slide load
 → entrance 대상의 초기 visibility 계산
 → click/automatic animation group 순서대로 진행
 → 특정 trigger shape id가 있는 click step은 해당 shape bounds를 클릭했을 때만 실행
+→ PictureBox Zoom 레터박스를 제외한 실제 슬라이드 표시 영역 기준으로 클릭 좌표 정규화
 → with-previous는 같은 group
 → after-previous는 앞 action 종료 시점 뒤에 배치
 → delay/duration을 내부 timer에 반영

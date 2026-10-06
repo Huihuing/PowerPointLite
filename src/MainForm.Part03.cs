@@ -329,8 +329,16 @@ public sealed partial class MainForm : Form
                 return null;
             }
 
-            float nx = point.X / (float)viewer.ClientSize.Width;
-            float ny = point.Y / (float)viewer.ClientSize.Height;
+            float nx;
+            float ny;
+
+            if (!TryNormalizeViewerPoint(
+                    point,
+                    out nx,
+                    out ny))
+            {
+                return null;
+            }
 
             List<InternalPptxRenderer.InteractiveRegion> regions = interactiveRegions[currentIndex];
 
@@ -341,6 +349,112 @@ public sealed partial class MainForm : Form
             }
 
             return null;
+        }
+
+        private bool TryNormalizeViewerPoint(
+            Point point,
+            out float nx,
+            out float ny)
+        {
+            nx = 0f;
+            ny = 0f;
+
+            if (viewer == null ||
+                viewer.Image == null ||
+                viewer.ClientSize.Width <= 0 ||
+                viewer.ClientSize.Height <= 0 ||
+                viewer.Image.Width <= 0 ||
+                viewer.Image.Height <= 0)
+            {
+                return false;
+            }
+
+            float clientWidth =
+                viewer.ClientSize.Width;
+            float clientHeight =
+                viewer.ClientSize.Height;
+
+            float drawWidth =
+                clientWidth;
+            float drawHeight =
+                clientHeight;
+            float offsetX = 0f;
+            float offsetY = 0f;
+
+            if (viewer.SizeMode ==
+                PictureBoxSizeMode.Zoom)
+            {
+                float imageAspect =
+                    viewer.Image.Width /
+                    (float)viewer.Image.Height;
+                float clientAspect =
+                    clientWidth /
+                    clientHeight;
+
+                if (imageAspect >
+                    clientAspect)
+                {
+                    drawWidth =
+                        clientWidth;
+                    drawHeight =
+                        clientWidth /
+                        imageAspect;
+                    offsetY =
+                        (clientHeight -
+                         drawHeight) *
+                        0.5f;
+                }
+                else
+                {
+                    drawHeight =
+                        clientHeight;
+                    drawWidth =
+                        clientHeight *
+                        imageAspect;
+                    offsetX =
+                        (clientWidth -
+                         drawWidth) *
+                        0.5f;
+                }
+            }
+
+            if (drawWidth <= 0f ||
+                drawHeight <= 0f ||
+                point.X < offsetX ||
+                point.Y < offsetY ||
+                point.X >
+                    offsetX +
+                    drawWidth ||
+                point.Y >
+                    offsetY +
+                    drawHeight)
+            {
+                return false;
+            }
+
+            nx =
+                (point.X -
+                 offsetX) /
+                drawWidth;
+            ny =
+                (point.Y -
+                 offsetY) /
+                drawHeight;
+
+            nx =
+                Math.Max(
+                    0f,
+                    Math.Min(
+                        1f,
+                        nx));
+            ny =
+                Math.Max(
+                    0f,
+                    Math.Min(
+                        1f,
+                        ny));
+
+            return true;
         }
 
         private void OnViewerMouseMove(object sender, MouseEventArgs e)

@@ -244,12 +244,16 @@ namespace PptxViewer
                 return false;
             }
 
-            float nx =
-                point.X /
-                (float)viewer.ClientSize.Width;
-            float ny =
-                point.Y /
-                (float)viewer.ClientSize.Height;
+            float nx;
+            float ny;
+
+            if (!TryNormalizeViewerPoint(
+                    point,
+                    out nx,
+                    out ny))
+            {
+                return false;
+            }
 
             List<InternalPptxRenderer.ShapeRegion> regions =
                 animationShapeRegions[
