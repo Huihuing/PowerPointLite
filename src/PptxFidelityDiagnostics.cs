@@ -92,8 +92,8 @@ namespace PptxViewer
                     new string[] { "Q1", "Q2", "Q3", "Q4" },
                     new double[] { -18.0, 34.0, 51.0, -39.0 }) +
                 "</c:barChart>" +
-                "<c:catAx><c:axId val=\"1\"/><c:tickLblPos val=\"none\"/><c:tickLblSkip val=\"2\"/><c:majorTickMark val=\"out\"/><c:crossesAt val=\"20\"/><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"25400\"><a:solidFill><a:srgbClr val=\"3366CC\"/></a:solidFill><a:prstDash val=\"dash\"/></a:ln></c:spPr><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarter</a:t></a:r></a:p></c:rich></c:tx></c:title></c:catAx>" +
-                "<c:valAx><c:axId val=\"2\"/><c:tickLblPos val=\"none\"/><c:majorTickMark val=\"cross\"/><c:minorTickMark val=\"in\"/><c:scaling><c:orientation val=\"minMax\"/><c:min val=\"-50\"/><c:max val=\"80\"/></c:scaling><c:majorUnit val=\"20\"/><c:minorUnit val=\"10\"/><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:majorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"12700\"><a:solidFill><a:srgbClr val=\"88AACC\"/></a:solidFill><a:prstDash val=\"dashDot\"/></a:ln></c:spPr></c:majorGridlines><c:minorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"9525\"><a:solidFill><a:srgbClr val=\"CCDDEE\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr></c:minorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"19050\"><a:solidFill><a:srgbClr val=\"CC5533\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Delta</a:t></a:r></a:p></c:rich></c:tx></c:title></c:valAx>" +
+                "<c:catAx><c:axId val=\"1\"/><c:tickLblPos val=\"none\"/><c:tickLblSkip val=\"2\"/><c:majorTickMark val=\"out\"/><c:crossesAt val=\"20\"/><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"25400\"><a:solidFill><a:srgbClr val=\"3366CC\"/></a:solidFill><a:prstDash val=\"dash\"/></a:ln></c:spPr><c:txPr><a:bodyPr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"/><a:lstStyle xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"/><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr sz=\"900\" b=\"1\"><a:latin typeface=\"Arial\"/><a:solidFill><a:srgbClr val=\"2255AA\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarter</a:t></a:r></a:p></c:rich></c:tx></c:title></c:catAx>" +
+                "<c:valAx><c:axId val=\"2\"/><c:tickLblPos val=\"none\"/><c:majorTickMark val=\"cross\"/><c:minorTickMark val=\"in\"/><c:scaling><c:orientation val=\"minMax\"/><c:min val=\"-50\"/><c:max val=\"80\"/></c:scaling><c:majorUnit val=\"20\"/><c:minorUnit val=\"10\"/><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:majorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"12700\"><a:solidFill><a:srgbClr val=\"88AACC\"/></a:solidFill><a:prstDash val=\"dashDot\"/></a:ln></c:spPr></c:majorGridlines><c:minorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"9525\"><a:solidFill><a:srgbClr val=\"CCDDEE\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr></c:minorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"19050\"><a:solidFill><a:srgbClr val=\"CC5533\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr><c:txPr><a:bodyPr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"/><a:lstStyle xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"/><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr sz=\"1000\" i=\"1\"><a:latin typeface=\"Arial\"/><a:solidFill><a:srgbClr val=\"AA5522\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Delta</a:t></a:r></a:p></c:rich></c:tx></c:title></c:valAx>" +
                 "<c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"FFF8EE\"/></a:solidFill></c:spPr>" +
                 "</c:plotArea>" +
                 "<c:legend><c:legendPos val=\"b\"/></c:legend>" +
@@ -254,6 +254,44 @@ namespace PptxViewer
                     "Chart major/minor tick mark settings were not parsed.");
             }
 
+            ChartLabelOptions categoryAxisTextStyle =
+                ReadChartAxisLabelStyle(
+                    chart,
+                    "catAx",
+                    theme);
+            ChartLabelOptions valueAxisTextStyle =
+                ReadChartAxisLabelStyle(
+                    chart,
+                    "valAx",
+                    theme);
+
+            if (!categoryAxisTextStyle.TextColor.HasValue ||
+                categoryAxisTextStyle.TextColor.Value.R != 0x22 ||
+                categoryAxisTextStyle.TextColor.Value.G != 0x55 ||
+                categoryAxisTextStyle.TextColor.Value.B != 0xAA ||
+                !categoryAxisTextStyle.FontSize.HasValue ||
+                Math.Abs(
+                    categoryAxisTextStyle.FontSize.Value -
+                    9f) > 0.01f ||
+                !categoryAxisTextStyle.Bold.HasValue ||
+                !categoryAxisTextStyle.Bold.Value ||
+                categoryAxisTextStyle.FontFamily != "Arial" ||
+                !valueAxisTextStyle.TextColor.HasValue ||
+                valueAxisTextStyle.TextColor.Value.R != 0xAA ||
+                valueAxisTextStyle.TextColor.Value.G != 0x55 ||
+                valueAxisTextStyle.TextColor.Value.B != 0x22 ||
+                !valueAxisTextStyle.FontSize.HasValue ||
+                Math.Abs(
+                    valueAxisTextStyle.FontSize.Value -
+                    10f) > 0.01f ||
+                !valueAxisTextStyle.Italic.HasValue ||
+                !valueAxisTextStyle.Italic.Value ||
+                valueAxisTextStyle.FontFamily != "Arial")
+            {
+                throw new InvalidOperationException(
+                    "Chart axis txPr text style was not parsed correctly.");
+            }
+
             ChartLineStyle categoryAxisStyle =
                 ReadChartAxisLineStyle(
                     chart,
@@ -346,9 +384,12 @@ namespace PptxViewer
                     1,
                     "column",
                     "high",
-                    1);
+                    1,
+                    categoryAxisTextStyle);
 
                 bool foundAbovePlot =
+                    false;
+                bool foundStyledCategoryColor =
                     false;
 
                 for (int y = 20;
@@ -371,15 +412,30 @@ namespace PptxViewer
                         {
                             foundAbovePlot =
                                 true;
+                        }
+
+                        if (pixel.B >
+                                pixel.R + 45 &&
+                            pixel.B >
+                                pixel.G + 20)
+                        {
+                            foundStyledCategoryColor =
+                                true;
+                        }
+
+                        if (foundAbovePlot &&
+                            foundStyledCategoryColor)
+                        {
                             break;
                         }
                     }
                 }
 
-                if (!foundAbovePlot)
+                if (!foundAbovePlot ||
+                    !foundStyledCategoryColor)
                 {
                     throw new InvalidOperationException(
-                        "Chart category tickLblPos=high did not move labels above the plot.");
+                        "Chart category tickLblPos=high or catAx txPr styling was not rendered.");
                 }
             }
 
