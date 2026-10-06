@@ -1,0 +1,100 @@
+name: Windows Framework Verification
+
+on:
+  push:
+    branches:
+      - main
+      - feature/office-foundation
+    paths:
+      - "src/**"
+      - "tools/**"
+      - "*.cmd"
+      - "PowerPointLite.exe.config"
+      - ".github/workflows/windows-framework-verification.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "tools/**"
+      - "*.cmd"
+      - "PowerPointLite.exe.config"
+      - ".github/workflows/windows-framework-verification.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Build and self-test on Windows
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show environment
+        shell: cmd
+        run: |
+          ver
+          echo WINDIR=%WINDIR%
+          if exist "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /version
+          if not exist "%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" if exist "%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe" "%WINDIR%\Microsoft.NET\Framework\v4.0.30319\csc.exe" /version
+
+      - name: Run pre-merge verification
+        shell: cmd
+        env:
+          PPLT_NO_PAUSE: "1"
+        run: RUN_PREMERGE_CHECKS.cmd
+
+      - name: Collect verification summary
+        if: always()
+        shell: powershell
+        run: |
+          $files = @(
+            "PowerPointLite.exe",
+            "TEST_WRITER_OUTPUT.pptx",
+            "TEST_RICHTEXT_OUTPUT.pptx",
+            "TEST_SVG_RENDER.png",
+            "PPTX_FIDELITY_SELFTEST_OUTPUT",
+            "ANIMATION_SELFTEST_OUTPUT",
+            "PDF_SELFTEST_OUTPUT",
+            "CONVERSION_SELFTEST_OUTPUT",
+            "DOCUMENT_SAFETY_SELFTEST_OUTPUT"
+          )
+          foreach ($item in $files) {
+            if (Test-Path $item) {
+              $entry = Get-Item $item
+              Write-Host ("[FOUND] {0}" -f $entry.FullName)
+            } else {
+              Write-Host ("[MISS]  {0}" -f $item)
+            }
+          }
+
+      - name: Upload portable executable
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PowerPointLite-windows-portable
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            PowerPointLite.exe
+            PowerPointLite.exe.config
+
+      - name: Upload fidelity diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PowerPointLite-verification-output
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            TEST_SVG_RENDER.png
+            PPTX_FIDELITY_SELFTEST_OUTPUT/**
+            ANIMATION_SELFTEST_OUTPUT/**
+            PDF_SELFTEST_OUTPUT/**
+            CONVERSION_SELFTEST_OUTPUT/**
+            DOCUMENT_SAFETY_SELFTEST_OUTPUT/**
