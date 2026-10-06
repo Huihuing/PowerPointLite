@@ -5713,6 +5713,10 @@ namespace PptxViewer
                         !string.Equals(
                             op,
                             "out",
+                            StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(
+                            op,
+                            "xor",
                             StringComparison.OrdinalIgnoreCase))
                     {
                         return false;
@@ -5772,6 +5776,10 @@ namespace PptxViewer
                      string.Equals(
                          blendMode,
                          "out",
+                         StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(
+                         blendMode,
+                         "xor",
                          StringComparison.OrdinalIgnoreCase)) &&
                     !secondIsChain)
                 {
@@ -6008,6 +6016,26 @@ namespace PptxViewer
                     StringComparison.OrdinalIgnoreCase))
             {
                 DrawSvgCompositeOutApproximation(
+                    g,
+                    path,
+                    offsetX,
+                    offsetY,
+                    hasSolidFill,
+                    fillAlpha,
+                    fill,
+                    strokeAlpha,
+                    stroke,
+                    strokeWidth);
+                return true;
+            }
+
+            if (blendSourceGraphic &&
+                string.Equals(
+                    blendMode,
+                    "xor",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                DrawSvgCompositeXorApproximation(
                     g,
                     path,
                     offsetX,
@@ -6486,6 +6514,141 @@ namespace PptxViewer
                                 g.DrawPath(
                                     pen,
                                     sourcePath);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        g.Restore(
+                            state);
+                    }
+                }
+            }
+        }
+
+        private static void DrawSvgCompositeXorApproximation(
+            Graphics g,
+            GraphicsPath sourcePath,
+            float offsetX,
+            float offsetY,
+            bool hasSolidFill,
+            int fillAlpha,
+            Color fill,
+            int strokeAlpha,
+            Color stroke,
+            float strokeWidth)
+        {
+            if (g == null ||
+                sourcePath == null ||
+                sourcePath.PointCount == 0)
+            {
+                return;
+            }
+
+            using (GraphicsPath shifted =
+                (GraphicsPath)sourcePath.Clone())
+            using (Matrix translation =
+                new Matrix())
+            {
+                translation.Translate(
+                    offsetX,
+                    offsetY);
+                shifted.Transform(
+                    translation);
+
+                using (Region sourceOnly =
+                    new Region(
+                        sourcePath))
+                using (Region shiftedOnly =
+                    new Region(
+                        shifted))
+                {
+                    sourceOnly.Exclude(
+                        shifted);
+                    shiftedOnly.Exclude(
+                        sourcePath);
+
+                    GraphicsState state =
+                        g.Save();
+
+                    try
+                    {
+                        g.SetClip(
+                            sourceOnly,
+                            CombineMode.Intersect);
+
+                        if (hasSolidFill &&
+                            fillAlpha > 0)
+                        {
+                            using (Brush brush =
+                                new SolidBrush(
+                                    Color.FromArgb(
+                                        fillAlpha,
+                                        fill)))
+                            {
+                                g.FillPath(
+                                    brush,
+                                    sourcePath);
+                            }
+                        }
+
+                        if (strokeAlpha > 0)
+                        {
+                            using (Pen pen =
+                                new Pen(
+                                    Color.FromArgb(
+                                        strokeAlpha,
+                                        stroke),
+                                    strokeWidth))
+                            {
+                                g.DrawPath(
+                                    pen,
+                                    sourcePath);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        g.Restore(
+                            state);
+                    }
+
+                    state =
+                        g.Save();
+
+                    try
+                    {
+                        g.SetClip(
+                            shiftedOnly,
+                            CombineMode.Intersect);
+
+                        if (hasSolidFill &&
+                            fillAlpha > 0)
+                        {
+                            using (Brush brush =
+                                new SolidBrush(
+                                    Color.FromArgb(
+                                        fillAlpha,
+                                        fill)))
+                            {
+                                g.FillPath(
+                                    brush,
+                                    shifted);
+                            }
+                        }
+
+                        if (strokeAlpha > 0)
+                        {
+                            using (Pen pen =
+                                new Pen(
+                                    Color.FromArgb(
+                                        strokeAlpha,
+                                        stroke),
+                                    strokeWidth))
+                            {
+                                g.DrawPath(
+                                    pen,
+                                    shifted);
                             }
                         }
                     }
