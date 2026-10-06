@@ -581,6 +581,68 @@ namespace PptxViewer
             return null;
         }
 
+        private static List<XmlNode> FindAll(
+            XmlNode node,
+            string localName)
+        {
+            List<XmlNode> result =
+                new List<XmlNode>();
+
+            CollectAll(
+                node,
+                localName,
+                result);
+
+            return result;
+        }
+
+        private static void CollectAll(
+            XmlNode node,
+            string localName,
+            List<XmlNode> result)
+        {
+            if (node == null ||
+                result == null)
+            {
+                return;
+            }
+
+            if (node.LocalName ==
+                localName)
+            {
+                result.Add(
+                    node);
+            }
+
+            for (int i = 0;
+                 i < node.ChildNodes.Count;
+                 i++)
+            {
+                CollectAll(
+                    node.ChildNodes[i],
+                    localName,
+                    result);
+            }
+        }
+
+        private static string GetAttr(
+            XmlNode node,
+            string name)
+        {
+            if (node == null ||
+                node.Attributes == null)
+            {
+                return null;
+            }
+
+            XmlAttribute attribute =
+                node.Attributes[name];
+
+            return attribute == null
+                ? null
+                : attribute.Value;
+        }
+
         private static void DeleteFile(string path)
         {
             try
