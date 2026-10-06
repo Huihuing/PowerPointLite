@@ -152,6 +152,7 @@ Microsoft PowerPoint (설치된 경우)
   - hierarchy parent-child 및 assistant connector를 직각 elbow routing으로 근사
   - process 같은 행은 node edge 연결, 행 전환 및 verticalProcess는 직각 elbow routing으로 근사
   - process multi-row 배치는 행별 실제 노드 수 기준 중앙 정렬 및 안정적인 row spacing 적용
+  - verticalProcess는 높이 cap 이후 전체 node stack을 영역 중앙에 재배치
   - 구조를 알 수 없는 경우 기존 static approximation으로 fallback
 - hyperlink / slide navigation / media extraction
 - speaker notes
