@@ -1551,6 +1551,49 @@ internal static partial class InternalPptxRenderer
             return 0.50f;
         }
 
+        private static XmlNode FindChartLevelDataLabels(
+            XmlDocument chartDoc)
+        {
+            if (chartDoc == null)
+                return null;
+
+            string[] chartNames =
+                new string[]
+                {
+                    "barChart",
+                    "lineChart",
+                    "pieChart",
+                    "doughnutChart",
+                    "areaChart",
+                    "scatterChart",
+                    "bubbleChart",
+                    "radarChart"
+                };
+
+            for (int i = 0;
+                 i < chartNames.Length;
+                 i++)
+            {
+                XmlNode chart =
+                    FindFirst(
+                        chartDoc,
+                        chartNames[i]);
+
+                if (chart == null)
+                    continue;
+
+                XmlNode labels =
+                    DirectChild(
+                        chart,
+                        "dLbls");
+
+                if (labels != null)
+                    return labels;
+            }
+
+            return null;
+        }
+
         private static ChartLabelOptions ReadChartLabelOptions(
             XmlDocument chartDoc)
         {
@@ -1558,11 +1601,8 @@ internal static partial class InternalPptxRenderer
                 new ChartLabelOptions();
 
             XmlNode labels =
-                chartDoc == null
-                    ? null
-                    : FindFirst(
-                        chartDoc,
-                        "dLbls");
+                FindChartLevelDataLabels(
+                    chartDoc);
 
             if (labels == null)
                 return result;
