@@ -21,9 +21,11 @@ namespace PptxViewer
             firstRun.Bold = true;
             firstRun.ColorHex = "356AE6";
 
-            DocumentParagraph second = document.AddParagraph(string.Empty);
-            DocumentTextRun korean = second.Runs[0];
-            korean.Text = "HWPX package create / read / edit / save test";
+            DocumentParagraph second =
+                document.AddParagraph(string.Empty);
+            DocumentTextRun korean =
+                second.AddRun(
+                    "HWPX package create / read / edit / save test");
             korean.FontFamily = "Arial";
             korean.FontSizePoints = 11f;
 
