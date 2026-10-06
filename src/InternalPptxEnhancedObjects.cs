@@ -2188,6 +2188,10 @@ namespace PptxViewer
                     brush.InterpolationColors =
                         blend;
 
+                    ApplySvgGradientSpreadMethod(
+                        brush,
+                        gradient);
+
                     ApplySvgGradientTransform(
                         brush,
                         gradient,
@@ -2276,6 +2280,10 @@ namespace PptxViewer
 
             linear.InterpolationColors =
                 blend;
+
+            ApplySvgGradientSpreadMethod(
+                linear,
+                gradient);
 
             ApplySvgGradientTransform(
                 linear,
@@ -3674,6 +3682,74 @@ namespace PptxViewer
                         matrix,
                         MatrixOrder.Append);
                 }
+            }
+        }
+
+        private static void ApplySvgGradientSpreadMethod(
+            Brush brush,
+            XmlNode gradient)
+        {
+            if (brush == null ||
+                gradient == null)
+            {
+                return;
+            }
+
+            string spread =
+                GetAttr(
+                    gradient,
+                    "spreadMethod");
+
+            if (string.IsNullOrEmpty(spread) ||
+                string.Equals(
+                    spread,
+                    "pad",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                LinearGradientBrush linearClamp =
+                    brush as LinearGradientBrush;
+
+                if (linearClamp != null)
+                {
+                    linearClamp.WrapMode =
+                        WrapMode.Clamp;
+                }
+
+                PathGradientBrush radialClamp =
+                    brush as PathGradientBrush;
+
+                if (radialClamp != null)
+                {
+                    radialClamp.WrapMode =
+                        WrapMode.Clamp;
+                }
+
+                return;
+            }
+
+            WrapMode mode =
+                string.Equals(
+                    spread,
+                    "reflect",
+                    StringComparison.OrdinalIgnoreCase)
+                    ? WrapMode.TileFlipXY
+                    : WrapMode.Tile;
+
+            LinearGradientBrush linear =
+                brush as LinearGradientBrush;
+
+            if (linear != null)
+            {
+                linear.WrapMode = mode;
+                return;
+            }
+
+            PathGradientBrush radial =
+                brush as PathGradientBrush;
+
+            if (radial != null)
+            {
+                radial.WrapMode = mode;
             }
         }
 

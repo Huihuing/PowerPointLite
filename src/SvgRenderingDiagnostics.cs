@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Xml;
@@ -27,7 +28,7 @@ namespace PptxViewer
             string svgText =
                 "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 120\">" +
                 "<defs>" +
-                "<linearGradient id=\"g\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\" gradientTransform=\"rotate(22 .5 .5)\">" +
+                "<linearGradient id=\"g\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\" spreadMethod=\"reflect\" gradientTransform=\"rotate(22 .5 .5)\">" +
                 "<stop offset=\"0%\" stop-color=\"#e84b4b\"/>" +
                 "<stop offset=\"50%\" stop-color=\"#f2c94c\"/>" +
                 "<stop offset=\"100%\" stop-color=\"#4b72e8\"/>" +
@@ -54,6 +55,43 @@ namespace PptxViewer
             XmlDocument document =
                 new XmlDocument();
             document.LoadXml(svgText);
+
+            XmlNode reflectedGradient =
+                FindSvgNodeById(
+                    document,
+                    "g");
+
+            using (Brush spreadBrush =
+                CreateSvgGradientBrush(
+                    reflectedGradient,
+                    document,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        200f,
+                        120f),
+                    new RectangleF(
+                        0f,
+                        0f,
+                        800f,
+                        480f),
+                    0f,
+                    0f,
+                    4f,
+                    4f,
+                    1f))
+            {
+                LinearGradientBrush reflected =
+                    spreadBrush as LinearGradientBrush;
+
+                if (reflected == null ||
+                    reflected.WrapMode !=
+                        WrapMode.TileFlipXY)
+                {
+                    throw new InvalidOperationException(
+                        "SVG reflect spreadMethod was not applied.");
+                }
+            }
 
             using (Bitmap bitmap =
                 new Bitmap(

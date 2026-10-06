@@ -51,6 +51,7 @@ Microsoft PowerPoint (설치된 경우)
   - clipPath 기본 geometry
   - translate / scale / rotate / matrix / skewX / skewY transform
   - gradientTransform의 matrix/translate/scale/rotate 기본 반영
+  - spreadMethod pad/repeat/reflect 기본 근사
   - pattern 기본 반복 fill 및 patternTransform
   - mask의 단순 geometry/luminance clip 근사
   - clipPathUnits="objectBoundingBox" 기본 반영
@@ -166,7 +167,7 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 - SmartArt 고유 layout algorithm
 - chart의 모든 axis/style/data-label/3D 조합
 - theme effect style 참조 전체 및 innerShadow/presetShadow 등 미지원 effect 조합
-- SVG filter 및 gradient spreadMethod, 복잡한 mask luminance/gradient 등 고급 SVG 기능
+- SVG filter 및 복잡한 mask luminance/gradient 등 고급 SVG 기능
 - blur/sharpen/artistic preset 등 고급 image artistic effects
 - 3D shape / bevel / material / lighting
 - custom geometry의 복잡한 nested guide 의존성, 모든 preset formula/adjust-handle semantics
