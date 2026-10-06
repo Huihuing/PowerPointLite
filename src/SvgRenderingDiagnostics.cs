@@ -51,6 +51,8 @@ namespace PptxViewer
                 "<rect id=\"shadowRect\" x=\"78\" y=\"8\" width=\"6\" height=\"8\" fill=\"#f5c842\" filter=\"url(#dropShadow)\"/>" +
                 "<rect id=\"offsetRect\" x=\"60\" y=\"2\" width=\"6\" height=\"6\" fill=\"#20b9c7\" filter=\"url(#offsetOnly)\"/>" +
                 "<line id=\"dashLine\" x1=\"100\" y1=\"4\" x2=\"132\" y2=\"4\" stroke=\"#111111\" stroke-width=\"2\" stroke-dasharray=\"4 3\" stroke-dashoffset=\"1\"/>" +
+                "<path id=\"nonzeroPath\" d=\"M 2 30 H 14 V 38 H 2 Z M 5 32 H 11 V 36 H 5 Z\" fill=\"#f28c28\" fill-rule=\"nonzero\"/>" +
+                "<path id=\"evenoddPath\" d=\"M 2 40 H 14 V 48 H 2 Z M 5 42 H 11 V 46 H 5 Z\" fill=\"#159a8c\" fill-rule=\"evenodd\"/>" +
                 "<path d=\"M 12 52 C 30 38 42 68 60 52 S 90 38 108 52 Q 126 70 142 52 T 184 52\" fill=\"none\" stroke=\"#6f42a8\" stroke-width=\"2\"/>" +
                 "<rect x=\"18\" y=\"66\" width=\"60\" height=\"42\" fill=\"url(#pat)\"/>" +
                 "<rect x=\"124\" y=\"64\" width=\"68\" height=\"48\" fill=\"#29b36b\" mask=\"url(#mask)\"/>" +
@@ -235,6 +237,59 @@ namespace PptxViewer
                 }
             }
 
+            XmlNode nonzeroNode =
+                FindSvgNodeById(
+                    document,
+                    "nonzeroPath");
+            XmlNode evenoddNode =
+                FindSvgNodeById(
+                    document,
+                    "evenoddPath");
+
+            using (GraphicsPath nonzeroGeometry =
+                BuildEnhancedSvgElementPath(
+                    nonzeroNode,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        800f,
+                        480f),
+                    0f,
+                    0f,
+                    4f,
+                    4f))
+            using (GraphicsPath evenoddGeometry =
+                BuildEnhancedSvgElementPath(
+                    evenoddNode,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        800f,
+                        480f),
+                    0f,
+                    0f,
+                    4f,
+                    4f))
+            {
+                ApplySvgFillRule(
+                    nonzeroGeometry,
+                    nonzeroNode);
+                ApplySvgFillRule(
+                    evenoddGeometry,
+                    evenoddNode);
+
+                if (nonzeroGeometry == null ||
+                    evenoddGeometry == null ||
+                    nonzeroGeometry.FillMode !=
+                        FillMode.Winding ||
+                    evenoddGeometry.FillMode !=
+                        FillMode.Alternate)
+                {
+                    throw new InvalidOperationException(
+                        "SVG fill-rule was not mapped to the expected GDI+ FillMode.");
+                }
+            }
+
             using (Bitmap bitmap =
                 new Bitmap(
                     800,
@@ -331,6 +386,38 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Nested transformed SVG clipPath geometry was not positioned correctly.");
+                }
+
+                Color nonzeroCenter =
+                    bitmap.GetPixel(
+                        32,
+                        136);
+                Color evenoddCenter =
+                    bitmap.GetPixel(
+                        32,
+                        176);
+
+                bool nonzeroFilled =
+                    nonzeroCenter.R >
+                        180 &&
+                    nonzeroCenter.G >
+                        70 &&
+                    nonzeroCenter.B <
+                        100;
+
+                bool evenoddHole =
+                    evenoddCenter.R >
+                        245 &&
+                    evenoddCenter.G >
+                        245 &&
+                    evenoddCenter.B >
+                        245;
+
+                if (!nonzeroFilled ||
+                    !evenoddHole)
+                {
+                    throw new InvalidOperationException(
+                        "SVG fill-rule nonzero/evenodd rendering did not preserve the expected inner region.");
                 }
 
                 int dashDarkSamples =

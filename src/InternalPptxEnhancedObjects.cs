@@ -1655,6 +1655,10 @@ namespace PptxViewer
                         continue;
                     }
 
+                    ApplySvgFillRule(
+                        path,
+                        node);
+
                     GraphicsState state = g.Save();
                     GraphicsPath clip = null;
                     GraphicsPath mask = null;
@@ -3692,6 +3696,31 @@ namespace PptxViewer
             }
 
             return true;
+        }
+
+        private static void ApplySvgFillRule(
+            GraphicsPath path,
+            XmlNode node)
+        {
+            if (path == null)
+            {
+                return;
+            }
+
+            string rule =
+                node == null
+                    ? null
+                    : GetSvgStyleInherited(
+                        node,
+                        "fill-rule");
+
+            path.FillMode =
+                string.Equals(
+                    rule,
+                    "evenodd",
+                    StringComparison.OrdinalIgnoreCase)
+                    ? FillMode.Alternate
+                    : FillMode.Winding;
         }
 
         private static bool ApplySvgStrokeDashPattern(
