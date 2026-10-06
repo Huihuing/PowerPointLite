@@ -2580,6 +2580,173 @@ namespace PptxViewer
                 }
             }
 
+            SmartNode processSource =
+                new SmartNode();
+            processSource.Id = "processSource";
+            processSource.Children.Add(
+                "processSameRow");
+            processSource.Children.Add(
+                "processNextRow");
+
+            SmartNode processSameRow =
+                new SmartNode();
+            processSameRow.Id = "processSameRow";
+
+            SmartNode processNextRow =
+                new SmartNode();
+            processNextRow.Id = "processNextRow";
+
+            List<SmartNode> processNodes =
+                new List<SmartNode>();
+            processNodes.Add(
+                processSource);
+            processNodes.Add(
+                processSameRow);
+            processNodes.Add(
+                processNextRow);
+
+            Dictionary<string, SmartNode> processNodeMap =
+                new Dictionary<string, SmartNode>(
+                    StringComparer.Ordinal);
+            processNodeMap[
+                processSource.Id] =
+                processSource;
+            processNodeMap[
+                processSameRow.Id] =
+                processSameRow;
+            processNodeMap[
+                processNextRow.Id] =
+                processNextRow;
+
+            Dictionary<string, RectangleF> processPositions =
+                new Dictionary<string, RectangleF>(
+                    StringComparer.Ordinal);
+            processPositions[
+                processSource.Id] =
+                new RectangleF(
+                    20f,
+                    20f,
+                    80f,
+                    40f);
+            processPositions[
+                processSameRow.Id] =
+                new RectangleF(
+                    140f,
+                    20f,
+                    80f,
+                    40f);
+            processPositions[
+                processNextRow.Id] =
+                new RectangleF(
+                    40f,
+                    120f,
+                    80f,
+                    40f);
+
+            using (Bitmap processConnectorBitmap =
+                new Bitmap(
+                    260,
+                    200,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics processConnectorGraphics =
+                Graphics.FromImage(
+                    processConnectorBitmap))
+            {
+                processConnectorGraphics.Clear(
+                    Color.White);
+
+                DrawSmartArtConnectors(
+                    processConnectorGraphics,
+                    "process",
+                    processNodes,
+                    processNodeMap,
+                    processPositions,
+                    new Color[]
+                    {
+                        Color.FromArgb(
+                            76,
+                            123,
+                            205)
+                    });
+
+                Color sameRowPixel =
+                    processConnectorBitmap.GetPixel(
+                        120,
+                        40);
+                Color nextRowElbowPixel =
+                    processConnectorBitmap.GetPixel(
+                        70,
+                        90);
+
+                bool sameRowVisible =
+                    sameRowPixel.R < 245 ||
+                    sameRowPixel.G < 245 ||
+                    sameRowPixel.B < 245;
+                bool elbowVisible =
+                    nextRowElbowPixel.R < 245 ||
+                    nextRowElbowPixel.G < 245 ||
+                    nextRowElbowPixel.B < 245;
+
+                if (!sameRowVisible ||
+                    !elbowVisible)
+                {
+                    throw new InvalidOperationException(
+                        "SmartArt process edge/elbow connector routing was not rendered.");
+                }
+
+                processConnectorGraphics.Clear(
+                    Color.White);
+
+                Dictionary<string, RectangleF> verticalPositions =
+                    new Dictionary<string, RectangleF>(
+                        StringComparer.Ordinal);
+                verticalPositions[
+                    processSource.Id] =
+                    new RectangleF(
+                        20f,
+                        20f,
+                        80f,
+                        40f);
+                verticalPositions[
+                    processSameRow.Id] =
+                    new RectangleF(
+                        140f,
+                        120f,
+                        80f,
+                        40f);
+
+                processSource.Children.Clear();
+                processSource.Children.Add(
+                    processSameRow.Id);
+
+                DrawSmartArtConnectors(
+                    processConnectorGraphics,
+                    "verticalProcess",
+                    processNodes,
+                    processNodeMap,
+                    verticalPositions,
+                    new Color[]
+                    {
+                        Color.FromArgb(
+                            76,
+                            123,
+                            205)
+                    });
+
+                Color verticalElbow =
+                    processConnectorBitmap.GetPixel(
+                        120,
+                        90);
+
+                if (verticalElbow.R >= 245 &&
+                    verticalElbow.G >= 245 &&
+                    verticalElbow.B >= 245)
+                {
+                    throw new InvalidOperationException(
+                        "SmartArt vertical-process elbow routing was not rendered.");
+                }
+            }
+
             string[] kinds =
                 new string[]
                 {
