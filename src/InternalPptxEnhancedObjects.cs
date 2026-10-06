@@ -1820,6 +1820,14 @@ namespace PptxViewer
                                 else if (lineJoin == "bevel")
                                     pen.LineJoin = LineJoin.Bevel;
 
+                                ApplySvgStrokeDashPattern(
+                                    pen,
+                                    node,
+                                    target,
+                                    sx,
+                                    sy,
+                                    strokeWidth);
+
                                 g.DrawPath(
                                     pen,
                                     renderPath);
@@ -3684,6 +3692,225 @@ namespace PptxViewer
             }
 
             return true;
+        }
+
+        private static bool ApplySvgStrokeDashPattern(
+            Pen pen,
+            XmlNode node,
+            RectangleF target,
+            float sx,
+            float sy,
+            float strokeWidth)
+        {
+            if (pen == null ||
+                node == null ||
+                strokeWidth <= 0f)
+            {
+                return false;
+            }
+
+            string raw =
+                GetSvgStyleInherited(
+                    node,
+                    "stroke-dasharray");
+
+            if (string.IsNullOrEmpty(raw) ||
+                string.Equals(
+                    raw.Trim(),
+                    "none",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            string[] tokens =
+                raw.Replace(
+                    ',',
+                    ' ')
+                .Split(
+                    new char[]
+                    {
+                        ' ',
+                        '\t',
+                        '\r',
+                        '\n'
+                    },
+                    StringSplitOptions.RemoveEmptyEntries);
+
+            if (tokens.Length == 0)
+            {
+                return false;
+            }
+
+            float scale =
+                Math.Max(
+                    0.0001f,
+                    Math.Min(
+                        Math.Abs(sx),
+                        Math.Abs(sy)));
+
+            float normalizedDiagonal =
+                (float)(
+                    Math.Sqrt(
+                        target.Width *
+                        target.Width +
+                        target.Height *
+                        target.Height) /
+                    Math.Sqrt(2.0));
+
+            List<float> values =
+                new List<float>();
+
+            for (int i = 0;
+                 i < tokens.Length;
+                 i++)
+            {
+                string token =
+                    tokens[i].Trim();
+
+                if (token.Length == 0)
+                    continue;
+
+                float pixels;
+
+                if (token.EndsWith(
+                        "%",
+                        StringComparison.Ordinal))
+                {
+                    float percent =
+                        ParseSvgFloat(
+                            token.Substring(
+                                0,
+                                token.Length - 1),
+                            -1f);
+
+                    if (percent < 0f)
+                        return false;
+
+                    pixels =
+                        normalizedDiagonal *
+                        percent /
+                        100f;
+                }
+                else
+                {
+                    if (token.EndsWith(
+                            "px",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        token =
+                            token.Substring(
+                                0,
+                                token.Length - 2);
+                    }
+
+                    float logical =
+                        ParseSvgFloat(
+                            token,
+                            -1f);
+
+                    if (logical < 0f)
+                        return false;
+
+                    pixels =
+                        logical *
+                        scale;
+                }
+
+                values.Add(
+                    Math.Max(
+                        0.05f,
+                        pixels /
+                        strokeWidth));
+            }
+
+            if (values.Count == 0)
+            {
+                return false;
+            }
+
+            int sourceCount =
+                values.Count;
+
+            if ((sourceCount % 2) != 0)
+            {
+                for (int i = 0;
+                     i < sourceCount;
+                     i++)
+                {
+                    values.Add(
+                        values[i]);
+                }
+            }
+
+            try
+            {
+                pen.DashStyle =
+                    DashStyle.Custom;
+                pen.DashPattern =
+                    values.ToArray();
+
+                string rawOffset =
+                    GetSvgStyleInherited(
+                        node,
+                        "stroke-dashoffset");
+
+                if (!string.IsNullOrEmpty(
+                        rawOffset))
+                {
+                    rawOffset =
+                        rawOffset.Trim();
+
+                    float offsetPixels;
+
+                    if (rawOffset.EndsWith(
+                            "%",
+                            StringComparison.Ordinal))
+                    {
+                        float percent =
+                            ParseSvgFloat(
+                                rawOffset.Substring(
+                                    0,
+                                    rawOffset.Length - 1),
+                                0f);
+
+                        offsetPixels =
+                            normalizedDiagonal *
+                            percent /
+                            100f;
+                    }
+                    else
+                    {
+                        if (rawOffset.EndsWith(
+                                "px",
+                                StringComparison.OrdinalIgnoreCase))
+                        {
+                            rawOffset =
+                                rawOffset.Substring(
+                                    0,
+                                    rawOffset.Length - 2);
+                        }
+
+                        offsetPixels =
+                            ParseSvgFloat(
+                                rawOffset,
+                                0f) *
+                            scale;
+                    }
+
+                    pen.DashOffset =
+                        offsetPixels /
+                        strokeWidth;
+                }
+
+                return true;
+            }
+            catch
+            {
+                pen.DashStyle =
+                    DashStyle.Solid;
+                return false;
+            }
         }
 
         private static bool TryReadStandaloneSvgOffset(

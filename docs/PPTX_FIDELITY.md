@@ -60,6 +60,7 @@ Microsoft PowerPoint (설치된 경우)
   - mask의 단순 geometry/luminance clip 근사
   - clipPathUnits="objectBoundingBox" 기본 반영
   - clipPath/mask 내부 nested group/geometry transform 누적 반영
+  - stroke-dasharray / stroke-dashoffset 기본 점선 패턴 반영
   - filter="url(#...)"의 단일 feGaussianBlur(SourceGraphic) stdDeviation 기본 근사
   - 단일 feDropShadow(SourceGraphic)의 dx/dy/stdDeviation/flood-color/flood-opacity 기본 근사
   - 단일 feOffset(SourceGraphic)의 dx/dy 이동 기본 근사

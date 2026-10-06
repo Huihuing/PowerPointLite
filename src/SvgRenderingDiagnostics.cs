@@ -50,6 +50,7 @@ namespace PptxViewer
                 "<rect id=\"blurRect\" x=\"88\" y=\"14\" width=\"24\" height=\"18\" fill=\"#d62728\" filter=\"url(#softBlur)\"/>" +
                 "<rect id=\"shadowRect\" x=\"78\" y=\"8\" width=\"6\" height=\"8\" fill=\"#f5c842\" filter=\"url(#dropShadow)\"/>" +
                 "<rect id=\"offsetRect\" x=\"60\" y=\"2\" width=\"6\" height=\"6\" fill=\"#20b9c7\" filter=\"url(#offsetOnly)\"/>" +
+                "<line id=\"dashLine\" x1=\"100\" y1=\"4\" x2=\"132\" y2=\"4\" stroke=\"#111111\" stroke-width=\"2\" stroke-dasharray=\"4 3\" stroke-dashoffset=\"1\"/>" +
                 "<path d=\"M 12 52 C 30 38 42 68 60 52 S 90 38 108 52 Q 126 70 142 52 T 184 52\" fill=\"none\" stroke=\"#6f42a8\" stroke-width=\"2\"/>" +
                 "<rect x=\"18\" y=\"66\" width=\"60\" height=\"42\" fill=\"url(#pat)\"/>" +
                 "<rect x=\"124\" y=\"64\" width=\"68\" height=\"48\" fill=\"#29b36b\" mask=\"url(#mask)\"/>" +
@@ -193,6 +194,47 @@ namespace PptxViewer
                     "SVG feOffset parameters were not parsed correctly.");
             }
 
+            XmlNode dashLine =
+                FindSvgNodeById(
+                    document,
+                    "dashLine");
+
+            using (Pen dashPen =
+                new Pen(
+                    Color.Black,
+                    8f))
+            {
+                if (!ApplySvgStrokeDashPattern(
+                        dashPen,
+                        dashLine,
+                        new RectangleF(
+                            0f,
+                            0f,
+                            800f,
+                            480f),
+                        4f,
+                        4f,
+                        8f) ||
+                    dashPen.DashStyle !=
+                        DashStyle.Custom ||
+                    dashPen.DashPattern == null ||
+                    dashPen.DashPattern.Length !=
+                        2 ||
+                    Math.Abs(
+                        dashPen.DashPattern[0] -
+                        2f) > 0.05f ||
+                    Math.Abs(
+                        dashPen.DashPattern[1] -
+                        1.5f) > 0.05f ||
+                    Math.Abs(
+                        dashPen.DashOffset -
+                        0.5f) > 0.05f)
+                {
+                    throw new InvalidOperationException(
+                        "SVG stroke dash pattern was not configured correctly.");
+                }
+            }
+
             using (Bitmap bitmap =
                 new Bitmap(
                     800,
@@ -289,6 +331,41 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Nested transformed SVG clipPath geometry was not positioned correctly.");
+                }
+
+                int dashDarkSamples =
+                    0;
+                int dashLightSamples =
+                    0;
+
+                for (int x = 400;
+                     x <= 528;
+                     x += 2)
+                {
+                    Color dashPixel =
+                        bitmap.GetPixel(
+                            x,
+                            16);
+
+                    if (dashPixel.R < 100 &&
+                        dashPixel.G < 100 &&
+                        dashPixel.B < 100)
+                    {
+                        dashDarkSamples++;
+                    }
+                    else if (dashPixel.R > 240 &&
+                        dashPixel.G > 240 &&
+                        dashPixel.B > 240)
+                    {
+                        dashLightSamples++;
+                    }
+                }
+
+                if (dashDarkSamples < 8 ||
+                    dashLightSamples < 6)
+                {
+                    throw new InvalidOperationException(
+                        "SVG stroke-dasharray did not render visible dash and gap segments.");
                 }
 
                 Color originalOffsetPosition =
