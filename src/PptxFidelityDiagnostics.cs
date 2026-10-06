@@ -648,7 +648,7 @@ namespace PptxViewer
                     : "CC5533";
 
             xml.Append(
-                "<c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"");
+                "<c:spPr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:solidFill><a:srgbClr val=\"");
             xml.Append(color);
             xml.Append(
                 "\"/></a:solidFill><a:ln w=\"38100\"><a:prstDash val=\"dash\"/></a:ln></c:spPr>");
