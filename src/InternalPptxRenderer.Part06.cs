@@ -150,8 +150,16 @@ internal static partial class InternalPptxRenderer
                     series.Add(data);
             }
 
+            Color chartBackground =
+                ReadChartAreaFill(
+                    chartDoc,
+                    theme,
+                    "chartSpace",
+                    Color.White);
+
             using (Brush bg =
-                new SolidBrush(Color.White))
+                new SolidBrush(
+                    chartBackground))
             {
                 g.FillRectangle(bg, rect);
             }
@@ -332,6 +340,22 @@ internal static partial class InternalPptxRenderer
                         rect.Bottom -
                             plotTop -
                             bottomPad));
+
+            Color plotBackground =
+                ReadChartAreaFill(
+                    chartDoc,
+                    theme,
+                    "plotArea",
+                    chartBackground);
+
+            using (Brush plotBrush =
+                new SolidBrush(
+                    plotBackground))
+            {
+                g.FillRectangle(
+                    plotBrush,
+                    plot);
+            }
 
             Color[] palette =
                 new Color[]
@@ -2385,6 +2409,50 @@ internal static partial class InternalPptxRenderer
                     }
                 }
             }
+        }
+
+        private static Color ReadChartAreaFill(
+            XmlDocument chartDoc,
+            Dictionary<string, Color> theme,
+            string areaName,
+            Color fallback)
+        {
+            if (chartDoc == null ||
+                string.IsNullOrEmpty(
+                    areaName))
+            {
+                return fallback;
+            }
+
+            XmlNode area =
+                string.Equals(
+                    areaName,
+                    "chartSpace",
+                    StringComparison.Ordinal)
+                    ? chartDoc.DocumentElement
+                    : FindFirst(
+                        chartDoc,
+                        areaName);
+
+            if (area == null)
+                return fallback;
+
+            XmlNode shapeProperties =
+                DirectChild(
+                    area,
+                    "spPr");
+
+            if (shapeProperties == null)
+                return fallback;
+
+            Color? fill =
+                ReadSolidFill(
+                    shapeProperties,
+                    theme);
+
+            return fill.HasValue
+                ? fill.Value
+                : fallback;
         }
 
         private static Color ThemeOrDefault(
