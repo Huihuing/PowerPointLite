@@ -219,13 +219,37 @@ namespace PptxViewer
                         "Nested transformed SVG clipPath geometry was not positioned correctly.");
                 }
 
-                Color blurHalo =
-                    bitmap.GetPixel(
-                        340,
-                        92);
+                bool foundBlurHalo =
+                    false;
 
-                if (blurHalo.G > 247 &&
-                    blurHalo.B > 247)
+                for (int y = 76;
+                     y <= 112 &&
+                     !foundBlurHalo;
+                     y += 4)
+                {
+                    for (int x = 336;
+                         x < 352;
+                         x += 2)
+                    {
+                        Color blurHalo =
+                            bitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (blurHalo.R -
+                                blurHalo.G >= 3 &&
+                            blurHalo.R -
+                                blurHalo.B >= 3 &&
+                            blurHalo.G < 253)
+                        {
+                            foundBlurHalo =
+                                true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!foundBlurHalo)
                 {
                     throw new InvalidOperationException(
                         "SVG feGaussianBlur approximation did not render outside the source geometry.");
