@@ -293,12 +293,12 @@ namespace PptxViewer
 
                 Color originalOffsetPosition =
                     bitmap.GetPixel(
-                        252,
-                        20);
+                        244,
+                        12);
                 Color shiftedOffsetPosition =
                     bitmap.GetPixel(
-                        264,
-                        32);
+                        272,
+                        40);
 
                 bool originalLooksEmpty =
                     originalOffsetPosition.R >
