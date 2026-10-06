@@ -158,5 +158,20 @@ exit /b 0
 :failed
 echo.
 echo ONE OR MORE STRUCTURAL SELF-TESTS FAILED.
+call :showlog
 if not defined PPLT_NO_PAUSE pause
 exit /b 1
+
+:showlog
+set "PPLT_LOG=%LOCALAPPDATA%\PptxViewer\logs\last-startup.log"
+if exist "%PPLT_LOG%" (
+  echo.
+  echo ---------- PowerPointLite diagnostic log ----------
+  type "%PPLT_LOG%"
+  echo ---------- end diagnostic log --------------------
+  echo.
+) else (
+  echo Diagnostic log was not found at:
+  echo %PPLT_LOG%
+)
+exit /b 0
