@@ -861,24 +861,45 @@ namespace PptxViewer
             {
                 XmlNode relIds = FindFirst(frame, "relIds");
                 string dataRid = null;
+                string layoutRid = null;
+
                 if (relIds != null && relIds.Attributes != null)
                 {
                     for (int i = 0; i < relIds.Attributes.Count; i++)
                     {
                         XmlAttribute attribute = relIds.Attributes[i];
+
                         if (attribute.LocalName == "dm")
-                        {
                             dataRid = attribute.Value;
-                            break;
-                        }
+                        else if (attribute.LocalName == "lo")
+                            layoutRid = attribute.Value;
                     }
                 }
 
-                if (!string.IsNullOrEmpty(dataRid) && rels.ContainsKey(dataRid))
+                if (!string.IsNullOrEmpty(dataRid) &&
+                    rels.ContainsKey(dataRid))
                 {
-                    XmlDocument dataDoc = LoadXml(zip, rels[dataRid]);
-                    if (dataDoc != null && DrawStructuredSmartArt(g, dataDoc, rect, theme))
+                    XmlDocument dataDoc =
+                        LoadXml(zip, rels[dataRid]);
+
+                    XmlDocument layoutDoc = null;
+                    if (!string.IsNullOrEmpty(layoutRid) &&
+                        rels.ContainsKey(layoutRid))
+                    {
+                        layoutDoc =
+                            LoadXml(zip, rels[layoutRid]);
+                    }
+
+                    if (dataDoc != null &&
+                        DrawStructuredSmartArt(
+                            g,
+                            dataDoc,
+                            layoutDoc,
+                            rect,
+                            theme))
+                    {
                         return;
+                    }
                 }
             }
 
@@ -1271,160 +1292,913 @@ namespace PptxViewer
         private static bool DrawStructuredSmartArt(
             Graphics g,
             XmlDocument dataDoc,
+            XmlDocument layoutDoc,
             RectangleF rect,
             Dictionary<string, Color> theme)
         {
-            List<XmlNode> points = FindAll(dataDoc, "pt");
-            List<XmlNode> connections = FindAll(dataDoc, "cxn");
+            List<XmlNode> points =
+                FindAll(dataDoc, "pt");
+            List<XmlNode> connections =
+                FindAll(dataDoc, "cxn");
+
             Dictionary<string, SmartNode> nodes =
-                new Dictionary<string, SmartNode>(StringComparer.Ordinal);
-            HashSet<string> incoming = new HashSet<string>(StringComparer.Ordinal);
+                new Dictionary<string, SmartNode>(
+                    StringComparer.Ordinal);
+            List<SmartNode> orderedNodes =
+                new List<SmartNode>();
+            HashSet<string> incoming =
+                new HashSet<string>(
+                    StringComparer.Ordinal);
 
             for (int i = 0; i < points.Count; i++)
             {
-                string id = GetAttr(points[i], "modelId");
+                string id =
+                    GetAttr(
+                        points[i],
+                        "modelId");
+
                 if (string.IsNullOrEmpty(id))
                     continue;
 
-                string type = GetAttr(points[i], "type");
-                if (type == "doc" || type == "asst")
-                    continue;
+                string type =
+                    GetAttr(
+                        points[i],
+                        "type");
 
-                SmartNode node = new SmartNode();
+                if (type == "doc" ||
+                    type == "asst")
+                {
+                    continue;
+                }
+
+                SmartNode node =
+                    new SmartNode();
                 node.Id = id;
-                node.Label = ReadSmartArtLabel(points[i]);
-                if (string.IsNullOrEmpty(node.Label))
+                node.Label =
+                    ReadSmartArtLabel(
+                        points[i]);
+
+                if (string.IsNullOrEmpty(
+                        node.Label))
+                {
                     node.Label = "•";
+                }
+
                 nodes[id] = node;
+                orderedNodes.Add(node);
             }
 
-            for (int i = 0; i < connections.Count; i++)
+            for (int i = 0;
+                 i < connections.Count;
+                 i++)
             {
-                string source = GetAttr(connections[i], "srcId");
-                string destination = GetAttr(connections[i], "destId");
-                if (string.IsNullOrEmpty(source) || string.IsNullOrEmpty(destination) ||
-                    !nodes.ContainsKey(source) || !nodes.ContainsKey(destination) ||
-                    source == destination)
-                    continue;
+                string source =
+                    GetAttr(
+                        connections[i],
+                        "srcId");
+                string destination =
+                    GetAttr(
+                        connections[i],
+                        "destId");
 
-                if (!nodes[source].Children.Contains(destination))
-                    nodes[source].Children.Add(destination);
-                incoming.Add(destination);
+                if (string.IsNullOrEmpty(source) ||
+                    string.IsNullOrEmpty(destination) ||
+                    !nodes.ContainsKey(source) ||
+                    !nodes.ContainsKey(destination) ||
+                    source == destination)
+                {
+                    continue;
+                }
+
+                if (!nodes[source].Children.Contains(
+                        destination))
+                {
+                    nodes[source].Children.Add(
+                        destination);
+                }
+
+                incoming.Add(
+                    destination);
             }
 
-            if (nodes.Count < 2 || connections.Count == 0)
+            if (nodes.Count < 2)
                 return false;
 
-            List<SmartNode> roots = new List<SmartNode>();
-            foreach (KeyValuePair<string, SmartNode> pair in nodes)
+            List<SmartNode> roots =
+                new List<SmartNode>();
+
+            for (int i = 0;
+                 i < orderedNodes.Count;
+                 i++)
             {
-                if (!incoming.Contains(pair.Key))
-                    roots.Add(pair.Value);
-            }
-            if (roots.Count == 0)
-            {
-                foreach (KeyValuePair<string, SmartNode> pair in nodes)
+                if (!incoming.Contains(
+                        orderedNodes[i].Id))
                 {
-                    roots.Add(pair.Value);
-                    break;
+                    roots.Add(
+                        orderedNodes[i]);
                 }
             }
 
-            Queue<SmartNode> queue = new Queue<SmartNode>();
-            HashSet<string> visited = new HashSet<string>(StringComparer.Ordinal);
-            for (int i = 0; i < roots.Count; i++)
+            if (roots.Count == 0 &&
+                orderedNodes.Count > 0)
+            {
+                roots.Add(
+                    orderedNodes[0]);
+            }
+
+            Queue<SmartNode> queue =
+                new Queue<SmartNode>();
+            HashSet<string> visited =
+                new HashSet<string>(
+                    StringComparer.Ordinal);
+
+            for (int i = 0;
+                 i < roots.Count;
+                 i++)
             {
                 roots[i].Depth = 0;
-                queue.Enqueue(roots[i]);
+                queue.Enqueue(
+                    roots[i]);
             }
 
             while (queue.Count > 0)
             {
-                SmartNode current = queue.Dequeue();
-                if (!visited.Add(current.Id))
+                SmartNode current =
+                    queue.Dequeue();
+
+                if (!visited.Add(
+                        current.Id))
+                {
                     continue;
-                for (int i = 0; i < current.Children.Count; i++)
+                }
+
+                for (int i = 0;
+                     i < current.Children.Count;
+                     i++)
                 {
                     SmartNode child;
-                    if (!nodes.TryGetValue(current.Children[i], out child))
+                    if (!nodes.TryGetValue(
+                            current.Children[i],
+                            out child))
+                    {
                         continue;
-                    child.Depth = Math.Max(child.Depth, current.Depth + 1);
-                    queue.Enqueue(child);
+                    }
+
+                    child.Depth =
+                        Math.Max(
+                            child.Depth,
+                            current.Depth + 1);
+
+                    queue.Enqueue(
+                        child);
                 }
             }
 
             int maxDepth = 0;
-            foreach (KeyValuePair<string, SmartNode> pair in nodes)
-                maxDepth = Math.Max(maxDepth, pair.Value.Depth);
+            for (int i = 0;
+                 i < orderedNodes.Count;
+                 i++)
+            {
+                maxDepth =
+                    Math.Max(
+                        maxDepth,
+                        orderedNodes[i].Depth);
+            }
+
+            string layoutKind =
+                ReadSmartArtLayoutKind(
+                    layoutDoc);
 
             Dictionary<string, RectangleF> positions =
-                new Dictionary<string, RectangleF>(StringComparer.Ordinal);
-            for (int depth = 0; depth <= maxDepth; depth++)
+                BuildSmartArtPositions(
+                    layoutKind,
+                    orderedNodes,
+                    rect,
+                    maxDepth);
+
+            if (positions.Count == 0)
+                return false;
+
+            Color[] palette =
+                EnhancedChartPalette(
+                    theme);
+
+            DrawSmartArtConnectors(
+                g,
+                layoutKind,
+                orderedNodes,
+                nodes,
+                positions,
+                palette);
+
+            for (int i = 0;
+                 i < orderedNodes.Count;
+                 i++)
             {
-                List<SmartNode> level = new List<SmartNode>();
-                foreach (KeyValuePair<string, SmartNode> pair in nodes)
-                {
-                    if (pair.Value.Depth == depth)
-                        level.Add(pair.Value);
-                }
-                if (level.Count == 0) continue;
+                SmartNode node =
+                    orderedNodes[i];
 
-                float columnWidth = rect.Width / Math.Max(1, level.Count);
-                float rowHeight = rect.Height / Math.Max(1, maxDepth + 1);
-                float boxW = Math.Max(42f, columnWidth * 0.72f);
-                float boxH = Math.Max(28f, rowHeight * 0.52f);
-
-                for (int i = 0; i < level.Count; i++)
-                {
-                    float x = rect.Left + i * columnWidth + (columnWidth - boxW) / 2f;
-                    float y = rect.Top + depth * rowHeight + (rowHeight - boxH) / 2f;
-                    positions[level[i].Id] = new RectangleF(x, y, boxW, boxH);
-                }
-            }
-
-            Color accent = ThemeOrDefault(theme, "accent1", Color.FromArgb(79,129,189));
-            using (Pen connector = new Pen(Color.FromArgb(120, accent), 1.6f))
-            {
-                foreach (KeyValuePair<string, SmartNode> pair in nodes)
-                {
-                    RectangleF source;
-                    if (!positions.TryGetValue(pair.Key, out source)) continue;
-                    for (int i = 0; i < pair.Value.Children.Count; i++)
-                    {
-                        RectangleF destination;
-                        if (!positions.TryGetValue(pair.Value.Children[i], out destination)) continue;
-                        g.DrawLine(connector,
-                            source.Left + source.Width / 2f,
-                            source.Bottom,
-                            destination.Left + destination.Width / 2f,
-                            destination.Top);
-                    }
-                }
-            }
-
-            foreach (KeyValuePair<string, SmartNode> pair in nodes)
-            {
                 RectangleF box;
-                if (!positions.TryGetValue(pair.Key, out box)) continue;
-                using (GraphicsPath path = RoundedRectanglePath(box, Math.Min(10f, box.Height * 0.22f)))
-                using (Brush fill = new SolidBrush(Color.FromArgb(235, 242, 251)))
-                using (Pen border = new Pen(accent, 1.4f))
+                if (!positions.TryGetValue(
+                        node.Id,
+                        out box))
                 {
-                    g.FillPath(fill, path);
-                    g.DrawPath(border, path);
+                    continue;
                 }
-                using (Font font = SafeFont("Arial", Math.Max(7f, Math.Min(12f, box.Height / 4f)), FontStyle.Regular))
-                using (Brush text = new SolidBrush(Color.FromArgb(45, 50, 58)))
-                using (StringFormat sf = new StringFormat())
+
+                Color accent =
+                    palette[
+                        Math.Abs(
+                            node.Depth) %
+                        palette.Length];
+
+                Color fill =
+                    LightenSmartArtColor(
+                        accent,
+                        0.82f);
+
+                using (GraphicsPath path =
+                    layoutKind == "cycle"
+                        ? EllipsePath(box)
+                        : RoundedRectanglePath(
+                            box,
+                            Math.Min(
+                                12f,
+                                box.Height *
+                                0.24f)))
+                using (Brush fillBrush =
+                    new SolidBrush(fill))
+                using (Pen border =
+                    new Pen(
+                        accent,
+                        1.6f))
                 {
-                    sf.Alignment = StringAlignment.Center;
-                    sf.LineAlignment = StringAlignment.Center;
-                    sf.Trimming = StringTrimming.EllipsisCharacter;
-                    g.DrawString(pair.Value.Label, font, text, box, sf);
+                    g.FillPath(
+                        fillBrush,
+                        path);
+                    g.DrawPath(
+                        border,
+                        path);
+                }
+
+                using (Font font = SafeFont(
+                    "Arial",
+                    Math.Max(
+                        7f,
+                        Math.Min(
+                            13f,
+                            box.Height /
+                            4.2f)),
+                    node.Depth == 0
+                        ? FontStyle.Bold
+                        : FontStyle.Regular))
+                using (Brush text =
+                    new SolidBrush(
+                        Color.FromArgb(
+                            42,
+                            47,
+                            56)))
+                using (StringFormat sf =
+                    new StringFormat())
+                {
+                    sf.Alignment =
+                        StringAlignment.Center;
+                    sf.LineAlignment =
+                        StringAlignment.Center;
+                    sf.Trimming =
+                        StringTrimming.EllipsisCharacter;
+
+                    g.DrawString(
+                        node.Label,
+                        font,
+                        text,
+                        box,
+                        sf);
                 }
             }
 
             return true;
+        }
+
+        private static string ReadSmartArtLayoutKind(
+            XmlDocument layoutDoc)
+        {
+            if (layoutDoc == null ||
+                layoutDoc.DocumentElement == null)
+            {
+                return "hierarchy";
+            }
+
+            string text =
+                layoutDoc.OuterXml
+                    .ToLowerInvariant();
+
+            if (text.IndexOf("cycle") >= 0 ||
+                text.IndexOf("circular") >= 0)
+            {
+                return "cycle";
+            }
+
+            if (text.IndexOf("pyramid") >= 0)
+                return "pyramid";
+
+            if (text.IndexOf("matrix") >= 0 ||
+                text.IndexOf("grid") >= 0)
+            {
+                return "matrix";
+            }
+
+            if (text.IndexOf("process") >= 0 ||
+                text.IndexOf("chevron") >= 0)
+            {
+                return "process";
+            }
+
+            if (text.IndexOf("hierarchy") >= 0 ||
+                text.IndexOf("orgchart") >= 0 ||
+                text.IndexOf("organization") >= 0)
+            {
+                return "hierarchy";
+            }
+
+            return "hierarchy";
+        }
+
+        private static Dictionary<string, RectangleF>
+            BuildSmartArtPositions(
+                string layoutKind,
+                List<SmartNode> nodes,
+                RectangleF rect,
+                int maxDepth)
+        {
+            if (layoutKind == "cycle")
+            {
+                return BuildCycleSmartArtPositions(
+                    nodes,
+                    rect);
+            }
+
+            if (layoutKind == "process")
+            {
+                return BuildProcessSmartArtPositions(
+                    nodes,
+                    rect);
+            }
+
+            if (layoutKind == "matrix")
+            {
+                return BuildMatrixSmartArtPositions(
+                    nodes,
+                    rect);
+            }
+
+            if (layoutKind == "pyramid")
+            {
+                return BuildPyramidSmartArtPositions(
+                    nodes,
+                    rect);
+            }
+
+            return BuildHierarchySmartArtPositions(
+                nodes,
+                rect,
+                maxDepth);
+        }
+
+        private static Dictionary<string, RectangleF>
+            BuildHierarchySmartArtPositions(
+                List<SmartNode> nodes,
+                RectangleF rect,
+                int maxDepth)
+        {
+            Dictionary<string, RectangleF> positions =
+                new Dictionary<string, RectangleF>(
+                    StringComparer.Ordinal);
+
+            int rows =
+                Math.Max(
+                    1,
+                    maxDepth + 1);
+
+            float rowHeight =
+                rect.Height /
+                rows;
+
+            for (int depth = 0;
+                 depth < rows;
+                 depth++)
+            {
+                List<SmartNode> level =
+                    new List<SmartNode>();
+
+                for (int i = 0;
+                     i < nodes.Count;
+                     i++)
+                {
+                    if (nodes[i].Depth == depth)
+                        level.Add(nodes[i]);
+                }
+
+                if (level.Count == 0)
+                    continue;
+
+                float columnWidth =
+                    rect.Width /
+                    level.Count;
+
+                float boxW =
+                    Math.Max(
+                        52f,
+                        columnWidth *
+                        0.72f);
+
+                float boxH =
+                    Math.Max(
+                        30f,
+                        rowHeight *
+                        0.52f);
+
+                for (int i = 0;
+                     i < level.Count;
+                     i++)
+                {
+                    float x =
+                        rect.Left +
+                        i * columnWidth +
+                        (columnWidth -
+                         boxW) /
+                        2f;
+
+                    float y =
+                        rect.Top +
+                        depth * rowHeight +
+                        (rowHeight -
+                         boxH) /
+                        2f;
+
+                    positions[
+                        level[i].Id] =
+                        new RectangleF(
+                            x,
+                            y,
+                            boxW,
+                            boxH);
+                }
+            }
+
+            return positions;
+        }
+
+        private static Dictionary<string, RectangleF>
+            BuildProcessSmartArtPositions(
+                List<SmartNode> nodes,
+                RectangleF rect)
+        {
+            Dictionary<string, RectangleF> positions =
+                new Dictionary<string, RectangleF>(
+                    StringComparer.Ordinal);
+
+            int count =
+                Math.Max(
+                    1,
+                    nodes.Count);
+
+            int columns =
+                Math.Min(
+                    5,
+                    count);
+
+            int rows =
+                (int)Math.Ceiling(
+                    count /
+                    (double)columns);
+
+            float gap =
+                Math.Max(
+                    8f,
+                    Math.Min(
+                        rect.Width,
+                        rect.Height) *
+                    0.025f);
+
+            float cellW =
+                Math.Max(
+                    40f,
+                    (rect.Width -
+                     gap * (columns + 1)) /
+                    columns);
+
+            float cellH =
+                Math.Max(
+                    28f,
+                    (rect.Height -
+                     gap * (rows + 1)) /
+                    rows);
+
+            for (int i = 0;
+                 i < nodes.Count;
+                 i++)
+            {
+                int row =
+                    i /
+                    columns;
+                int column =
+                    i %
+                    columns;
+
+                positions[
+                    nodes[i].Id] =
+                    new RectangleF(
+                        rect.Left +
+                            gap +
+                            column *
+                            (cellW + gap),
+                        rect.Top +
+                            gap +
+                            row *
+                            (cellH + gap),
+                        cellW,
+                        cellH);
+            }
+
+            return positions;
+        }
+
+        private static Dictionary<string, RectangleF>
+            BuildCycleSmartArtPositions(
+                List<SmartNode> nodes,
+                RectangleF rect)
+        {
+            Dictionary<string, RectangleF> positions =
+                new Dictionary<string, RectangleF>(
+                    StringComparer.Ordinal);
+
+            if (nodes.Count == 0)
+                return positions;
+
+            float boxW =
+                Math.Max(
+                    54f,
+                    Math.Min(
+                        rect.Width * 0.23f,
+                        180f));
+
+            float boxH =
+                Math.Max(
+                    32f,
+                    Math.Min(
+                        rect.Height * 0.17f,
+                        96f));
+
+            float cx =
+                rect.Left +
+                rect.Width /
+                2f;
+            float cy =
+                rect.Top +
+                rect.Height /
+                2f;
+
+            float rx =
+                Math.Max(
+                    8f,
+                    (rect.Width -
+                     boxW) *
+                    0.40f);
+
+            float ry =
+                Math.Max(
+                    8f,
+                    (rect.Height -
+                     boxH) *
+                    0.38f);
+
+            for (int i = 0;
+                 i < nodes.Count;
+                 i++)
+            {
+                double angle =
+                    -Math.PI /
+                    2.0 +
+                    i *
+                    Math.PI *
+                    2.0 /
+                    nodes.Count;
+
+                float x =
+                    cx +
+                    (float)Math.Cos(
+                        angle) *
+                    rx -
+                    boxW /
+                    2f;
+
+                float y =
+                    cy +
+                    (float)Math.Sin(
+                        angle) *
+                    ry -
+                    boxH /
+                    2f;
+
+                positions[
+                    nodes[i].Id] =
+                    new RectangleF(
+                        x,
+                        y,
+                        boxW,
+                        boxH);
+            }
+
+            return positions;
+        }
+
+        private static Dictionary<string, RectangleF>
+            BuildMatrixSmartArtPositions(
+                List<SmartNode> nodes,
+                RectangleF rect)
+        {
+            Dictionary<string, RectangleF> positions =
+                new Dictionary<string, RectangleF>(
+                    StringComparer.Ordinal);
+
+            int count =
+                Math.Max(
+                    1,
+                    nodes.Count);
+
+            int columns =
+                (int)Math.Ceiling(
+                    Math.Sqrt(count));
+
+            int rows =
+                (int)Math.Ceiling(
+                    count /
+                    (double)columns);
+
+            float gap =
+                Math.Max(
+                    8f,
+                    Math.Min(
+                        rect.Width,
+                        rect.Height) *
+                    0.03f);
+
+            float cellW =
+                Math.Max(
+                    36f,
+                    (rect.Width -
+                     gap *
+                     (columns + 1)) /
+                    columns);
+
+            float cellH =
+                Math.Max(
+                    28f,
+                    (rect.Height -
+                     gap *
+                     (rows + 1)) /
+                    rows);
+
+            for (int i = 0;
+                 i < nodes.Count;
+                 i++)
+            {
+                int row =
+                    i /
+                    columns;
+                int column =
+                    i %
+                    columns;
+
+                positions[
+                    nodes[i].Id] =
+                    new RectangleF(
+                        rect.Left +
+                            gap +
+                            column *
+                            (cellW + gap),
+                        rect.Top +
+                            gap +
+                            row *
+                            (cellH + gap),
+                        cellW,
+                        cellH);
+            }
+
+            return positions;
+        }
+
+        private static Dictionary<string, RectangleF>
+            BuildPyramidSmartArtPositions(
+                List<SmartNode> nodes,
+                RectangleF rect)
+        {
+            Dictionary<string, RectangleF> positions =
+                new Dictionary<string, RectangleF>(
+                    StringComparer.Ordinal);
+
+            int count =
+                Math.Max(
+                    1,
+                    nodes.Count);
+
+            float rowHeight =
+                rect.Height /
+                count;
+
+            for (int i = 0;
+                 i < nodes.Count;
+                 i++)
+            {
+                float ratio =
+                    count <= 1
+                        ? 0f
+                        : i /
+                            (float)(
+                                count - 1);
+
+                float width =
+                    rect.Width *
+                    (0.40f +
+                     ratio *
+                     0.48f);
+
+                float height =
+                    Math.Max(
+                        26f,
+                        rowHeight *
+                        0.70f);
+
+                float x =
+                    rect.Left +
+                    (rect.Width -
+                     width) /
+                    2f;
+
+                float y =
+                    rect.Top +
+                    i *
+                    rowHeight +
+                    (rowHeight -
+                     height) /
+                    2f;
+
+                positions[
+                    nodes[i].Id] =
+                    new RectangleF(
+                        x,
+                        y,
+                        width,
+                        height);
+            }
+
+            return positions;
+        }
+
+        private static void DrawSmartArtConnectors(
+            Graphics g,
+            string layoutKind,
+            List<SmartNode> orderedNodes,
+            Dictionary<string, SmartNode> nodes,
+            Dictionary<string, RectangleF> positions,
+            Color[] palette)
+        {
+            Color connectorColor =
+                palette != null &&
+                palette.Length > 0
+                    ? Color.FromArgb(
+                        135,
+                        palette[0])
+                    : Color.FromArgb(
+                        120,
+                        79,
+                        129,
+                        189);
+
+            using (Pen connector =
+                new Pen(
+                    connectorColor,
+                    1.6f))
+            {
+                connector.EndCap =
+                    LineCap.ArrowAnchor;
+
+                for (int n = 0;
+                     n < orderedNodes.Count;
+                     n++)
+                {
+                    SmartNode node =
+                        orderedNodes[n];
+
+                    RectangleF source;
+                    if (!positions.TryGetValue(
+                            node.Id,
+                            out source))
+                    {
+                        continue;
+                    }
+
+                    for (int i = 0;
+                         i < node.Children.Count;
+                         i++)
+                    {
+                        RectangleF destination;
+                        if (!positions.TryGetValue(
+                                node.Children[i],
+                                out destination))
+                        {
+                            continue;
+                        }
+
+                        PointF from;
+                        PointF to;
+
+                        if (layoutKind == "hierarchy")
+                        {
+                            from =
+                                new PointF(
+                                    source.Left +
+                                    source.Width /
+                                    2f,
+                                    source.Bottom);
+
+                            to =
+                                new PointF(
+                                    destination.Left +
+                                    destination.Width /
+                                    2f,
+                                    destination.Top);
+                        }
+                        else
+                        {
+                            from =
+                                new PointF(
+                                    source.Left +
+                                    source.Width /
+                                    2f,
+                                    source.Top +
+                                    source.Height /
+                                    2f);
+
+                            to =
+                                new PointF(
+                                    destination.Left +
+                                    destination.Width /
+                                    2f,
+                                    destination.Top +
+                                    destination.Height /
+                                    2f);
+                        }
+
+                        g.DrawLine(
+                            connector,
+                            from,
+                            to);
+                    }
+                }
+            }
+        }
+
+        private static Color LightenSmartArtColor(
+            Color color,
+            float amount)
+        {
+            amount =
+                Math.Max(
+                    0f,
+                    Math.Min(
+                        1f,
+                        amount));
+
+            return Color.FromArgb(
+                255,
+                color.R +
+                    (int)(
+                        (255 -
+                         color.R) *
+                        amount),
+                color.G +
+                    (int)(
+                        (255 -
+                         color.G) *
+                        amount),
+                color.B +
+                    (int)(
+                        (255 -
+                         color.B) *
+                        amount));
+        }
+
+        private static GraphicsPath EllipsePath(
+            RectangleF rect)
+        {
+            GraphicsPath path =
+                new GraphicsPath();
+
+            path.AddEllipse(rect);
+            path.CloseFigure();
+            return path;
         }
 
         private static string ReadSmartArtLabel(XmlNode point)
