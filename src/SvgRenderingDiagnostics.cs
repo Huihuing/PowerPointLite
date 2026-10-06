@@ -60,6 +60,7 @@ namespace PptxViewer
                 "<filter id=\"offsetBlurComposite\"><feOffset in=\"SourceGraphic\" dx=\"8\" dy=\"2\" result=\"shifted3\"/><feGaussianBlur in=\"shifted3\" stdDeviation=\"1\" result=\"blurred3\"/><feComposite in=\"SourceGraphic\" in2=\"blurred3\" operator=\"over\"/></filter>" +
                 "<filter id=\"offsetCompositeIn\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedIn\"/><feGaussianBlur in=\"shiftedIn\" stdDeviation=\"0\" result=\"filteredIn\"/><feComposite in=\"SourceGraphic\" in2=\"filteredIn\" operator=\"in\"/></filter>" +
                 "<filter id=\"offsetCompositeOut\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedOut\"/><feGaussianBlur in=\"shiftedOut\" stdDeviation=\"0\" result=\"filteredOut\"/><feComposite in=\"SourceGraphic\" in2=\"filteredOut\" operator=\"out\"/></filter>" +
+                "<filter id=\"offsetCompositeXor\"><feOffset in=\"SourceGraphic\" dx=\"2\" dy=\"0\" result=\"shiftedXor\"/><feGaussianBlur in=\"shiftedXor\" stdDeviation=\"0\" result=\"filteredXor\"/><feComposite in=\"SourceGraphic\" in2=\"filteredXor\" operator=\"xor\"/></filter>" +
                 "<filter id=\"swapRedBlue\"><feColorMatrix in=\"SourceGraphic\" type=\"matrix\" values=\"0 0 1 0 0  0 1 0 0 0  1 0 0 0 0  0 0 0 1 0\"/></filter>" +
                 "<filter id=\"desaturate\"><feColorMatrix in=\"SourceGraphic\" type=\"saturate\" values=\"0\"/></filter>" +
                 "<filter id=\"hueRotate\"><feColorMatrix in=\"SourceGraphic\" type=\"hueRotate\" values=\"240\"/></filter>" +
@@ -72,6 +73,7 @@ namespace PptxViewer
                 "<rect id=\"offsetBlurLightenRect\" x=\"2\" y=\"62\" width=\"8\" height=\"6\" fill=\"#7090c0\" filter=\"url(#offsetBlurLighten)\"/>" +
                 "<rect id=\"offsetCompositeInRect\" x=\"2\" y=\"72\" width=\"8\" height=\"6\" fill=\"#3f7fd1\" filter=\"url(#offsetCompositeIn)\"/>" +
                 "<rect id=\"offsetCompositeOutRect\" x=\"12\" y=\"72\" width=\"8\" height=\"6\" fill=\"#3f7fd1\" filter=\"url(#offsetCompositeOut)\"/>" +
+                "<rect id=\"offsetCompositeXorRect\" x=\"22\" y=\"72\" width=\"8\" height=\"6\" fill=\"#3f7fd1\" filter=\"url(#offsetCompositeXor)\"/>" +
                 "</defs>" +
                 "<g transform=\"matrix(1 0.10 -0.08 1 3 1)\"><rect x=\"16\" y=\"12\" width=\"58\" height=\"28\" rx=\"6\" fill=\"#20a77a\"/></g>" +
                 "<g color=\"hsl(326deg 53% 50% / 100%)\"><use id=\"useTriangle\" xlink:href=\"#reuseTriangle\" x=\"134\" y=\"2\" color=\"inherit\" fill=\"currentColor\"/></g>" +
@@ -1149,6 +1151,111 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "SVG feComposite out did not remove the overlapping source region.");
+                }
+            }
+
+            XmlNode offsetCompositeXorRect =
+                FindSvgNodeById(
+                    document,
+                    "offsetCompositeXorRect");
+
+            float compositeXorOffsetX;
+            float compositeXorOffsetY;
+            float compositeXorBlurX;
+            float compositeXorBlurY;
+            bool compositeXorSourceGraphic;
+            string compositeXorMode;
+
+            if (!TryReadSvgOffsetGaussianChain(
+                    offsetCompositeXorRect,
+                    document,
+                    4f,
+                    4f,
+                    out compositeXorOffsetX,
+                    out compositeXorOffsetY,
+                    out compositeXorBlurX,
+                    out compositeXorBlurY,
+                    out compositeXorSourceGraphic,
+                    out compositeXorMode) ||
+                !compositeXorSourceGraphic ||
+                compositeXorMode != "xor")
+            {
+                throw new InvalidOperationException(
+                    "SVG feComposite xor chain was not parsed correctly.");
+            }
+
+            using (GraphicsPath compositeXorPath =
+                BuildEnhancedSvgElementPath(
+                    offsetCompositeXorRect,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        160f,
+                        340f),
+                    0f,
+                    0f,
+                    4f,
+                    4f))
+            using (Bitmap compositeXorBitmap =
+                new Bitmap(
+                    160,
+                    340,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics compositeXorGraphics =
+                Graphics.FromImage(
+                    compositeXorBitmap))
+            {
+                compositeXorGraphics.Clear(
+                    Color.White);
+
+                if (!DrawSvgOffsetGaussianChainApproximation(
+                        compositeXorGraphics,
+                        offsetCompositeXorRect,
+                        document,
+                        compositeXorPath,
+                        4f,
+                        4f))
+                {
+                    throw new InvalidOperationException(
+                        "SVG feComposite xor chain was not rendered.");
+                }
+
+                Color sourceOnly =
+                    compositeXorBitmap.GetPixel(
+                        92,
+                        300);
+                Color overlap =
+                    compositeXorBitmap.GetPixel(
+                        104,
+                        300);
+                Color shiftedOnly =
+                    compositeXorBitmap.GetPixel(
+                        124,
+                        300);
+
+                bool sourceOnlyVisible =
+                    sourceOnly.B >
+                        sourceOnly.R + 30 &&
+                    sourceOnly.B >
+                        sourceOnly.G + 5 &&
+                    sourceOnly.B < 250;
+                bool overlapEmpty =
+                    overlap.R > 245 &&
+                    overlap.G > 245 &&
+                    overlap.B > 245;
+                bool shiftedOnlyVisible =
+                    shiftedOnly.B >
+                        shiftedOnly.R + 30 &&
+                    shiftedOnly.B >
+                        shiftedOnly.G + 5 &&
+                    shiftedOnly.B < 250;
+
+                if (!sourceOnlyVisible ||
+                    !overlapEmpty ||
+                    !shiftedOnlyVisible)
+                {
+                    throw new InvalidOperationException(
+                        "SVG feComposite xor did not retain only the non-overlapping source regions.");
                 }
             }
 
