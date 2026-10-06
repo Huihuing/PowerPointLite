@@ -763,6 +763,67 @@ namespace PptxViewer
                     throw new InvalidOperationException(
                         "Chart dLblPos=inEnd did not move the column label inside the bar.");
                 }
+
+                dataLabelGraphics.Clear(
+                    Color.White);
+
+                ChartLabelOptions coloredLabelOptions =
+                    new ChartLabelOptions();
+                coloredLabelOptions.Position =
+                    "ctr";
+                coloredLabelOptions.TextColor =
+                    Color.FromArgb(
+                        170,
+                        51,
+                        119);
+
+                DrawColumnChartDataLabel(
+                    dataLabelGraphics,
+                    dataLabelFont,
+                    dataLabelBrush,
+                    "X",
+                    new RectangleF(
+                        90f,
+                        30f,
+                        40f,
+                        60f),
+                    90f,
+                    30f,
+                    42.0,
+                    coloredLabelOptions);
+
+                bool coloredLabelVisible =
+                    false;
+
+                for (int y = 45;
+                     y < 78 &&
+                     !coloredLabelVisible;
+                     y++)
+                {
+                    for (int x = 92;
+                         x < 128;
+                         x++)
+                    {
+                        Color pixel =
+                            dataLabelBitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.R > 90 &&
+                            pixel.B > 55 &&
+                            pixel.R > pixel.G + 35)
+                        {
+                            coloredLabelVisible = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!coloredLabelVisible)
+                {
+                    throw new InvalidOperationException(
+                        "Chart dLbl txPr text color was not rendered.");
+                }
             }
 
             if (ReadChartLegendPosition(chart) != "b")
