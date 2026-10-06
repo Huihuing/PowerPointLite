@@ -20,6 +20,11 @@ namespace PptxViewer
                     Path.GetFullPath(outputDirectory),
                     "rich-text-layout.png"));
 
+            ValidateSyntheticCustomGeometry(
+                Path.Combine(
+                    Path.GetFullPath(outputDirectory),
+                    "custom-geometry.png"));
+
             ValidateSyntheticTextInheritance();
         }
 
@@ -369,6 +374,113 @@ namespace PptxViewer
                 activeMasterOtherStyle =
                     previousOther;
             }
+        }
+
+        private static void ValidateSyntheticCustomGeometry(
+            string outputPath)
+        {
+            XmlDocument document =
+                new XmlDocument();
+
+            document.LoadXml(
+                "<a:custGeom xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<a:avLst><a:gd name=\"adj\" fmla=\"val 40000\"/></a:avLst>" +
+                "<a:gdLst>" +
+                "<a:gd name=\"x1\" fmla=\"*/ w adj 100000\"/>" +
+                "<a:gd name=\"x2\" fmla=\"+- w 0 x1\"/>" +
+                "<a:gd name=\"ym\" fmla=\"*/ h 1 2\"/>" +
+                "</a:gdLst>" +
+                "<a:pathLst>" +
+                "<a:path w=\"21600\" h=\"21600\">" +
+                "<a:moveTo><a:pt x=\"0\" y=\"ym\"/></a:moveTo>" +
+                "<a:lnTo><a:pt x=\"x1\" y=\"0\"/></a:lnTo>" +
+                "<a:lnTo><a:pt x=\"x2\" y=\"0\"/></a:lnTo>" +
+                "<a:lnTo><a:pt x=\"w\" y=\"ym\"/></a:lnTo>" +
+                "<a:lnTo><a:pt x=\"x2\" y=\"h\"/></a:lnTo>" +
+                "<a:lnTo><a:pt x=\"x1\" y=\"h\"/></a:lnTo>" +
+                "<a:close/>" +
+                "</a:path>" +
+                "<a:path w=\"21600\" h=\"21600\" fill=\"none\">" +
+                "<a:moveTo><a:pt x=\"hc\" y=\"0\"/></a:moveTo>" +
+                "<a:arcTo wR=\"wd2\" hR=\"hd2\" stAng=\"3cd4\" swAng=\"cd2\"/>" +
+                "</a:path>" +
+                "</a:pathLst>" +
+                "</a:custGeom>");
+
+            RectangleF target =
+                new RectangleF(
+                    20f,
+                    20f,
+                    560f,
+                    360f);
+
+            using (GraphicsPath path =
+                BuildCustomGeometryPath(
+                    document.DocumentElement,
+                    target))
+            {
+                if (path == null ||
+                    path.PointCount < 8)
+                {
+                    throw new InvalidOperationException(
+                        "Custom geometry guide/arc path was not created.");
+                }
+
+                RectangleF bounds =
+                    path.GetBounds();
+
+                if (bounds.Width <
+                        target.Width * 0.85f ||
+                    bounds.Height <
+                        target.Height * 0.85f)
+                {
+                    throw new InvalidOperationException(
+                        "Custom geometry guide evaluation produced an unexpected path extent.");
+                }
+
+                using (Bitmap bitmap =
+                    new Bitmap(
+                        600,
+                        400,
+                        PixelFormat.Format32bppArgb))
+                using (Graphics graphics =
+                    Graphics.FromImage(bitmap))
+                {
+                    graphics.Clear(
+                        Color.White);
+                    graphics.SmoothingMode =
+                        System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+                    using (Brush fill =
+                        new SolidBrush(
+                            Color.FromArgb(
+                                224,
+                                236,
+                                249)))
+                    using (Pen line =
+                        new Pen(
+                            Color.FromArgb(
+                                54,
+                                104,
+                                171),
+                            3f))
+                    {
+                        graphics.FillPath(
+                            fill,
+                            path);
+                        graphics.DrawPath(
+                            line,
+                            path);
+                    }
+
+                    bitmap.Save(
+                        outputPath,
+                        ImageFormat.Png);
+                }
+            }
+
+            RequireDiagnosticFile(
+                outputPath);
         }
 
         private static void ValidateSyntheticRichText(

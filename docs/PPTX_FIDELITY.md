@@ -48,7 +48,10 @@ Microsoft PowerPoint (설치된 경우)
   - clipPathUnits="objectBoundingBox" 기본 반영
 - shape
   - 기본 Office preset
-  - custom geometry의 line / cubic / quadratic path
+  - custom geometry의 line / cubic / quadratic / arcTo path
+  - avLst/gdLst guide formula 기본 계산
+  - val, */, +-, +/, ?:, abs, sqrt, max/min, at2, sin/cos/tan, mod, pin, cat2/sat2
+  - w/h/hc/vc/ss/ls 및 주요 cd/분할 built-in guide
   - 추가 preset: pentagon, octagon, star5/star6, plus, chevron, homePlate, trapezoid, 방향 화살표
 - gradient / picture fill / line / dash / arrowhead / basic shadow
 - group coordinate transform과 중첩 group
@@ -152,7 +155,7 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 - SVG filter 및 gradient spreadMethod, 복잡한 mask luminance/gradient, nested transformed clipPath 등 고급 SVG 기능
 - image artistic effects
 - 3D shape / bevel / material / lighting
-- complex custom geometry formula/adjust handle
+- custom geometry의 복잡한 nested guide 의존성, 모든 preset formula/adjust-handle semantics
 - exact PowerPoint easing curve parity
 - PowerPoint의 origin/pathEditMode 등 세부 motion-path 좌표계 semantics
 - scheme/HSL color animation과 복합 color transform
