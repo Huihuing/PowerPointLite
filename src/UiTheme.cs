@@ -4,6 +4,54 @@ using System.Windows.Forms;
 
 namespace PptxViewer
 {
+    internal sealed class ApplicationMenuColorTable : ProfessionalColorTable
+    {
+        public override Color ToolStripDropDownBackground
+        {
+            get { return ApplicationTheme.Toolbar; }
+        }
+
+        public override Color MenuItemSelected
+        {
+            get { return ApplicationTheme.SurfaceHover; }
+        }
+
+        public override Color MenuItemBorder
+        {
+            get { return ApplicationTheme.Divider; }
+        }
+
+        public override Color MenuBorder
+        {
+            get { return ApplicationTheme.Divider; }
+        }
+
+        public override Color ImageMarginGradientBegin
+        {
+            get { return ApplicationTheme.Toolbar; }
+        }
+
+        public override Color ImageMarginGradientMiddle
+        {
+            get { return ApplicationTheme.Toolbar; }
+        }
+
+        public override Color ImageMarginGradientEnd
+        {
+            get { return ApplicationTheme.Toolbar; }
+        }
+
+        public override Color SeparatorDark
+        {
+            get { return ApplicationTheme.Divider; }
+        }
+
+        public override Color SeparatorLight
+        {
+            get { return ApplicationTheme.Divider; }
+        }
+    }
+
     internal static class ApplicationTheme
     {
         public static readonly Color Window = Color.FromArgb(23, 25, 29);
@@ -24,6 +72,10 @@ namespace PptxViewer
         public static readonly Color AccentSoft = Color.FromArgb(48, 68, 107);
         public static readonly Color AccentSoftHover = Color.FromArgb(60, 84, 132);
         public static readonly Color AccentSoftPressed = Color.FromArgb(43, 61, 96);
+
+        private static readonly ToolStripProfessionalRenderer MenuRenderer =
+            new ToolStripProfessionalRenderer(
+                new ApplicationMenuColorTable());
 
         public static void ApplyButton(Button button)
         {
@@ -79,12 +131,20 @@ namespace PptxViewer
             menu.BackColor = Toolbar;
             menu.ForeColor = PrimaryText;
             menu.ShowImageMargin = false;
+            menu.RenderMode = ToolStripRenderMode.Professional;
+            menu.Renderer = MenuRenderer;
+            menu.Padding = new Padding(2);
 
             for (int i = 0; i < menu.Items.Count; i++)
             {
                 ToolStripItem item = menu.Items[i];
                 item.BackColor = Toolbar;
                 item.ForeColor = PrimaryText;
+                item.Padding = new Padding(
+                    item.Padding.Left,
+                    2,
+                    item.Padding.Right,
+                    2);
             }
         }
 
