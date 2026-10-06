@@ -156,10 +156,12 @@ namespace PptxViewer
                     bitmap.GetPixel(
                         632,
                         352);
+                // Pick a point inside the masked source rectangle but
+                // outside both the mask circle and the later clipped gradient path.
                 Color maskCorner =
                     bitmap.GetPixel(
-                        504,
-                        264);
+                        752,
+                        272);
 
                 if ((maskCenter.R > 245 &&
                      maskCenter.G > 245 &&
