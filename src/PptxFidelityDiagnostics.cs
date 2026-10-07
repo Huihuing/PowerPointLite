@@ -4471,6 +4471,38 @@ namespace PptxViewer
                         30f,
                         50f);
 
+                PointF[] sideChannelRoute =
+                    BuildSmartArtElbowRoute(
+                        new PointF(
+                            60f,
+                            60f),
+                        new PointF(
+                            220f,
+                            120f),
+                        processPositions,
+                        processSource.Id,
+                        processNextRow.Id,
+                        false);
+
+                if (sideChannelRoute == null ||
+                    sideChannelRoute.Length != 4 ||
+                    Math.Abs(
+                        sideChannelRoute[1].Y -
+                        60f) > 0.5f ||
+                    Math.Abs(
+                        sideChannelRoute[2].Y -
+                        120f) > 0.5f ||
+                    Math.Abs(
+                        sideChannelRoute[1].X -
+                        sideChannelRoute[2].X) > 0.5f ||
+                    Math.Abs(
+                        sideChannelRoute[1].X -
+                        60f) < 2f)
+                {
+                    throw new InvalidOperationException(
+                        "SmartArt connector did not calculate a vertical side channel.");
+                }
+
                 DrawSmartArtConnectors(
                     processConnectorGraphics,
                     "process",
@@ -4490,9 +4522,19 @@ namespace PptxViewer
                         60,
                         82);
 
+                int sideChannelX =
+                    Math.Max(
+                        0,
+                        Math.Min(
+                            processConnectorBitmap.Width -
+                            1,
+                            (int)Math.Round(
+                                sideChannelRoute[
+                                    1].X)));
+
                 Color sideChannelPixel =
                     processConnectorBitmap.GetPixel(
-                        140,
+                        sideChannelX,
                         90);
 
                 bool blockedVerticalLegStayedClear =
@@ -4509,7 +4551,7 @@ namespace PptxViewer
                     !sideChannelVisible)
                 {
                     throw new InvalidOperationException(
-                        "SmartArt connector did not switch to a clear side channel.");
+                        "SmartArt connector did not render through its calculated side channel.");
                 }
 
                 processPositions.Remove(
