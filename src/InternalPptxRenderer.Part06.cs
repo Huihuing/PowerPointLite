@@ -4713,6 +4713,24 @@ chartDoc);
                             trendline,
                             "backward");
 
+                    if (double.IsNaN(
+                            options.Forward) ||
+                        double.IsInfinity(
+                            options.Forward) ||
+                        options.Forward < 0.0)
+                    {
+                        options.Forward = 0.0;
+                    }
+
+                    if (double.IsNaN(
+                            options.Backward) ||
+                        double.IsInfinity(
+                            options.Backward) ||
+                        options.Backward < 0.0)
+                    {
+                        options.Backward = 0.0;
+                    }
+
                     Color fallback =
                         data.ExplicitColor ??
                         Color.FromArgb(
