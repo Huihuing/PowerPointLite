@@ -57,6 +57,8 @@ internal static partial class InternalPptxRenderer
             public string NumberFormat;
             public string Position;
             public string Separator = ", ";
+            public XmlNode ManualLayout;
+            public RectangleF LayoutReferenceRect;
 
             public bool HasAny
             {
@@ -87,6 +89,7 @@ internal static partial class InternalPptxRenderer
             public string NumberFormat;
             public string Position;
             public string Separator;
+            public XmlNode ManualLayout;
         }
 
         private sealed class ChartBarOptions
@@ -507,6 +510,8 @@ internal static partial class InternalPptxRenderer
                 ReadChartLabelOptions(
                     chartDoc,
                     theme);
+            labelOptions.LayoutReferenceRect =
+                rect;
 
             ChartBarOptions barOptions =
                 ReadChartBarOptions(
@@ -1977,6 +1982,18 @@ chartDoc);
                         separator.InnerText;
                 }
 
+                XmlNode layout =
+                    DirectChild(
+                        label,
+                        "layout");
+
+                item.ManualLayout =
+                    layout == null
+                        ? null
+                        : DirectChild(
+                            layout,
+                            "manualLayout");
+
                 data.PointLabelOverrides[
                     pointIndex] =
                     item;
@@ -2300,6 +2317,10 @@ chartDoc);
                     defaults.Position;
                 result.Separator =
                     defaults.Separator;
+                result.ManualLayout =
+                    defaults.ManualLayout;
+                result.LayoutReferenceRect =
+                    defaults.LayoutReferenceRect;
             }
 
             if (series == null)
@@ -2389,6 +2410,12 @@ chartDoc);
             {
                 result.Separator =
                     item.Separator;
+            }
+
+            if (item.ManualLayout != null)
+            {
+                result.ManualLayout =
+                    item.ManualLayout;
             }
 
             return result;
@@ -3417,6 +3444,25 @@ chartDoc);
                         Math.Max(
                             1f,
                             textSize.Height + 2f));
+
+                if (options != null &&
+                    options.ManualLayout != null &&
+                    options.LayoutReferenceRect.Width > 0f &&
+                    options.LayoutReferenceRect.Height > 0f)
+                {
+                    labelBox =
+                        ResolveChartManualLayoutRectangle(
+                            options.ManualLayout,
+                            options.LayoutReferenceRect,
+                            labelBox);
+
+                    x =
+                        labelBox.Left +
+                        3f;
+                    y =
+                        labelBox.Top +
+                        1f;
+                }
 
                 if (options != null &&
                     options.FillColor.HasValue)
