@@ -15798,6 +15798,9 @@ namespace PptxViewer
                 connector.EndCap =
                     LineCap.ArrowAnchor;
 
+                List<PointF[]> routedElbows =
+                    new List<PointF[]>();
+
                 for (int n = 0;
                      n < orderedNodes.Count;
                      n++)
@@ -15979,8 +15982,7 @@ namespace PptxViewer
 
                         if (layoutKind == "hierarchy")
                         {
-                            if (destinationIsAssistant)
-                            {
+                            PointF[] routed =
                                 DrawSmartArtElbowConnector(
                                     g,
                                     connector,
@@ -15989,34 +15991,36 @@ namespace PptxViewer
                                     positions,
                                     node.Id,
                                     node.Children[i],
-                                    true);
-                            }
-                            else
+                                    destinationIsAssistant,
+                                    routedElbows);
+
+                            if (routed != null)
                             {
-                                DrawSmartArtElbowConnector(
-                                    g,
-                                    connector,
-                                    from,
-                                    to,
-                                    positions,
-                                    node.Id,
-                                    node.Children[i],
-                                    false);
+                                routedElbows.Add(
+                                    routed);
                             }
                         }
                         else if (layoutKind == "verticalProcess" ||
                                  (layoutKind == "process" &&
                                   !processSameRow))
                         {
-                            DrawSmartArtElbowConnector(
-                                g,
-                                connector,
-                                from,
-                                to,
-                                positions,
-                                node.Id,
-                                node.Children[i],
-                                false);
+                            PointF[] routed =
+                                DrawSmartArtElbowConnector(
+                                    g,
+                                    connector,
+                                    from,
+                                    to,
+                                    positions,
+                                    node.Id,
+                                    node.Children[i],
+                                    false,
+                                    routedElbows);
+
+                            if (routed != null)
+                            {
+                                routedElbows.Add(
+                                    routed);
+                            }
                         }
                         else
                         {
@@ -16040,6 +16044,29 @@ namespace PptxViewer
             string destinationId,
             bool preferVerticalChannel)
         {
+            DrawSmartArtElbowConnector(
+                g,
+                connector,
+                from,
+                to,
+                positions,
+                sourceId,
+                destinationId,
+                preferVerticalChannel,
+                null);
+        }
+
+        private static PointF[] DrawSmartArtElbowConnector(
+            Graphics g,
+            Pen connector,
+            PointF from,
+            PointF to,
+            Dictionary<string, RectangleF> positions,
+            string sourceId,
+            string destinationId,
+            bool preferVerticalChannel,
+            List<PointF[]> existingRoutes)
+        {
             PointF[] route =
                 BuildSmartArtElbowRoute(
                     from,
@@ -16047,11 +16074,18 @@ namespace PptxViewer
                     positions,
                     sourceId,
                     destinationId,
-                    preferVerticalChannel);
+                    preferVerticalChannel,
+                    existingRoutes);
 
-            g.DrawLines(
-                connector,
-                route);
+            if (route != null &&
+                route.Length >= 2)
+            {
+                g.DrawLines(
+                    connector,
+                    route);
+            }
+
+            return route;
         }
 
         private static PointF[] BuildSmartArtElbowRoute(
@@ -16062,6 +16096,25 @@ namespace PptxViewer
             string destinationId,
             bool preferVerticalChannel)
         {
+            return BuildSmartArtElbowRoute(
+                from,
+                to,
+                positions,
+                sourceId,
+                destinationId,
+                preferVerticalChannel,
+                null);
+        }
+
+        private static PointF[] BuildSmartArtElbowRoute(
+            PointF from,
+            PointF to,
+            Dictionary<string, RectangleF> positions,
+            string sourceId,
+            string destinationId,
+            bool preferVerticalChannel,
+            List<PointF[]> existingRoutes)
+        {
             PointF[] route;
 
             if (preferVerticalChannel &&
@@ -16071,6 +16124,7 @@ namespace PptxViewer
                     positions,
                     sourceId,
                     destinationId,
+                    existingRoutes,
                     out route))
             {
                 return route;
@@ -16082,6 +16136,7 @@ namespace PptxViewer
                     positions,
                     sourceId,
                     destinationId,
+                    existingRoutes,
                     out route))
             {
                 return route;
@@ -16094,6 +16149,7 @@ namespace PptxViewer
                     positions,
                     sourceId,
                     destinationId,
+                    existingRoutes,
                     out route))
             {
                 return route;
@@ -16124,6 +16180,7 @@ namespace PptxViewer
             Dictionary<string, RectangleF> positions,
             string sourceId,
             string destinationId,
+            List<PointF[]> existingRoutes,
             out PointF[] route)
         {
             float low =
@@ -16237,7 +16294,10 @@ namespace PptxViewer
                     Math.Abs(
                         channel -
                         preferred) *
-                    0.05;
+                    0.05 +
+                    CalculateSmartArtRouteCrossingPenalty(
+                        candidate,
+                        existingRoutes);
 
                 if (score <
                         bestScore -
@@ -16269,6 +16329,7 @@ namespace PptxViewer
             Dictionary<string, RectangleF> positions,
             string sourceId,
             string destinationId,
+            List<PointF[]> existingRoutes,
             out PointF[] route)
         {
             float low =
@@ -16373,7 +16434,10 @@ namespace PptxViewer
                     Math.Abs(
                         channel -
                         preferred) *
-                    0.05;
+                    0.05 +
+                    CalculateSmartArtRouteCrossingPenalty(
+                        candidate,
+                        existingRoutes);
 
                 if (score <
                         bestScore -
@@ -16397,6 +16461,135 @@ namespace PptxViewer
             route =
                 bestRoute;
             return route != null;
+        }
+
+        private static double CalculateSmartArtRouteCrossingPenalty(
+            PointF[] route,
+            List<PointF[]> existingRoutes)
+        {
+            if (route == null ||
+                existingRoutes == null ||
+                existingRoutes.Count == 0)
+            {
+                return 0.0;
+            }
+
+            int crossings = 0;
+
+            for (int r = 0;
+                 r < existingRoutes.Count;
+                 r++)
+            {
+                PointF[] existing =
+                    existingRoutes[r];
+
+                if (existing == null ||
+                    existing.Length < 2)
+                {
+                    continue;
+                }
+
+                for (int i = 1;
+                     i < route.Length;
+                     i++)
+                {
+                    for (int j = 1;
+                         j < existing.Length;
+                         j++)
+                    {
+                        if (SmartArtSegmentsCrossInternally(
+                                route[i - 1],
+                                route[i],
+                                existing[j - 1],
+                                existing[j]))
+                        {
+                            crossings++;
+                        }
+                    }
+                }
+            }
+
+            return crossings *
+                10000.0;
+        }
+
+        private static bool SmartArtSegmentsCrossInternally(
+            PointF a1,
+            PointF a2,
+            PointF b1,
+            PointF b2)
+        {
+            const float epsilon =
+                0.5f;
+
+            bool aVertical =
+                Math.Abs(
+                    a1.X -
+                    a2.X) <
+                epsilon;
+            bool bVertical =
+                Math.Abs(
+                    b1.X -
+                    b2.X) <
+                epsilon;
+
+            if (aVertical ==
+                bVertical)
+            {
+                return false;
+            }
+
+            PointF verticalStart =
+                aVertical
+                    ? a1
+                    : b1;
+            PointF verticalEnd =
+                aVertical
+                    ? a2
+                    : b2;
+            PointF horizontalStart =
+                aVertical
+                    ? b1
+                    : a1;
+            PointF horizontalEnd =
+                aVertical
+                    ? b2
+                    : a2;
+
+            float x =
+                verticalStart.X;
+            float y =
+                horizontalStart.Y;
+
+            float verticalMinY =
+                Math.Min(
+                    verticalStart.Y,
+                    verticalEnd.Y);
+            float verticalMaxY =
+                Math.Max(
+                    verticalStart.Y,
+                    verticalEnd.Y);
+            float horizontalMinX =
+                Math.Min(
+                    horizontalStart.X,
+                    horizontalEnd.X);
+            float horizontalMaxX =
+                Math.Max(
+                    horizontalStart.X,
+                    horizontalEnd.X);
+
+            return x >
+                    horizontalMinX +
+                    epsilon &&
+                x <
+                    horizontalMaxX -
+                    epsilon &&
+                y >
+                    verticalMinY +
+                    epsilon &&
+                y <
+                    verticalMaxY -
+                    epsilon;
         }
 
         private static double CalculateSmartArtRouteLength(
