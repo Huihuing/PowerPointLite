@@ -40,6 +40,23 @@ internal static partial class InternalPptxRenderer
                 DashStyle.Solid;
         }
 
+        private sealed class ChartTrendlineOptions
+        {
+            public string Type;
+            public double Forward;
+            public double Backward;
+            public ChartLineStyle LineStyle;
+        }
+
+        private sealed class ChartErrorBarOptions
+        {
+            public string Direction;
+            public string BarType;
+            public string ValueType;
+            public double Value;
+            public ChartLineStyle LineStyle;
+        }
+
         private sealed class ChartLabelOptions
         {
             public bool ShowValue;
