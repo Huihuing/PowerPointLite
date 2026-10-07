@@ -11450,7 +11450,8 @@ namespace PptxViewer
 
                 ReadChartSeriesVisualStyle(
                     nodes[i],
-                    item);
+                    item,
+                    theme);
 
                 ReadChartSeriesLabelOverrides(
                     nodes[i],
@@ -13418,7 +13419,8 @@ namespace PptxViewer
 
                 ReadChartSeriesVisualStyle(
                     seriesNodes[s],
-                    style);
+                    style,
+                    theme);
 
                 int pointCount =
                     Math.Min(
