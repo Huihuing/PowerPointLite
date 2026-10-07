@@ -48,6 +48,10 @@ namespace PptxViewer
             AdvancedPresentationCanvas canvas = FindControl<AdvancedPresentationCanvas>(editor);
             ListBox slideList = FindControl<ListBox>(editor);
             Panel toolbar = FindMainToolbar(editor);
+            Panel extensionHost =
+                FindNamedPanel(
+                    editor,
+                    "AdvancedEditorToolbarExtensionHost");
 
             if (session == null || canvas == null || slideList == null || toolbar == null)
                 return;
@@ -59,13 +63,32 @@ namespace PptxViewer
             state.SlideList = slideList;
 
             Button toggle = new Button();
-            toggle.Left = 974;
-            toggle.Top = 8;
-            toggle.Width = 82;
-            toggle.Height = 32;
             toggle.TabStop = true;
             ApplicationTheme.ApplyButton(toggle);
-            toolbar.Controls.Add(toggle);
+
+            if (extensionHost != null)
+            {
+                toggle.Dock = DockStyle.Fill;
+                toggle.Margin = Padding.Empty;
+                extensionHost.Controls.Add(toggle);
+            }
+            else
+            {
+                toggle.Width = 82;
+                toggle.Height = 32;
+                toggle.Top = 8;
+                toggle.Left =
+                    Math.Max(
+                        8,
+                        toolbar.ClientSize.Width -
+                        toggle.Width -
+                        8);
+                toggle.Anchor =
+                    AnchorStyles.Top |
+                    AnchorStyles.Right;
+                toolbar.Controls.Add(toggle);
+            }
+
             state.ToggleButton = toggle;
 
             CreateOverlay(state);
@@ -174,26 +197,67 @@ namespace PptxViewer
             Label banner = new Label();
             banner.Left = 12;
             banner.Top = 9;
-            banner.Width = 620;
             banner.Height = 20;
+            banner.AutoEllipsis = true;
             banner.ForeColor = ApplicationTheme.SecondaryText;
             header.Controls.Add(banner);
 
             Button refresh = new Button();
-            refresh.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            refresh.Width = 142;
             refresh.Height = 28;
             refresh.Top = 5;
-            refresh.Left = Math.Max(640, header.ClientSize.Width - refresh.Width - 10);
+            refresh.Anchor =
+                AnchorStyles.Top |
+                AnchorStyles.Right;
             ApplicationTheme.ApplyButton(refresh);
             header.Controls.Add(refresh);
 
+            Action layoutHeader = delegate
+            {
+                int width =
+                    Math.Max(
+                        0,
+                        header.ClientSize.Width);
+                bool showRefresh =
+                    width >= 280;
+
+                refresh.Visible =
+                    showRefresh;
+
+                if (showRefresh)
+                {
+                    refresh.Width =
+                        width < 440
+                            ? 110
+                            : 142;
+                    refresh.Left =
+                        Math.Max(
+                            10,
+                            width -
+                            refresh.Width -
+                            10);
+                    banner.Width =
+                        Math.Max(
+                            40,
+                            refresh.Left -
+                            banner.Left -
+                            10);
+                }
+                else
+                {
+                    banner.Width =
+                        Math.Max(
+                            40,
+                            width -
+                            banner.Left -
+                            12);
+                }
+            };
+
             header.Resize += delegate
             {
-                refresh.Left = Math.Max(
-                    640,
-                    header.ClientSize.Width - refresh.Width - 10);
+                layoutHeader();
             };
+            layoutHeader();
 
             state.Canvas.Controls.Add(overlay);
             state.Overlay = overlay;
@@ -399,6 +463,44 @@ namespace PptxViewer
             for (int i = 0; i < root.Controls.Count; i++)
             {
                 T found = FindControl<T>(root.Controls[i]);
+                if (found != null)
+                    return found;
+            }
+
+            return null;
+        }
+
+        private static Panel FindNamedPanel(
+            Control root,
+            string name)
+        {
+            if (root == null ||
+                string.IsNullOrEmpty(name))
+            {
+                return null;
+            }
+
+            Panel panel =
+                root as Panel;
+
+            if (panel != null &&
+                string.Equals(
+                    panel.Name,
+                    name,
+                    StringComparison.Ordinal))
+            {
+                return panel;
+            }
+
+            for (int i = 0;
+                 i < root.Controls.Count;
+                 i++)
+            {
+                Panel found =
+                    FindNamedPanel(
+                        root.Controls[i],
+                        name);
+
                 if (found != null)
                     return found;
             }

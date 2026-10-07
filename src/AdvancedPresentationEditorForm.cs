@@ -170,6 +170,18 @@ namespace PptxViewer
             bringFrontButton = MakeButton("Bring Front", 926, 92);
             alignButton = MakeButton("Align", 1030, 70);
 
+            Panel toolbarExtensionHost = new Panel();
+            toolbarExtensionHost.Name =
+                "AdvancedEditorToolbarExtensionHost";
+            toolbarExtensionHost.Top = 8;
+            toolbarExtensionHost.Width = 92;
+            toolbarExtensionHost.Height = 32;
+            toolbarExtensionHost.BackColor =
+                ApplicationTheme.Toolbar;
+            toolbarExtensionHost.Anchor =
+                AnchorStyles.Top |
+                AnchorStyles.Right;
+
             saveButton.Tag = "Primary";
             ApplicationTheme.ApplyButton(
                 saveButton);
@@ -191,6 +203,8 @@ namespace PptxViewer
             mainToolbar.Controls.Add(sendBackButton);
             mainToolbar.Controls.Add(bringFrontButton);
             mainToolbar.Controls.Add(alignButton);
+            mainToolbar.Controls.Add(
+                toolbarExtensionHost);
 
             ContextMenuStrip alignMenu =
                 new ContextMenuStrip();
@@ -310,12 +324,32 @@ namespace PptxViewer
                     int selectorLabelWidth = 68;
                     int minimumSelectorWidth = 104;
                     int desiredSelectorWidth = 148;
-                    int selectorRight =
+                    bool extensionFits =
+                        mainToolbar.ClientSize.Width >=
+                        alignButton.Right +
+                        gap +
+                        toolbarExtensionHost.Width +
+                        8;
+
+                    toolbarExtensionHost.Visible =
+                        extensionFits;
+                    toolbarExtensionHost.Left =
                         Math.Max(
                             alignButton.Right +
                             gap,
                             mainToolbar.ClientSize.Width -
-                            10);
+                            toolbarExtensionHost.Width -
+                            8);
+
+                    int selectorRight =
+                        extensionFits
+                            ? toolbarExtensionHost.Left -
+                              gap
+                            : Math.Max(
+                                alignButton.Right +
+                                gap,
+                                mainToolbar.ClientSize.Width -
+                                10);
 
                     int availableSelectorWidth =
                         selectorRight -

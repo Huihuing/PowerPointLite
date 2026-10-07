@@ -27,7 +27,7 @@ Viewer의 `InternalPptxRenderer`가 PPTX 시각 표현의 기준 renderer다.
 
 Editor canvas는 개체 선택/이동/크기 조절을 빠르게 처리하기 위한 interactive model view이므로 Viewer보다 단순한 표현을 사용할 수 있다. 따라서 **Editor canvas가 최종 PPTX 모습의 기준이 되어서는 안 된다.**
 
-`AdvancedEditorFidelityExtension`은 Editor 상단에 `미리보기 / Preview`를 추가한다.
+`AdvancedEditorFidelityExtension`은 Editor 상단에 `미리보기 / Preview`를 추가한다. Preview 명령은 툴바에 하드코딩 좌표로 겹쳐 놓지 않고 `AdvancedEditorToolbarExtensionHost`에 배치된다. 창 폭이 줄어 host를 안전하게 표시할 공간이 없으면 host를 숨기고 quick-shape selector도 가용 폭을 기준으로 자동 축소/숨김 처리한다. Preview overlay 헤더 역시 폭에 따라 refresh 버튼을 줄이거나 숨기고 배너는 ellipsis 처리한다.
 
 ```text
 현재 PresentationDocument
