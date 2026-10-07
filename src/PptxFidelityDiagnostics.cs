@@ -96,7 +96,7 @@ namespace PptxViewer
                 "<c:valAx><c:axId val=\"2\"/><c:tickLblPos val=\"none\"/><c:majorTickMark val=\"cross\"/><c:minorTickMark val=\"in\"/><c:scaling><c:orientation val=\"minMax\"/><c:min val=\"-50\"/><c:max val=\"80\"/></c:scaling><c:majorUnit val=\"20\"/><c:minorUnit val=\"10\"/><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:majorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"12700\"><a:solidFill><a:srgbClr val=\"88AACC\"/></a:solidFill><a:prstDash val=\"dashDot\"/></a:ln></c:spPr></c:majorGridlines><c:minorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"9525\"><a:solidFill><a:srgbClr val=\"CCDDEE\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr></c:minorGridlines><c:spPr><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"19050\"><a:solidFill><a:srgbClr val=\"CC5533\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr><c:txPr><a:bodyPr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"/><a:lstStyle xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"/><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr sz=\"1000\" i=\"1\"><a:latin typeface=\"Arial\"/><a:solidFill><a:srgbClr val=\"AA5522\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr><c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Delta</a:t></a:r></a:p></c:rich></c:tx><c:txPr><a:bodyPr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"/><a:lstStyle xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"/><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr sz=\"1150\" i=\"1\"><a:latin typeface=\"Arial\"/><a:solidFill><a:srgbClr val=\"CC7722\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr></c:title></c:valAx>" +
                 "<c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"FFF8EE\"/></a:solidFill></c:spPr>" +
                 "</c:plotArea>" +
-                "<c:legend><c:legendPos val=\"b\"/><c:txPr><a:bodyPr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"/><a:lstStyle xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"/><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr sz=\"1200\" b=\"1\" i=\"1\"><a:latin typeface=\"Arial\"/><a:solidFill><a:srgbClr val=\"CC2277\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr></c:legend>" +
+                "<c:legend><c:legendPos val=\"b\"/><c:legendEntry><c:idx val=\"1\"/><c:delete val=\"1\"/></c:legendEntry><c:txPr><a:bodyPr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"/><a:lstStyle xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"/><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr sz=\"1200\" b=\"1\" i=\"1\"><a:latin typeface=\"Arial\"/><a:solidFill><a:srgbClr val=\"CC2277\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr></c:legend>" +
                 "</c:chart></c:chartSpace>");
 
             Dictionary<string, Color> theme =
@@ -1297,6 +1297,18 @@ namespace PptxViewer
                     "Chart legend position was not parsed correctly.");
             }
 
+            HashSet<int> hiddenLegendEntries =
+                ReadChartLegendHiddenEntries(
+                    chart);
+
+            if (hiddenLegendEntries.Count != 1 ||
+                !hiddenLegendEntries.Contains(
+                    1))
+            {
+                throw new InvalidOperationException(
+                    "Chart legendEntry delete was not parsed correctly.");
+            }
+
             ChartLabelOptions legendTextStyle =
                 ReadChartLegendTextStyle(
                     chart,
@@ -1344,6 +1356,15 @@ namespace PptxViewer
                 legendSeries.Add(
                     legendItem);
 
+                ChartSeriesData hiddenLegendItem =
+                    new ChartSeriesData();
+                hiddenLegendItem.Name =
+                    "Hidden Legend";
+                hiddenLegendItem.Values.Add(
+                    2.0);
+                legendSeries.Add(
+                    hiddenLegendItem);
+
                 DrawChartLegend(
                     legendGraphics,
                     new RectangleF(
@@ -1357,11 +1378,16 @@ namespace PptxViewer
                         Color.FromArgb(
                             70,
                             120,
-                            205)
+                            205),
+                        Color.FromArgb(
+                            220,
+                            55,
+                            45)
                     },
                     "column",
                     "b",
-                    legendTextStyle);
+                    legendTextStyle,
+                    hiddenLegendEntries);
 
                 bool legendStyleVisible =
                     false;
@@ -1397,6 +1423,40 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Chart legend txPr text color was not rendered.");
+                }
+
+                bool hiddenRedSwatchVisible =
+                    false;
+
+                for (int y = 138;
+                     y < 178 &&
+                     !hiddenRedSwatchVisible;
+                     y++)
+                {
+                    for (int x = 8;
+                         x < 300;
+                         x++)
+                    {
+                        Color pixel =
+                            legendBitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.R > 175 &&
+                            pixel.G < 105 &&
+                            pixel.B < 105)
+                        {
+                            hiddenRedSwatchVisible =
+                                true;
+                            break;
+                        }
+                    }
+                }
+
+                if (hiddenRedSwatchVisible)
+                {
+                    throw new InvalidOperationException(
+                        "Chart legendEntry delete still rendered the hidden legend swatch.");
                 }
             }
 
