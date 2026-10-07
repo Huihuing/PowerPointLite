@@ -127,6 +127,7 @@ Microsoft PowerPoint (설치된 경우)
   - legendPos 좌/우/상/하/우상단 배치 및 plot 영역 조정
   - legend txPr의 solidFill·sz·b/i·latin typeface 텍스트 스타일 기본 반영
   - chart title txPr의 solidFill·sz·b/i·latin typeface 텍스트 스타일 기본 반영
+  - catAx/valAx title txPr의 solidFill·sz·b/i·latin typeface 축 제목 스타일 기본 반영
   - 파이/도넛 category 범례 및 percent 레이블
   - c:ser/c:spPr series 색상 및 c:dPt point 색상 우선 반영
   - chartSpace / plotArea spPr solidFill 배경색 기본 반영
