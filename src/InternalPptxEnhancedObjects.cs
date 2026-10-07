@@ -11655,6 +11655,11 @@ namespace PptxViewer
                             topPad -
                             bottomPad));
 
+            ApplyChartManualPlotLayout(
+                chartDoc,
+                rect,
+                ref plot);
+
             Color plotBackground =
                 ReadChartAreaFill(
                     chartDoc,
@@ -11670,6 +11675,243 @@ namespace PptxViewer
                     plotBrush,
                     plot);
             }
+        }
+
+        private static void ApplyChartManualPlotLayout(
+            XmlDocument chartDoc,
+            RectangleF chartRect,
+            ref RectangleF plot)
+        {
+            if (chartDoc == null)
+                return;
+
+            XmlNode plotArea =
+                FindFirst(
+                    chartDoc,
+                    "plotArea");
+
+            if (plotArea == null)
+                return;
+
+            XmlNode manualLayout =
+                FindFirst(
+                    plotArea,
+                    "manualLayout");
+
+            if (manualLayout == null)
+                return;
+
+            RectangleF automaticPlot =
+                plot;
+
+            double x =
+                ReadChartManualLayoutNumber(
+                    manualLayout,
+                    "x");
+
+            double y =
+                ReadChartManualLayoutNumber(
+                    manualLayout,
+                    "y");
+
+            double width =
+                ReadChartManualLayoutNumber(
+                    manualLayout,
+                    "w");
+
+            double height =
+                ReadChartManualLayoutNumber(
+                    manualLayout,
+                    "h");
+
+            string xMode =
+                ReadChartManualLayoutMode(
+                    manualLayout,
+                    "xMode");
+
+            string yMode =
+                ReadChartManualLayoutMode(
+                    manualLayout,
+                    "yMode");
+
+            string widthMode =
+                ReadChartManualLayoutMode(
+                    manualLayout,
+                    "wMode");
+
+            string heightMode =
+                ReadChartManualLayoutMode(
+                    manualLayout,
+                    "hMode");
+
+            float left =
+                automaticPlot.Left;
+
+            float top =
+                automaticPlot.Top;
+
+            if (!double.IsNaN(x))
+            {
+                left =
+                    xMode == "edge"
+                        ? chartRect.Left +
+                            (float)x *
+                            chartRect.Width
+                        : automaticPlot.Left +
+                            (float)x *
+                            chartRect.Width;
+            }
+
+            if (!double.IsNaN(y))
+            {
+                top =
+                    yMode == "edge"
+                        ? chartRect.Top +
+                            (float)y *
+                            chartRect.Height
+                        : automaticPlot.Top +
+                            (float)y *
+                            chartRect.Height;
+            }
+
+            float right =
+                left +
+                automaticPlot.Width;
+
+            float bottom =
+                top +
+                automaticPlot.Height;
+
+            if (!double.IsNaN(width))
+            {
+                right =
+                    widthMode == "edge"
+                        ? chartRect.Left +
+                            (float)width *
+                            chartRect.Width
+                        : left +
+                            (float)width *
+                            chartRect.Width;
+            }
+
+            if (!double.IsNaN(height))
+            {
+                bottom =
+                    heightMode == "edge"
+                        ? chartRect.Top +
+                            (float)height *
+                            chartRect.Height
+                        : top +
+                            (float)height *
+                            chartRect.Height;
+            }
+
+            float minLeft =
+                chartRect.Left;
+
+            float minTop =
+                chartRect.Top;
+
+            float maxRight =
+                chartRect.Right;
+
+            float maxBottom =
+                chartRect.Bottom;
+
+            left =
+                Math.Max(
+                    minLeft,
+                    Math.Min(
+                        maxRight - 12f,
+                        left));
+
+            top =
+                Math.Max(
+                    minTop,
+                    Math.Min(
+                        maxBottom - 12f,
+                        top));
+
+            right =
+                Math.Max(
+                    left + 12f,
+                    Math.Min(
+                        maxRight,
+                        right));
+
+            bottom =
+                Math.Max(
+                    top + 12f,
+                    Math.Min(
+                        maxBottom,
+                        bottom));
+
+            plot =
+                new RectangleF(
+                    left,
+                    top,
+                    right - left,
+                    bottom - top);
+        }
+
+        private static double ReadChartManualLayoutNumber(
+            XmlNode manualLayout,
+            string localName)
+        {
+            if (manualLayout == null)
+                return double.NaN;
+
+            XmlNode node =
+                FindFirst(
+                    manualLayout,
+                    localName);
+
+            string raw =
+                node == null
+                    ? string.Empty
+                    : GetAttr(
+                        node,
+                        "val");
+
+            double value;
+
+            if (!double.TryParse(
+                    raw,
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out value))
+            {
+                return double.NaN;
+            }
+
+            return value;
+        }
+
+        private static string ReadChartManualLayoutMode(
+            XmlNode manualLayout,
+            string localName)
+        {
+            if (manualLayout == null)
+                return "factor";
+
+            XmlNode node =
+                FindFirst(
+                    manualLayout,
+                    localName);
+
+            string value =
+                node == null
+                    ? string.Empty
+                    : GetAttr(
+                        node,
+                        "val");
+
+            return string.Equals(
+                    value,
+                    "edge",
+                    StringComparison.OrdinalIgnoreCase)
+                ? "edge"
+                : "factor";
         }
 
         private static void DrawDoughnutChart(
