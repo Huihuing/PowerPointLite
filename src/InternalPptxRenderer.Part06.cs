@@ -1102,14 +1102,6 @@ chartDoc);
                                         axisScale,
                                         secondaryAxisScales);
 
-                            ChartAxisScale seriesAxisScale =
-                                barOptions.IsStacked
-                                    ? axisScale
-                                    : ResolveChartSeriesAxisScale(
-                                        series[si],
-                                        axisScale,
-                                        secondaryAxisScales);
-
                             double value =
                                 series[si].Values[ci];
 
@@ -1271,6 +1263,14 @@ chartDoc);
                             {
                                 continue;
                             }
+
+                            ChartAxisScale seriesAxisScale =
+                                barOptions.IsStacked
+                                    ? axisScale
+                                    : ResolveChartSeriesAxisScale(
+                                        series[si],
+                                        axisScale,
+                                        secondaryAxisScales);
 
                             double value =
                                 series[si].Values[ci];
