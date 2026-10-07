@@ -4318,6 +4318,125 @@ namespace PptxViewer
                     "SmartArt hierarchy children were not grouped beneath their parent nodes.");
             }
 
+            Dictionary<string, RectangleF>
+                deterministicRoutePositionsA =
+                    new Dictionary<string, RectangleF>(
+                        StringComparer.Ordinal);
+
+            deterministicRoutePositionsA[
+                "routeSource"] =
+                new RectangleF(
+                    40f,
+                    20f,
+                    60f,
+                    40f);
+            deterministicRoutePositionsA[
+                "routeTarget"] =
+                new RectangleF(
+                    220f,
+                    150f,
+                    60f,
+                    40f);
+            deterministicRoutePositionsA[
+                "routeBlockA"] =
+                new RectangleF(
+                    150f,
+                    70f,
+                    20f,
+                    60f);
+            deterministicRoutePositionsA[
+                "routeBlockB"] =
+                new RectangleF(
+                    122f,
+                    70f,
+                    16f,
+                    60f);
+            deterministicRoutePositionsA[
+                "routeBlockC"] =
+                new RectangleF(
+                    182f,
+                    70f,
+                    16f,
+                    60f);
+
+            Dictionary<string, RectangleF>
+                deterministicRoutePositionsB =
+                    new Dictionary<string, RectangleF>(
+                        StringComparer.Ordinal);
+
+            deterministicRoutePositionsB[
+                "routeSource"] =
+                deterministicRoutePositionsA[
+                    "routeSource"];
+            deterministicRoutePositionsB[
+                "routeTarget"] =
+                deterministicRoutePositionsA[
+                    "routeTarget"];
+            deterministicRoutePositionsB[
+                "routeBlockC"] =
+                deterministicRoutePositionsA[
+                    "routeBlockC"];
+            deterministicRoutePositionsB[
+                "routeBlockA"] =
+                deterministicRoutePositionsA[
+                    "routeBlockA"];
+            deterministicRoutePositionsB[
+                "routeBlockB"] =
+                deterministicRoutePositionsA[
+                    "routeBlockB"];
+
+            PointF routeFrom =
+                new PointF(
+                    100f,
+                    50f);
+            PointF routeTo =
+                new PointF(
+                    220f,
+                    150f);
+
+            PointF[] deterministicRouteA =
+                BuildSmartArtElbowRoute(
+                    routeFrom,
+                    routeTo,
+                    deterministicRoutePositionsA,
+                    "routeSource",
+                    "routeTarget",
+                    true);
+
+            PointF[] deterministicRouteB =
+                BuildSmartArtElbowRoute(
+                    routeFrom,
+                    routeTo,
+                    deterministicRoutePositionsB,
+                    "routeSource",
+                    "routeTarget",
+                    true);
+
+            if (deterministicRouteA == null ||
+                deterministicRouteB == null ||
+                deterministicRouteA.Length != 4 ||
+                deterministicRouteB.Length != 4 ||
+                Math.Abs(
+                    deterministicRouteA[1].X -
+                    deterministicRouteB[1].X) > 0.1f ||
+                Math.Abs(
+                    deterministicRouteA[2].X -
+                    deterministicRouteB[2].X) > 0.1f ||
+                !IsSmartArtRouteClear(
+                    deterministicRouteA,
+                    deterministicRoutePositionsA,
+                    "routeSource",
+                    "routeTarget") ||
+                !IsSmartArtRouteClear(
+                    deterministicRouteB,
+                    deterministicRoutePositionsB,
+                    "routeSource",
+                    "routeTarget"))
+            {
+                throw new InvalidOperationException(
+                    "SmartArt complex hierarchy routing depended on obstacle insertion order.");
+            }
+
             Dictionary<string, SmartNode> hierarchyNodeMap =
                 new Dictionary<string, SmartNode>(
                     StringComparer.Ordinal);
