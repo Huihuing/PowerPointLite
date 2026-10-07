@@ -1568,6 +1568,140 @@ namespace PptxViewer
                 }
             }
 
+            XmlDocument comboChartDoc =
+                new XmlDocument();
+
+            comboChartDoc.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<c:chart><c:plotArea>" +
+                "<c:lineChart>" +
+                "<c:ser><c:idx val=\"0\"/><c:order val=\"0\"/><c:tx><c:v>Primary Line</c:v></c:tx>" +
+                "<c:spPr><a:solidFill><a:srgbClr val=\"3355CC\"/></a:solidFill><a:ln w=\"25400\"><a:solidFill><a:srgbClr val=\"3355CC\"/></a:solidFill></a:ln></c:spPr>" +
+                "<c:cat><c:strLit><c:pt idx=\"0\"><c:v>A</c:v></c:pt><c:pt idx=\"1\"><c:v>B</c:v></c:pt><c:pt idx=\"2\"><c:v>C</c:v></c:pt></c:strLit></c:cat>" +
+                "<c:val><c:numLit><c:pt idx=\"0\"><c:v>10</c:v></c:pt><c:pt idx=\"1\"><c:v>30</c:v></c:pt><c:pt idx=\"2\"><c:v>20</c:v></c:pt></c:numLit></c:val>" +
+                "</c:ser><c:axId val=\"10\"/><c:axId val=\"20\"/></c:lineChart>" +
+                "<c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>" +
+                "<c:ser><c:idx val=\"1\"/><c:order val=\"1\"/><c:tx><c:v>Secondary Columns</c:v></c:tx>" +
+                "<c:spPr><a:solidFill><a:srgbClr val=\"33AA55\"/></a:solidFill></c:spPr>" +
+                "<c:cat><c:strLit><c:pt idx=\"0\"><c:v>A</c:v></c:pt><c:pt idx=\"1\"><c:v>B</c:v></c:pt><c:pt idx=\"2\"><c:v>C</c:v></c:pt></c:strLit></c:cat>" +
+                "<c:val><c:numLit><c:pt idx=\"0\"><c:v>400</c:v></c:pt><c:pt idx=\"1\"><c:v>800</c:v></c:pt><c:pt idx=\"2\"><c:v>600</c:v></c:pt></c:numLit></c:val>" +
+                "</c:ser><c:axId val=\"11\"/><c:axId val=\"30\"/></c:barChart>" +
+                "<c:catAx><c:axId val=\"10\"/><c:axPos val=\"b\"/><c:crossAx val=\"20\"/></c:catAx>" +
+                "<c:valAx><c:axId val=\"20\"/><c:axPos val=\"l\"/><c:scaling><c:min val=\"0\"/><c:max val=\"40\"/></c:scaling><c:majorUnit val=\"10\"/><c:crossAx val=\"10\"/></c:valAx>" +
+                "<c:catAx><c:axId val=\"11\"/><c:axPos val=\"t\"/><c:crossAx val=\"30\"/></c:catAx>" +
+                "<c:valAx><c:axId val=\"30\"/><c:axPos val=\"r\"/><c:scaling><c:min val=\"0\"/><c:max val=\"1000\"/></c:scaling><c:majorUnit val=\"250\"/><c:crossAx val=\"11\"/></c:valAx>" +
+                "</c:plotArea></c:chart></c:chartSpace>");
+
+            List<XmlNode> comboSeriesNodes =
+                FindAll(
+                    comboChartDoc,
+                    "ser");
+
+            ChartSeriesData comboPrimarySeries =
+                new ChartSeriesData();
+            ChartSeriesData comboSecondarySeries =
+                new ChartSeriesData();
+
+            comboPrimarySeries.Values.Add(10.0);
+            comboPrimarySeries.Values.Add(30.0);
+            comboPrimarySeries.Values.Add(20.0);
+            comboSecondarySeries.Values.Add(400.0);
+            comboSecondarySeries.Values.Add(800.0);
+            comboSecondarySeries.Values.Add(600.0);
+
+            ReadChartSeriesAxisBinding(
+                comboSeriesNodes[0],
+                comboChartDoc,
+                comboPrimarySeries);
+            ReadChartSeriesAxisBinding(
+                comboSeriesNodes[1],
+                comboChartDoc,
+                comboSecondarySeries);
+
+            List<ChartSeriesData> comboScaleSeries =
+                new List<ChartSeriesData>();
+            comboScaleSeries.Add(comboPrimarySeries);
+            comboScaleSeries.Add(comboSecondarySeries);
+
+            Dictionary<string, ChartAxisScale> comboSecondaryScales =
+                BuildChartSecondaryValueAxisScales(
+                    comboChartDoc,
+                    comboScaleSeries,
+                    "20",
+                    "line");
+
+            if (comboPrimarySeries.ChartKind != "line" ||
+                comboSecondarySeries.ChartKind != "column" ||
+                !comboSecondaryScales.ContainsKey("30") ||
+                Math.Abs(
+                    comboSecondaryScales["30"].Maximum -
+                    1000.0) > 0.0001)
+            {
+                throw new InvalidOperationException(
+                    "Mixed line-column chart axis-group binding was not preserved.");
+            }
+
+            using (Bitmap comboBitmap =
+                new Bitmap(
+                    460,
+                    280,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics comboGraphics =
+                Graphics.FromImage(
+                    comboBitmap))
+            {
+                comboGraphics.Clear(Color.White);
+
+                DrawChart(
+                    comboGraphics,
+                    comboChartDoc,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        460f,
+                        280f),
+                    theme);
+
+                int greenPixels = 0;
+                int bluePixels = 0;
+
+                for (int y = 0;
+                     y < comboBitmap.Height;
+                     y++)
+                {
+                    for (int x = 0;
+                         x < comboBitmap.Width;
+                         x++)
+                    {
+                        Color pixel =
+                            comboBitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.G > pixel.R + 45 &&
+                            pixel.G > pixel.B + 20 &&
+                            pixel.G > 120)
+                        {
+                            greenPixels++;
+                        }
+
+                        if (pixel.B > pixel.R + 45 &&
+                            pixel.B > pixel.G + 30 &&
+                            pixel.B > 130)
+                        {
+                            bluePixels++;
+                        }
+                    }
+                }
+
+                if (greenPixels < 900 ||
+                    bluePixels < 20)
+                {
+                    throw new InvalidOperationException(
+                        "Mixed line-column chart did not render both native series shapes.");
+                }
+            }
+
             ChartLabelOptions labels =
                 ReadChartLabelOptions(
                     chart,

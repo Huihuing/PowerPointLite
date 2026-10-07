@@ -595,10 +595,14 @@ chartDoc);
             }
 
             string primaryValueAxisId =
-                ReadChartAxisId(
-                    FindFirst(
-                        chartDoc,
-                        "valAx"));
+                series.Count > 0 &&
+                !string.IsNullOrEmpty(
+                    series[0].ValueAxisId)
+                    ? series[0].ValueAxisId
+                    : ReadChartAxisId(
+                        FindFirst(
+                            chartDoc,
+                            "valAx"));
 
             bool hasSecondaryValueAxis =
                 false;
@@ -618,13 +622,7 @@ chartDoc);
                     !string.Equals(
                         item.ValueAxisId,
                         primaryValueAxisId,
-                        StringComparison.Ordinal) &&
-                    (string.IsNullOrEmpty(
-                         item.ChartKind) ||
-                     string.Equals(
-                         item.ChartKind,
-                         kind,
-                         StringComparison.OrdinalIgnoreCase)))
+                        StringComparison.Ordinal))
                 {
                     hasSecondaryValueAxis =
                         true;
@@ -652,13 +650,7 @@ chartDoc);
                     string.Equals(
                         series[sIndex].ValueAxisId,
                         primaryValueAxisId,
-                        StringComparison.Ordinal) ||
-                    (!string.IsNullOrEmpty(
-                         series[sIndex].ChartKind) &&
-                     !string.Equals(
-                         series[sIndex].ChartKind,
-                         kind,
-                         StringComparison.OrdinalIgnoreCase));
+                        StringComparison.Ordinal);
 
                 if (useForPrimaryScale)
                 {
@@ -943,6 +935,16 @@ chartDoc);
                         ChartSeriesData sd =
                             series[si];
 
+                        if (!string.IsNullOrEmpty(
+                                sd.ChartKind) &&
+                            !string.Equals(
+                                sd.ChartKind,
+                                "line",
+                                StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
                         if (sd.Values.Count == 0)
                             continue;
 
@@ -1068,6 +1070,44 @@ chartDoc);
                                 }
                             }
                         }
+                    }
+
+                    List<ChartSeriesData> comboColumns =
+                        new List<ChartSeriesData>();
+
+                    for (int comboIndex = 0;
+                         comboIndex < series.Count;
+                         comboIndex++)
+                    {
+                        ChartSeriesData comboSeries =
+                            series[comboIndex];
+
+                        if (comboSeries != null &&
+                            string.Equals(
+                                comboSeries.ChartKind,
+                                "column",
+                                StringComparison.OrdinalIgnoreCase))
+                        {
+                            comboColumns.Add(
+                                comboSeries);
+                        }
+                    }
+
+                    if (comboColumns.Count > 0)
+                    {
+                        DrawComboColumnSeries(
+                            g,
+                            plot,
+                            series,
+                            comboColumns,
+                            categoryCount,
+                            barOptions,
+                            axisScale,
+                            secondaryAxisScales,
+                            palette,
+                            labelOptions,
+                            valueFont,
+                            valueBrush);
                     }
                 }
                 else if (kind == "bar")
@@ -1474,6 +1514,225 @@ chartDoc);
                 ReadChartLegendHiddenEntries(
                     chartDoc),
 chartDoc);
+        }
+
+
+        private static void DrawComboColumnSeries(
+            Graphics g,
+            RectangleF plot,
+            List<ChartSeriesData> allSeries,
+            List<ChartSeriesData> columnSeries,
+            int categoryCount,
+            ChartBarOptions barOptions,
+            ChartAxisScale primaryScale,
+            Dictionary<string, ChartAxisScale> secondaryScales,
+            Color[] palette,
+            ChartLabelOptions labelOptions,
+            Font valueFont,
+            Brush valueBrush)
+        {
+            if (g == null ||
+                columnSeries == null ||
+                columnSeries.Count == 0 ||
+                categoryCount <= 0)
+            {
+                return;
+            }
+
+            float groupW =
+                plot.Width /
+                categoryCount;
+
+            float barW;
+            float barStep;
+            float barSpan;
+
+            CalculateChartBarLayout(
+                groupW,
+                barOptions != null &&
+                barOptions.IsStacked
+                    ? 1
+                    : columnSeries.Count,
+                barOptions,
+                out barW,
+                out barStep,
+                out barSpan);
+
+            for (int ci = 0;
+                 ci < categoryCount;
+                 ci++)
+            {
+                for (int si = 0;
+                     si < columnSeries.Count;
+                     si++)
+                {
+                    ChartSeriesData item =
+                        columnSeries[si];
+
+                    if (item == null ||
+                        ci >= item.Values.Count)
+                    {
+                        continue;
+                    }
+
+                    ChartAxisScale seriesAxisScale =
+                        barOptions != null &&
+                        barOptions.IsStacked
+                            ? ResolveChartSeriesAxisScale(
+                                item,
+                                primaryScale,
+                                secondaryScales)
+                            : ResolveChartSeriesAxisScale(
+                                item,
+                                primaryScale,
+                                secondaryScales);
+
+                    double value =
+                        item.Values[ci];
+
+                    double segmentStart = 0.0;
+                    double segmentEnd = value;
+
+                    if (barOptions != null &&
+                        barOptions.IsStacked)
+                    {
+                        GetStackedChartSegment(
+                            columnSeries,
+                            ci,
+                            si,
+                            barOptions.IsPercentStacked,
+                            out segmentStart,
+                            out segmentEnd);
+                    }
+
+                    float startY =
+                        plot.Bottom -
+                        (float)(
+                            ChartAxisFraction(
+                                segmentStart,
+                                seriesAxisScale) *
+                            plot.Height);
+
+                    float valueY =
+                        plot.Bottom -
+                        (float)(
+                            ChartAxisFraction(
+                                segmentEnd,
+                                seriesAxisScale) *
+                            plot.Height);
+
+                    float top =
+                        Math.Min(
+                            startY,
+                            valueY);
+
+                    float height =
+                        Math.Max(
+                            1f,
+                            Math.Abs(
+                                valueY -
+                                startY));
+
+                    float x =
+                        plot.Left +
+                        ci *
+                        groupW +
+                        (groupW -
+                         barSpan) /
+                        2f +
+                        (barOptions != null &&
+                         barOptions.IsStacked
+                            ? 0f
+                            : si *
+                              barStep);
+
+                    int originalIndex =
+                        allSeries == null
+                            ? si
+                            : allSeries.IndexOf(
+                                item);
+
+                    if (originalIndex < 0)
+                        originalIndex = si;
+
+                    Color color =
+                        GetChartSeriesColor(
+                            allSeries ?? columnSeries,
+                            originalIndex,
+                            palette);
+
+                    using (Brush brush =
+                        new SolidBrush(
+                            color))
+                    {
+                        g.FillRectangle(
+                            brush,
+                            x,
+                            top,
+                            Math.Max(
+                                1f,
+                                barW -
+                                1f),
+                            height);
+                    }
+
+                    if (barOptions == null ||
+                        !barOptions.IsStacked)
+                    {
+                        DrawChartErrorBar(
+                            g,
+                            plot,
+                            seriesAxisScale,
+                            "column",
+                            new PointF(
+                                x +
+                                Math.Max(
+                                    1f,
+                                    barW -
+                                    1f) /
+                                2f,
+                                valueY),
+                            value,
+                            ci,
+                            item.ErrorBars,
+                            color);
+                    }
+
+                    ChartLabelOptions pointLabels =
+                        ResolveChartPointLabelOptions(
+                            labelOptions,
+                            item,
+                            ci);
+
+                    if (pointLabels.HasAny)
+                    {
+                        string label =
+                            BuildChartDataLabel(
+                                pointLabels,
+                                item,
+                                ci,
+                                false);
+
+                        DrawColumnChartDataLabel(
+                            g,
+                            valueFont,
+                            valueBrush,
+                            label,
+                            new RectangleF(
+                                x,
+                                top,
+                                Math.Max(
+                                    1f,
+                                    barW -
+                                    1f),
+                                height),
+                            startY,
+                            valueY,
+                            value,
+                            pointLabels);
+                    }
+                }
+            }
         }
 
         private static ChartBarOptions ReadChartBarOptions(
@@ -3202,13 +3461,7 @@ chartDoc);
                     string.Equals(
                         item.ValueAxisId,
                         primaryValueAxisId,
-                        StringComparison.Ordinal) ||
-                    (!string.IsNullOrEmpty(
-                         item.ChartKind) &&
-                     !string.Equals(
-                         item.ChartKind,
-                         chartKind,
-                         StringComparison.OrdinalIgnoreCase)))
+                        StringComparison.Ordinal))
                 {
                     continue;
                 }

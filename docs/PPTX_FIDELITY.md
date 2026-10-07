@@ -159,6 +159,8 @@ Microsoft PowerPoint (설치된 경우)
   - valAx numFmt의 기본 소수/천단위/퍼센트 표시
   - 같은 chart kind 내부의 복수 chart-group axId를 series별 category/value axis binding으로 해석
   - primary/secondary valAx를 분리해 series별 scale을 계산하고 secondary axPos edge에 별도 axis/tick label 렌더링
+  - line+column mixed-kind combo chart에서 각 series의 chart-group kind를 유지해 line은 선/marker, column은 bar primitive로 함께 렌더링
+  - mixed-kind series도 value-axis binding 기준으로 primary/secondary scale을 분리해 secondary column/line 값을 독립 축 범위로 처리
   - line chart series 선 굵기/prstDash 및 circle/square/diamond/triangle/x/plus marker
   - series trendline의 linear / poly(order 2~6) / movingAvg(period) 타입과 spPr/ln 색상·굵기·dash 기본 렌더링
   - linear/poly trendline의 forward/backward 기본 연장, poly는 정규화 좌표 최소제곱 fitting, movingAvg는 period 구간 평균 연결
@@ -266,7 +268,7 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 
 - SmartArt 고유 layout algorithm의 정밀 spacing, 다중 assistant 배치 우선순위 및 공식 connector routing semantics 전체
 - chart의 모든 axis/style/data-label/3D 조합
-- mixed-kind combo chart(line+column 등)의 완전한 독립 axis-group 렌더링 및 secondary axis title/gridline parity
+- mixed-kind combo chart의 복수 독립 category-axis 위치/레이블 parity 및 secondary axis title/gridline parity
 - theme effect style 참조 전체 및 복합 shadow/effect 조합
 - feComposite arithmetic의 filter-region 전체 k4 확장, 임의 입력 순서/복합 chain 및 feColorMatrix가 다른 primitive와 연결된 복잡한 SVG filter chain, 복잡한 mask luminance/gradient 등 고급 SVG 기능
 - SVG use subtree의 복잡한 CSS cascade/selector, viewport가 있는 symbol의 자식별 확장, root filter/clip/mask 조합 전체
