@@ -24,7 +24,8 @@ namespace PptxViewer
     {
         TextBox,
         Shape,
-        Image
+        Image,
+        Table
     }
 
     internal sealed class PresentationLayerEntry
@@ -524,6 +525,9 @@ namespace PptxViewer
             PresentationTable table = new PresentationTable(rows, columns);
             table.Name = "Table " + (tables.Count + 1).ToString();
             tables.Add(table);
+            RegisterObjectOrder(
+                PresentationLayerKind.Table,
+                tables.Count - 1);
             return table;
         }
 
@@ -565,6 +569,9 @@ namespace PptxViewer
             if (index < 0 || index >= tables.Count)
                 return false;
             tables.RemoveAt(index);
+            RemoveObjectOrder(
+                PresentationLayerKind.Table,
+                index);
             return true;
         }
 
@@ -613,6 +620,8 @@ namespace PptxViewer
                 new bool[shapes.Count];
             bool[] imageSeen =
                 new bool[images.Count];
+            bool[] tableSeen =
+                new bool[tables.Count];
 
             for (int i = 0;
                  i < objectOrder.Count;
@@ -652,6 +661,13 @@ namespace PptxViewer
                         imageSeen[entry.Index];
                     imageSeen[entry.Index] = true;
                 }
+                else if (entry.Kind ==
+                         PresentationLayerKind.Table)
+                {
+                    alreadySeen =
+                        tableSeen[entry.Index];
+                    tableSeen[entry.Index] = true;
+                }
 
                 if (!alreadySeen)
                     normalized.Add(
@@ -688,6 +704,20 @@ namespace PptxViewer
                     AddNormalizedLayerEntry(
                         normalized,
                         PresentationLayerKind.TextBox,
+                        i);
+            }
+
+            // Tables historically rendered after the other editable
+            // object kinds. Keep that fallback for legacy model instances
+            // that predate the shared layer-order list.
+            for (int i = 0;
+                 i < tables.Count;
+                 i++)
+            {
+                if (!tableSeen[i])
+                    AddNormalizedLayerEntry(
+                        normalized,
+                        PresentationLayerKind.Table,
                         i);
             }
 
@@ -839,6 +869,13 @@ namespace PptxViewer
             {
                 return index <
                     images.Count;
+            }
+
+            if (kind ==
+                PresentationLayerKind.Table)
+            {
+                return index <
+                    tables.Count;
             }
 
             return false;

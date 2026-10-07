@@ -218,7 +218,12 @@ namespace PptxViewer
                     PresentationTable table = PptxTableReader.Read(node);
 
                     if (table != null)
+                    {
                         slide.Tables.Add(table);
+                        slide.RegisterObjectOrder(
+                            PresentationLayerKind.Table,
+                            slide.Tables.Count - 1);
+                    }
                     else
                         result.HasUnsupportedContent = true;
                 }

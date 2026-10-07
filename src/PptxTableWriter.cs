@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO.Compression;
 using System.Xml;
 
@@ -71,6 +72,8 @@ namespace PptxViewer
                         throw new InvalidOperationException("Slide shape tree is missing.");
 
                     int nextShapeId = FindMaxShapeId(shapeTree) + 1;
+                    XmlElement[] tableFrames =
+                        new XmlElement[slide.Tables.Count];
 
                     for (int tableIndex = 0;
                          tableIndex < slide.Tables.Count;
@@ -80,11 +83,85 @@ namespace PptxViewer
                         if (table == null)
                             continue;
 
-                        XmlElement frame = BuildGraphicFrame(
-                            slideDocument,
-                            table,
-                            nextShapeId++);
-                        shapeTree.AppendChild(frame);
+                        tableFrames[tableIndex] =
+                            BuildGraphicFrame(
+                                slideDocument,
+                                table,
+                                nextShapeId++);
+                    }
+
+                    // PptxWriter already emits text/shape/image nodes in
+                    // ObjectOrder while skipping tables. Rebuild the object
+                    // section after table XML is available so tables can sit
+                    // between any of those generated nodes instead of always
+                    // being appended at the front-most layer.
+                    List<XmlNode> generatedObjects =
+                        new List<XmlNode>();
+
+                    for (int childIndex = 0;
+                         childIndex < shapeTree.ChildNodes.Count;
+                         childIndex++)
+                    {
+                        XmlNode child =
+                            shapeTree.ChildNodes[childIndex];
+
+                        if (child == null)
+                            continue;
+
+                        if (child.LocalName == "sp" ||
+                            child.LocalName == "pic")
+                        {
+                            generatedObjects.Add(child);
+                        }
+                    }
+
+                    for (int i = 0;
+                         i < generatedObjects.Count;
+                         i++)
+                    {
+                        shapeTree.RemoveChild(
+                            generatedObjects[i]);
+                    }
+
+                    slide.SynchronizeObjectOrder();
+                    int generatedIndex = 0;
+
+                    for (int orderIndex = 0;
+                         orderIndex < slide.ObjectOrder.Count;
+                         orderIndex++)
+                    {
+                        PresentationLayerEntry entry =
+                            slide.ObjectOrder[orderIndex];
+
+                        if (entry == null)
+                            continue;
+
+                        if (entry.Kind ==
+                                PresentationLayerKind.Table &&
+                            entry.Index >= 0 &&
+                            entry.Index < tableFrames.Length &&
+                            tableFrames[entry.Index] != null)
+                        {
+                            shapeTree.AppendChild(
+                                tableFrames[entry.Index]);
+                        }
+                        else if (entry.Kind !=
+                                 PresentationLayerKind.Table &&
+                                 generatedIndex <
+                                 generatedObjects.Count)
+                        {
+                            shapeTree.AppendChild(
+                                generatedObjects[
+                                    generatedIndex++]);
+                        }
+                    }
+
+                    while (generatedIndex <
+                           generatedObjects.Count)
+                    {
+                        shapeTree.AppendChild(
+                            generatedObjects[
+                                generatedIndex++]);
                     }
 
                     OpcPackageUtility.WriteXmlPart(

@@ -72,6 +72,17 @@ namespace PptxViewer
             table.Width = 9448800;
             table.Height = 1143000;
 
+            if (!second.MoveObjectToBack(
+                    PresentationLayerKind.Table,
+                    0) ||
+                !second.MoveObjectToFront(
+                    PresentationLayerKind.Image,
+                    0))
+            {
+                throw new InvalidOperationException(
+                    "Writer self-test could not move a table through the shared layer order.");
+            }
+
             for (int row = 0; row < table.Rows; row++)
             {
                 for (int column = 0; column < table.Columns; column++)
@@ -153,11 +164,11 @@ namespace PptxViewer
 
             second.SynchronizeObjectOrder();
 
-            if (second.ObjectOrder.Count < 4 ||
+            if (second.ObjectOrder.Count < 5 ||
                 second.ObjectOrder[0].Kind !=
-                    PresentationLayerKind.Image ||
+                    PresentationLayerKind.Table ||
                 second.ObjectOrder[second.ObjectOrder.Count - 1].Kind !=
-                    PresentationLayerKind.Shape)
+                    PresentationLayerKind.Image)
             {
                 throw new InvalidOperationException(
                     "Editable reader did not preserve mixed object z-order.");
@@ -222,11 +233,11 @@ namespace PptxViewer
 
                 verify.SynchronizeObjectOrder();
 
-                if (verify.ObjectOrder.Count < 4 ||
+                if (verify.ObjectOrder.Count < 5 ||
                     verify.ObjectOrder[0].Kind !=
-                        PresentationLayerKind.Image ||
+                        PresentationLayerKind.Table ||
                     verify.ObjectOrder[verify.ObjectOrder.Count - 1].Kind !=
-                        PresentationLayerKind.Shape)
+                        PresentationLayerKind.Image)
                 {
                     throw new InvalidOperationException(
                         "Mixed object z-order was not preserved after read-edit-write.");

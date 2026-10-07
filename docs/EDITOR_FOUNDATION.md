@@ -147,7 +147,7 @@ RUN_WRITER_SELFTEST.cmd
 RUN_ANIMATION_SELFTEST.cmd
 ```
 
-Writer 자체 테스트는 프로젝트 코드만으로 text box, shape, 자체 생성 image, table이 포함된 PPTX를 만들고 read-edit-write round-trip을 검사한다. text box/shape/image는 `PresentationSlide.ObjectOrder`에 공통 layer 순서를 기록하며, Writer와 editable reader가 PPTX `spTree` 순서를 왕복 보존하는지도 함께 검증한다.
+Writer 자체 테스트는 프로젝트 코드만으로 text box, shape, 자체 생성 image, table이 포함된 PPTX를 만들고 read-edit-write round-trip을 검사한다. text box/shape/image/table 모두 `PresentationSlide.ObjectOrder`에 공통 layer 순서를 기록하며, Writer와 editable reader가 PPTX `spTree` 순서를 왕복 보존하는지도 함께 검증한다. Table XML은 후처리 writer가 생성하지만 최종 `spTree`를 공통 order로 재조립하므로 table도 다른 객체 사이의 z-order를 유지한다.
 
 Advanced Editor는 선택 객체에 대해 **Send Back / Bring Front**를 제공한다. 이 동작은 단순 화면 표시 순서가 아니라 모델의 공통 layer order를 변경하며, Canvas paint/hit-test와 Writer 저장에 동일하게 적용된다. `Ctrl+Shift+Down` / `Ctrl+Shift+Up`으로도 실행할 수 있다.
 
