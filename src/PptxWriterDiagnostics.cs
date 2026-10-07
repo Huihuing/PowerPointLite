@@ -106,6 +106,23 @@ namespace PptxViewer
                 }
             }
 
+            PresentationChart chart =
+                second.AddChart(
+                    CreateGeneratedChartXml());
+            chart.Name = "Generated Chart";
+            chart.X = 4114800;
+            chart.Y = 2286000;
+            chart.Width = 3657600;
+            chart.Height = 2057400;
+
+            if (!second.MoveObjectToFront(
+                    PresentationLayerKind.Image,
+                    0))
+            {
+                throw new InvalidOperationException(
+                    "Writer self-test could not keep the image above the generated chart.");
+            }
+
             PresentationSlide third = document.AddSlide("Formatting Test");
             PresentationTextBox sample = third.AddTextBox("Bold / italic writer test");
             sample.Name = "Formatting sample";
@@ -196,6 +213,26 @@ namespace PptxViewer
             }
         }
 
+        private static byte[] CreateGeneratedChartXml()
+        {
+            const string xml =
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" " +
+                "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<c:chart><c:autoTitleDeleted val=\"0\"/>" +
+                "<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>PowerPointLite Chart</a:t></a:r></a:p></c:rich></c:tx></c:title>" +
+                "<c:plotArea><c:layout/><c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>" +
+                "<c:ser><c:idx val=\"0\"/><c:order val=\"0\"/><c:tx><c:v>Series 1</c:v></c:tx>" +
+                "<c:cat><c:strLit><c:ptCount val=\"3\"/><c:pt idx=\"0\"><c:v>A</c:v></c:pt><c:pt idx=\"1\"><c:v>B</c:v></c:pt><c:pt idx=\"2\"><c:v>C</c:v></c:pt></c:strLit></c:cat>" +
+                "<c:val><c:numLit><c:formatCode>General</c:formatCode><c:ptCount val=\"3\"/><c:pt idx=\"0\"><c:v>3</c:v></c:pt><c:pt idx=\"1\"><c:v>7</c:v></c:pt><c:pt idx=\"2\"><c:v>5</c:v></c:pt></c:numLit></c:val>" +
+                "</c:ser><c:axId val=\"1\"/><c:axId val=\"2\"/></c:barChart>" +
+                "<c:catAx><c:axId val=\"1\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"b\"/><c:tickLblPos val=\"nextTo\"/><c:crossAx val=\"2\"/><c:crosses val=\"autoZero\"/></c:catAx>" +
+                "<c:valAx><c:axId val=\"2\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"l\"/><c:majorGridlines/><c:numFmt formatCode=\"General\" sourceLinked=\"1\"/><c:tickLblPos val=\"nextTo\"/><c:crossAx val=\"1\"/><c:crosses val=\"autoZero\"/></c:valAx>" +
+                "</c:plotArea><c:plotVisOnly val=\"1\"/><c:dispBlanksAs val=\"gap\"/></c:chart></c:chartSpace>";
+
+            return Encoding.UTF8.GetBytes(xml);
+        }
+
         private static void ValidateEditableRoundTrip(string path)
         {
             PptxEditableLoadResult loaded = PptxEditableReader.Read(path);
@@ -251,11 +288,14 @@ namespace PptxViewer
 
             second.SynchronizeObjectOrder();
 
-            if (second.ObjectOrder.Count < 5 ||
+            if (second.ObjectOrder.Count < 6 ||
                 second.ObjectOrder[0].Kind !=
                     PresentationLayerKind.Table ||
                 second.ObjectOrder[second.ObjectOrder.Count - 1].Kind !=
-                    PresentationLayerKind.Image)
+                    PresentationLayerKind.Image ||
+                !ContainsLayerKind(
+                    second,
+                    PresentationLayerKind.Chart))
             {
                 throw new InvalidOperationException(
                     "Editable reader did not preserve mixed object z-order.");
@@ -267,6 +307,22 @@ namespace PptxViewer
                 second.Tables[0].GetCell(0, 1).Text != "R1 C2")
             {
                 throw new InvalidOperationException("Editable reader did not preserve the generated table.");
+            }
+
+            if (second.Charts.Count != 1 ||
+                second.Charts[0].XmlData == null ||
+                second.Charts[0].XmlData.Length == 0 ||
+                second.Charts[0].X != 4114800 ||
+                second.Charts[0].Y != 2286000 ||
+                second.Charts[0].Width != 3657600 ||
+                second.Charts[0].Height != 2057400 ||
+                Encoding.UTF8.GetString(second.Charts[0].XmlData)
+                    .IndexOf(
+                        "PowerPointLite Chart",
+                        StringComparison.Ordinal) < 0)
+            {
+                throw new InvalidOperationException(
+                    "Editable reader did not preserve the generated self-contained chart.");
             }
 
             second.TextBoxes[1].Text =
@@ -338,11 +394,14 @@ namespace PptxViewer
 
                 verify.SynchronizeObjectOrder();
 
-                if (verify.ObjectOrder.Count < 5 ||
+                if (verify.ObjectOrder.Count < 6 ||
                     verify.ObjectOrder[0].Kind !=
                         PresentationLayerKind.Table ||
                     verify.ObjectOrder[verify.ObjectOrder.Count - 1].Kind !=
-                        PresentationLayerKind.Image)
+                        PresentationLayerKind.Image ||
+                    !ContainsLayerKind(
+                        verify,
+                        PresentationLayerKind.Chart))
                 {
                     throw new InvalidOperationException(
                         "Mixed object z-order was not preserved after read-edit-write.");
@@ -352,6 +411,22 @@ namespace PptxViewer
                     verify.Tables[0].GetCell(1, 2).Text != "Table round-trip OK")
                 {
                     throw new InvalidOperationException("Table round-trip verification failed.");
+                }
+
+                if (verify.Charts.Count != 1 ||
+                    verify.Charts[0].XmlData == null ||
+                    verify.Charts[0].XmlData.Length == 0 ||
+                    verify.Charts[0].X != 4114800 ||
+                    verify.Charts[0].Y != 2286000 ||
+                    verify.Charts[0].Width != 3657600 ||
+                    verify.Charts[0].Height != 2057400 ||
+                    Encoding.UTF8.GetString(verify.Charts[0].XmlData)
+                        .IndexOf(
+                            "PowerPointLite Chart",
+                            StringComparison.Ordinal) < 0)
+                {
+                    throw new InvalidOperationException(
+                        "Self-contained chart was not preserved after read-edit-write.");
                 }
             }
             finally
@@ -482,6 +557,132 @@ namespace PptxViewer
             }
         }
 
+        private static bool ContainsLayerKind(
+            PresentationSlide slide,
+            PresentationLayerKind kind)
+        {
+            if (slide == null)
+                return false;
+
+            for (int i = 0;
+                 i < slide.ObjectOrder.Count;
+                 i++)
+            {
+                PresentationLayerEntry entry =
+                    slide.ObjectOrder[i];
+
+                if (entry != null &&
+                    entry.Kind == kind)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool HasRelationship(
+            XmlDocument document,
+            string id,
+            string typeSuffix,
+            string target)
+        {
+            if (document == null ||
+                document.DocumentElement == null)
+            {
+                return false;
+            }
+
+            for (int i = 0;
+                 i < document.DocumentElement.ChildNodes.Count;
+                 i++)
+            {
+                XmlNode node =
+                    document.DocumentElement.ChildNodes[i];
+
+                if (node.LocalName !=
+                        "Relationship" ||
+                    node.Attributes == null)
+                {
+                    continue;
+                }
+
+                string currentId =
+                    node.Attributes["Id"] == null
+                        ? string.Empty
+                        : node.Attributes["Id"].Value;
+                string currentType =
+                    node.Attributes["Type"] == null
+                        ? string.Empty
+                        : node.Attributes["Type"].Value;
+                string currentTarget =
+                    node.Attributes["Target"] == null
+                        ? string.Empty
+                        : node.Attributes["Target"].Value;
+
+                if (currentId == id &&
+                    currentType.EndsWith(
+                        typeSuffix,
+                        StringComparison.Ordinal) &&
+                    currentTarget == target)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool HasContentTypeOverride(
+            XmlDocument document,
+            string partName,
+            string contentType)
+        {
+            if (document == null ||
+                document.DocumentElement == null)
+            {
+                return false;
+            }
+
+            for (int i = 0;
+                 i < document.DocumentElement.ChildNodes.Count;
+                 i++)
+            {
+                XmlNode node =
+                    document.DocumentElement.ChildNodes[i];
+
+                if (node.LocalName !=
+                        "Override" ||
+                    node.Attributes == null)
+                {
+                    continue;
+                }
+
+                string currentPart =
+                    node.Attributes["PartName"] == null
+                        ? string.Empty
+                        : node.Attributes["PartName"].Value;
+                string currentType =
+                    node.Attributes["ContentType"] == null
+                        ? string.Empty
+                        : node.Attributes["ContentType"].Value;
+
+                if (string.Equals(
+                        currentPart,
+                        partName,
+                        StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(
+                        currentType,
+                        contentType,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private static XmlNode FindFirstByLocalName(XmlNode node, string localName)
         {
             if (node == null)
@@ -530,6 +731,10 @@ namespace PptxViewer
 
                 if (expectGeneratedImage)
                     RequireEntry(archive, "ppt/media/slide2_image1.png");
+
+                RequireEntry(
+                    archive,
+                    "ppt/charts/slide2_chart1.xml");
 
                 XmlDocument presentation =
                     OpcPackageUtility.ReadXmlPart(archive, "ppt/presentation.xml");
@@ -677,6 +882,65 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Generated image rotation, flip, or opacity XML was not found in slide2.xml.");
+                }
+
+                XmlNodeList chartReferences =
+                    slide2.GetElementsByTagName(
+                        "c:chart");
+
+                if (chartReferences == null ||
+                    chartReferences.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        "Generated chart graphicFrame reference was not found in slide2.xml.");
+                }
+
+                XmlDocument chartDocument =
+                    OpcPackageUtility.ReadXmlPart(
+                        archive,
+                        "ppt/charts/slide2_chart1.xml");
+
+                if (chartDocument == null ||
+                    chartDocument.DocumentElement == null ||
+                    chartDocument.DocumentElement.LocalName !=
+                        "chartSpace" ||
+                    chartDocument.InnerText.IndexOf(
+                        "PowerPointLite Chart",
+                        StringComparison.Ordinal) < 0)
+                {
+                    throw new InvalidOperationException(
+                        "Generated chart part was not preserved.");
+                }
+
+                XmlDocument slide2Relationships =
+                    OpcPackageUtility.ReadXmlPart(
+                        archive,
+                        "ppt/slides/_rels/slide2.xml.rels");
+
+                if (slide2Relationships == null ||
+                    !HasRelationship(
+                        slide2Relationships,
+                        "rIdChart1",
+                        "/chart",
+                        "../charts/slide2_chart1.xml"))
+                {
+                    throw new InvalidOperationException(
+                        "Generated chart relationship was not preserved.");
+                }
+
+                XmlDocument contentTypes =
+                    OpcPackageUtility.ReadXmlPart(
+                        archive,
+                        "[Content_Types].xml");
+
+                if (contentTypes == null ||
+                    !HasContentTypeOverride(
+                        contentTypes,
+                        "/ppt/charts/slide2_chart1.xml",
+                        "application/vnd.openxmlformats-officedocument.drawingml.chart+xml"))
+                {
+                    throw new InvalidOperationException(
+                        "Generated chart content type override was not preserved.");
                 }
 
                 XmlDocument slide3 =
