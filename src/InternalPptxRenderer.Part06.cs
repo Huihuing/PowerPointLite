@@ -6389,7 +6389,7 @@ chartDoc);
                                 rect.Height *
                                 0.12f);
 
-                RectangleF automaticLegendRect =
+                RectangleF verticalAutomaticLegendRect =
                     new RectangleF(
                         legendX,
                         legendY,
@@ -6402,21 +6402,21 @@ chartDoc);
                                 labels.Count *
                                 (font.Height + 4f))));
 
-                RectangleF manualLegendRect;
+                RectangleF verticalManualLegendRect;
 
                 if (TryResolveChartElementManualLayout(
                         chartDoc,
                         "legend",
                         rect,
-                        automaticLegendRect,
-                        out manualLegendRect))
+                        verticalAutomaticLegendRect,
+                        out verticalManualLegendRect))
                 {
                     legendX =
-                        manualLegendRect.Left;
+                        verticalManualLegendRect.Left;
                     legendY =
-                        manualLegendRect.Top;
+                        verticalManualLegendRect.Top;
                     legendWidth =
-                        manualLegendRect.Width;
+                        verticalManualLegendRect.Width;
                 }
 
                 for (int i = 0;
