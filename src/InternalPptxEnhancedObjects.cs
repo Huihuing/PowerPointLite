@@ -14393,16 +14393,6 @@ namespace PptxViewer
                     1,
                     nodes.Count);
 
-            int columns =
-                Math.Min(
-                    5,
-                    count);
-
-            int rows =
-                (int)Math.Ceiling(
-                    count /
-                    (double)columns);
-
             float gap =
                 Math.Max(
                     8f,
@@ -14411,12 +14401,55 @@ namespace PptxViewer
                         rect.Height) *
                     0.025f);
 
+            float minimumCellWidth =
+                Math.Max(
+                    24f,
+                    Math.Min(
+                        40f,
+                        rect.Width -
+                        gap *
+                        2f));
+
+            int maxColumnsByWidth =
+                Math.Max(
+                    1,
+                    (int)Math.Floor(
+                        (rect.Width -
+                         gap) /
+                        Math.Max(
+                            1f,
+                            minimumCellWidth +
+                            gap)));
+
+            int columns =
+                Math.Max(
+                    1,
+                    Math.Min(
+                        Math.Min(
+                            5,
+                            count),
+                        maxColumnsByWidth));
+
+            int rows =
+                (int)Math.Ceiling(
+                    count /
+                    (double)columns);
+
             float cellW =
                 Math.Max(
-                    40f,
+                    minimumCellWidth,
                     (rect.Width -
                      gap * (columns + 1)) /
                     columns);
+
+            cellW =
+                Math.Min(
+                    cellW,
+                    Math.Max(
+                        20f,
+                        rect.Width -
+                        gap *
+                        2f));
 
             float cellH =
                 Math.Max(
