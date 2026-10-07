@@ -151,6 +151,8 @@ Writer 자체 테스트는 프로젝트 코드만으로 text box, shape, 자체 
 
 Advanced Editor는 선택 객체에 대해 **Send Back / Bring Front**를 제공한다. 이 동작은 단순 화면 표시 순서가 아니라 모델의 공통 layer order를 변경하며, Canvas paint/hit-test와 Writer 저장에 동일하게 적용된다. `Ctrl+Shift+Down` / `Ctrl+Shift+Up`으로도 실행할 수 있다.
 
+또한 **Ctrl+클릭 multi-selection**을 지원한다. 여러 text box/shape/image를 함께 선택하면 각 객체 선택선과 전체 group bounds가 표시되고, 마우스 drag 또는 방향키로 상대 간격을 유지한 채 동시에 이동할 수 있다. 그룹이 slide 경계에 닿으면 전체 그룹 기준으로 이동량을 제한하며, Delete는 선택된 객체를 종류별 역순으로 제거해 index 변화에도 안전하게 동작한다. 다중 선택 중에는 개별 속성 편집·복사·z-order 버튼을 잠가 잘못된 단일-object 동작을 방지한다.
+
 Animation 자체 테스트는 합성 `p:timing`을 프로젝트가 만든 PPTX에 주입해 click entrance, with-previous emphasis, after-previous exit, delayed motion step과 단계별 render state를 검사한다.
 
 인터넷 문서나 Microsoft/Hancom 템플릿을 fixture로 사용하지 않는다.
@@ -161,7 +163,6 @@ Animation 자체 테스트는 합성 `p:timing`을 프로젝트가 만든 PPTX�
 - Viewer renderer와 interactive canvas의 공통 layout/render primitive 확대
 - chart/SmartArt/media 등 고급 요소는 Viewer fidelity를 보존하면서 단계적 편집 지원
 - table을 일반 object selection과 통합해 drag/resize
-- multi-selection
 - system clipboard interoperability
 - accessible focus order 강화
 - arbitrary existing PPTX unknown/unsupported part preservation

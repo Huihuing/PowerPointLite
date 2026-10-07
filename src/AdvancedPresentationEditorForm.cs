@@ -16,6 +16,21 @@ namespace PptxViewer
         Image
     }
 
+    internal sealed class EditorSelectionEntry
+    {
+        public EditorObjectKind Kind { get; set; }
+        public int Index { get; set; }
+
+        public EditorSelectionEntry Clone()
+        {
+            EditorSelectionEntry copy =
+                new EditorSelectionEntry();
+            copy.Kind = Kind;
+            copy.Index = Index;
+            return copy;
+        }
+    }
+
     internal sealed class AdvancedPresentationEditorForm : Form
     {
         private readonly PresentationEditSession session;
@@ -1067,20 +1082,93 @@ namespace PptxViewer
 
         private void DeleteSelectedObject()
         {
-            int slideIndex = canvas.SelectedSlideIndex;
-            int index = canvas.SelectedObjectIndex;
-            if (slideIndex < 0 || index < 0)
+            int slideIndex =
+                canvas.SelectedSlideIndex;
+            List<EditorSelectionEntry> selected =
+                canvas.GetSelectedObjects();
+
+            if (slideIndex < 0 ||
+                selected.Count == 0)
+            {
                 return;
+            }
+
+            List<int> textIndexes =
+                new List<int>();
+            List<int> shapeIndexes =
+                new List<int>();
+            List<int> imageIndexes =
+                new List<int>();
+
+            for (int i = 0;
+                 i < selected.Count;
+                 i++)
+            {
+                EditorSelectionEntry entry =
+                    selected[i];
+
+                if (entry.Kind ==
+                    EditorObjectKind.TextBox)
+                {
+                    textIndexes.Add(
+                        entry.Index);
+                }
+                else if (entry.Kind ==
+                         EditorObjectKind.Shape)
+                {
+                    shapeIndexes.Add(
+                        entry.Index);
+                }
+                else if (entry.Kind ==
+                         EditorObjectKind.Image)
+                {
+                    imageIndexes.Add(
+                        entry.Index);
+                }
+            }
+
+            textIndexes.Sort();
+            shapeIndexes.Sort();
+            imageIndexes.Sort();
 
             CaptureHistory();
             bool removed = false;
 
-            if (canvas.SelectedObjectKind == EditorObjectKind.TextBox)
-                removed = session.RemoveTextBox(slideIndex, index);
-            else if (canvas.SelectedObjectKind == EditorObjectKind.Shape)
-                removed = session.RemoveShape(slideIndex, index);
-            else if (canvas.SelectedObjectKind == EditorObjectKind.Image)
-                removed = session.RemoveImage(slideIndex, index);
+            for (int i =
+                     textIndexes.Count - 1;
+                 i >= 0;
+                 i--)
+            {
+                removed =
+                    session.RemoveTextBox(
+                        slideIndex,
+                        textIndexes[i]) ||
+                    removed;
+            }
+
+            for (int i =
+                     shapeIndexes.Count - 1;
+                 i >= 0;
+                 i--)
+            {
+                removed =
+                    session.RemoveShape(
+                        slideIndex,
+                        shapeIndexes[i]) ||
+                    removed;
+            }
+
+            for (int i =
+                     imageIndexes.Count - 1;
+                 i >= 0;
+                 i--)
+            {
+                removed =
+                    session.RemoveImage(
+                        slideIndex,
+                        imageIndexes[i]) ||
+                    removed;
+            }
 
             if (!removed)
                 return;
@@ -1136,6 +1224,7 @@ namespace PptxViewer
                 canvas.SelectedObjectIndex;
 
             if (slide == null ||
+                canvas.SelectedObjectCount != 1 ||
                 index < 0 ||
                 !TryGetSelectedLayerKind(
                     out kind))
@@ -1182,8 +1271,12 @@ namespace PptxViewer
             copiedImage = null;
 
             PresentationSlide slide = GetSelectedSlide();
-            if (slide == null || canvas.SelectedObjectIndex < 0)
+            if (slide == null ||
+                canvas.SelectedObjectCount != 1 ||
+                canvas.SelectedObjectIndex < 0)
+            {
                 return;
+            }
 
             int index = canvas.SelectedObjectIndex;
             if (canvas.SelectedObjectKind == EditorObjectKind.TextBox && index < slide.TextBoxes.Count)
@@ -1328,6 +1421,8 @@ namespace PptxViewer
 
             try
             {
+                int selectedCount =
+                    canvas.SelectedObjectCount;
                 PresentationTextBox text = canvas.GetSelectedTextBox();
                 PresentationShape shape = canvas.GetSelectedShape();
                 PresentationImage image = canvas.GetSelectedImage();
@@ -1335,13 +1430,17 @@ namespace PptxViewer
                 bool textEnabled = text != null;
                 bool shapeEnabled = shape != null;
 
-                objectTypeLabel.Text = text != null
-                    ? "Text box"
-                    : shape != null
-                        ? "Shape"
-                        : image != null
-                            ? "Image"
-                            : "No object selected";
+                objectTypeLabel.Text =
+                    selectedCount > 1
+                        ? selectedCount.ToString() +
+                          " objects selected"
+                        : text != null
+                            ? "Text box"
+                            : shape != null
+                                ? "Shape"
+                                : image != null
+                                    ? "Image"
+                                    : "No object selected";
 
                 textEditor.Enabled = textEnabled;
                 fontPicker.Enabled = textEnabled;
@@ -1503,11 +1602,23 @@ namespace PptxViewer
                 ? "Unsaved"
                 : Path.GetFileName(session.FilePath);
 
+            int selectedCount =
+                canvas == null
+                    ? 0
+                    : canvas.SelectedObjectCount;
+
             statusLabel.Text =
                 (session.IsDirty ? "Modified  •  " : "Saved  •  ") +
                 fileName + "  •  " +
                 session.Document.Slides.Count.ToString() +
-                " slide(s)";
+                " slide(s)" +
+                (selectedCount > 0
+                    ? "  •  " +
+                      selectedCount.ToString() +
+                      (selectedCount == 1
+                          ? " object selected"
+                          : " objects selected")
+                    : string.Empty);
             UpdateButtons();
         }
 
@@ -1515,11 +1626,14 @@ namespace PptxViewer
         {
             undoButton.Enabled = history.CanUndo;
             redoButton.Enabled = history.CanRedo;
-            bool hasSelection = canvas != null &&
-                canvas.SelectedObjectKind != EditorObjectKind.None &&
-                canvas.SelectedObjectIndex >= 0;
+            bool hasSelection =
+                canvas != null &&
+                canvas.SelectedObjectCount > 0;
+            bool singleSelection =
+                hasSelection &&
+                canvas.SelectedObjectCount == 1;
             deleteObjectButton.Enabled = hasSelection;
-            copyButton.Enabled = hasSelection;
+            copyButton.Enabled = singleSelection;
             pasteButton.Enabled = copiedTextBox != null || copiedShape != null || copiedImage != null;
 
             PresentationSlide slide =
@@ -1527,7 +1641,7 @@ namespace PptxViewer
             PresentationLayerKind layerKind =
                 PresentationLayerKind.TextBox;
             bool hasLayerSelection =
-                hasSelection &&
+                singleSelection &&
                 slide != null &&
                 TryGetSelectedLayerKind(
                     out layerKind);
@@ -1614,6 +1728,20 @@ namespace PptxViewer
 
     internal sealed class AdvancedPresentationCanvas : Panel
     {
+        private sealed class SelectionGeometrySnapshot
+        {
+            public EditorObjectKind Kind;
+            public int Index;
+            public long X;
+            public long Y;
+            public long Width;
+            public long Height;
+        }
+
+        private readonly List<EditorSelectionEntry> selectedObjects =
+            new List<EditorSelectionEntry>();
+        private readonly List<SelectionGeometrySnapshot> dragSelection =
+            new List<SelectionGeometrySnapshot>();
         private Rectangle slideRectangle;
         private bool dragging;
         private bool resizing;
@@ -1628,6 +1756,10 @@ namespace PptxViewer
         public int SelectedSlideIndex { get; set; }
         public EditorObjectKind SelectedObjectKind { get; private set; }
         public int SelectedObjectIndex { get; private set; }
+        public int SelectedObjectCount
+        {
+            get { return selectedObjects.Count; }
+        }
 
         public event EventHandler SelectionChanged;
         public event EventHandler TransformStarting;
@@ -1646,25 +1778,200 @@ namespace PptxViewer
 
         public void ClearSelection()
         {
-            SelectedObjectKind = EditorObjectKind.None;
+            bool changed =
+                selectedObjects.Count > 0 ||
+                SelectedObjectKind !=
+                    EditorObjectKind.None;
+
+            selectedObjects.Clear();
+            SelectedObjectKind =
+                EditorObjectKind.None;
             SelectedObjectIndex = -1;
             Invalidate();
+
+            if (changed &&
+                SelectionChanged != null)
+            {
+                SelectionChanged(
+                    this,
+                    EventArgs.Empty);
+            }
         }
 
-        public void SelectObject(EditorObjectKind kind, int index)
+        public void SelectObject(
+            EditorObjectKind kind,
+            int index)
+        {
+            selectedObjects.Clear();
+            AddSelectionEntry(
+                kind,
+                index);
+            SetPrimarySelection(
+                kind,
+                index);
+            NotifySelectionChanged();
+        }
+
+        public List<EditorSelectionEntry>
+            GetSelectedObjects()
+        {
+            List<EditorSelectionEntry> result =
+                new List<EditorSelectionEntry>();
+
+            for (int i = 0;
+                 i < selectedObjects.Count;
+                 i++)
+            {
+                result.Add(
+                    selectedObjects[i].Clone());
+            }
+
+            return result;
+        }
+
+        public bool IsObjectSelected(
+            EditorObjectKind kind,
+            int index)
+        {
+            return FindSelectionIndex(
+                kind,
+                index) >= 0;
+        }
+
+        private void ToggleObjectSelection(
+            EditorObjectKind kind,
+            int index)
+        {
+            int existing =
+                FindSelectionIndex(
+                    kind,
+                    index);
+
+            if (existing >= 0)
+            {
+                selectedObjects.RemoveAt(
+                    existing);
+
+                if (SelectedObjectKind == kind &&
+                    SelectedObjectIndex == index)
+                {
+                    if (selectedObjects.Count > 0)
+                    {
+                        EditorSelectionEntry replacement =
+                            selectedObjects[
+                                selectedObjects.Count - 1];
+                        SetPrimarySelection(
+                            replacement.Kind,
+                            replacement.Index);
+                    }
+                    else
+                    {
+                        SetPrimarySelection(
+                            EditorObjectKind.None,
+                            -1);
+                    }
+                }
+            }
+            else
+            {
+                AddSelectionEntry(
+                    kind,
+                    index);
+                SetPrimarySelection(
+                    kind,
+                    index);
+            }
+
+            NotifySelectionChanged();
+        }
+
+        private void PromotePrimarySelection(
+            EditorObjectKind kind,
+            int index)
+        {
+            if (!IsObjectSelected(
+                    kind,
+                    index))
+            {
+                return;
+            }
+
+            if (SelectedObjectKind == kind &&
+                SelectedObjectIndex == index)
+            {
+                return;
+            }
+
+            SetPrimarySelection(
+                kind,
+                index);
+            NotifySelectionChanged();
+        }
+
+        private void AddSelectionEntry(
+            EditorObjectKind kind,
+            int index)
+        {
+            if (kind == EditorObjectKind.None ||
+                index < 0 ||
+                IsObjectSelected(
+                    kind,
+                    index))
+            {
+                return;
+            }
+
+            EditorSelectionEntry entry =
+                new EditorSelectionEntry();
+            entry.Kind = kind;
+            entry.Index = index;
+            selectedObjects.Add(entry);
+        }
+
+        private int FindSelectionIndex(
+            EditorObjectKind kind,
+            int index)
+        {
+            for (int i = 0;
+                 i < selectedObjects.Count;
+                 i++)
+            {
+                EditorSelectionEntry entry =
+                    selectedObjects[i];
+
+                if (entry.Kind == kind &&
+                    entry.Index == index)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private void SetPrimarySelection(
+            EditorObjectKind kind,
+            int index)
         {
             SelectedObjectKind = kind;
             SelectedObjectIndex = index;
+        }
+
+        private void NotifySelectionChanged()
+        {
             Invalidate();
 
             if (SelectionChanged != null)
-                SelectionChanged(this, EventArgs.Empty);
+                SelectionChanged(
+                    this,
+                    EventArgs.Empty);
         }
 
         public PresentationTextBox GetSelectedTextBox()
         {
             PresentationSlide slide = GetSlide();
             if (slide == null ||
+                selectedObjects.Count != 1 ||
                 SelectedObjectKind != EditorObjectKind.TextBox ||
                 SelectedObjectIndex < 0 ||
                 SelectedObjectIndex >= slide.TextBoxes.Count)
@@ -1679,6 +1986,7 @@ namespace PptxViewer
         {
             PresentationSlide slide = GetSlide();
             if (slide == null ||
+                selectedObjects.Count != 1 ||
                 SelectedObjectKind != EditorObjectKind.Shape ||
                 SelectedObjectIndex < 0 ||
                 SelectedObjectIndex >= slide.Shapes.Count)
@@ -1693,6 +2001,7 @@ namespace PptxViewer
         {
             PresentationSlide slide = GetSlide();
             if (slide == null ||
+                selectedObjects.Count != 1 ||
                 SelectedObjectKind != EditorObjectKind.Image ||
                 SelectedObjectIndex < 0 ||
                 SelectedObjectIndex >= slide.Images.Count)
@@ -1768,6 +2077,12 @@ namespace PptxViewer
                         entry.Index);
                 }
             }
+
+            if (selectedObjects.Count > 1)
+            {
+                DrawMultiSelectionBounds(
+                    e.Graphics);
+            }
         }
 
         protected override void OnMouseDown(MouseEventArgs e)
@@ -1782,19 +2097,54 @@ namespace PptxViewer
             int index;
             RectangleF rect;
 
+            bool controlPressed =
+                (ModifierKeys & Keys.Control) ==
+                Keys.Control;
+
             if (!HitTest(e.Location, out kind, out index, out rect))
             {
-                ClearSelection();
-                if (SelectionChanged != null)
-                    SelectionChanged(this, EventArgs.Empty);
+                if (!controlPressed)
+                    ClearSelection();
                 return;
             }
 
-            SelectObject(kind, index);
+            if (controlPressed)
+            {
+                ToggleObjectSelection(
+                    kind,
+                    index);
+
+                if (!IsObjectSelected(
+                        kind,
+                        index))
+                {
+                    return;
+                }
+            }
+            else if (selectedObjects.Count > 1 &&
+                     IsObjectSelected(
+                         kind,
+                         index))
+            {
+                PromotePrimarySelection(
+                    kind,
+                    index);
+            }
+            else
+            {
+                SelectObject(
+                    kind,
+                    index);
+            }
+
             dragging = true;
-            resizing = ResizeHandle(rect).Contains(e.Location);
+            resizing =
+                selectedObjects.Count == 1 &&
+                ResizeHandle(rect).Contains(
+                    e.Location);
             historyStarted = false;
             dragStart = e.Location;
+            CaptureDragSelection();
             GetSelectedGeometry(out originalX, out originalY, out originalWidth, out originalHeight);
         }
 
@@ -1804,10 +2154,16 @@ namespace PptxViewer
 
             if (!dragging)
             {
-                RectangleF selected = GetSelectedRectangle();
-                Cursor = selected != RectangleF.Empty && ResizeHandle(selected).Contains(e.Location)
-                    ? Cursors.SizeNWSE
-                    : Cursors.Default;
+                RectangleF selected =
+                    selectedObjects.Count == 1
+                        ? GetSelectedRectangle()
+                        : RectangleF.Empty;
+                Cursor =
+                    selected != RectangleF.Empty &&
+                    ResizeHandle(selected).Contains(
+                        e.Location)
+                        ? Cursors.SizeNWSE
+                        : Cursors.Default;
                 return;
             }
 
@@ -1836,15 +2192,9 @@ namespace PptxViewer
             }
             else
             {
-                long width = originalWidth;
-                long height = originalHeight;
-                long x = Math.Max(0L, Math.Min(
-                    Math.Max(0L, Document.WidthEmu - width),
-                    originalX + dxEmu));
-                long y = Math.Max(0L, Math.Min(
-                    Math.Max(0L, Document.HeightEmu - height),
-                    originalY + dyEmu));
-                SetSelectedGeometry(x, y, width, height);
+                MoveDragSelection(
+                    dxEmu,
+                    dyEmu);
             }
 
             Invalidate();
@@ -1871,7 +2221,7 @@ namespace PptxViewer
             Keys code = keyData & Keys.KeyCode;
             bool shift = (keyData & Keys.Shift) == Keys.Shift;
 
-            if (code == Keys.Delete && SelectedObjectKind != EditorObjectKind.None)
+            if (code == Keys.Delete && selectedObjects.Count > 0)
             {
                 if (DeleteRequested != null)
                     DeleteRequested(this, EventArgs.Empty);
@@ -1881,31 +2231,28 @@ namespace PptxViewer
             if (code == Keys.Left || code == Keys.Right ||
                 code == Keys.Up || code == Keys.Down)
             {
-                if (SelectedObjectKind == EditorObjectKind.None)
+                if (selectedObjects.Count == 0)
                     return base.ProcessCmdKey(ref msg, keyData);
 
                 if (TransformStarting != null)
                     TransformStarting(this, EventArgs.Empty);
 
                 long step = shift ? 228600L : 45720L;
-                long x;
-                long y;
-                long width;
-                long height;
-                GetSelectedGeometry(out x, out y, out width, out height);
+                long dx = 0L;
+                long dy = 0L;
 
                 if (code == Keys.Left)
-                    x -= step;
+                    dx = -step;
                 else if (code == Keys.Right)
-                    x += step;
+                    dx = step;
                 else if (code == Keys.Up)
-                    y -= step;
+                    dy = -step;
                 else if (code == Keys.Down)
-                    y += step;
+                    dy = step;
 
-                x = Math.Max(0L, Math.Min(Math.Max(0L, Document.WidthEmu - width), x));
-                y = Math.Max(0L, Math.Min(Math.Max(0L, Document.HeightEmu - height), y));
-                SetSelectedGeometry(x, y, width, height);
+                MoveCurrentSelection(
+                    dx,
+                    dy);
                 Invalidate();
 
                 if (ObjectChanged != null)
@@ -2045,15 +2392,307 @@ namespace PptxViewer
             int index,
             RectangleF rect)
         {
-            if (SelectedObjectKind != kind || SelectedObjectIndex != index)
+            if (!IsObjectSelected(
+                    kind,
+                    index))
+            {
+                return;
+            }
+
+            bool primary =
+                SelectedObjectKind == kind &&
+                SelectedObjectIndex == index;
+
+            using (Pen pen = new Pen(
+                ApplicationTheme.Accent,
+                primary ? 2f : 1.4f))
+            {
+                if (selectedObjects.Count > 1 &&
+                    !primary)
+                {
+                    pen.DashStyle =
+                        DashStyle.Dash;
+                }
+
+                graphics.DrawRectangle(
+                    pen,
+                    Rectangle.Round(rect));
+            }
+
+            if (selectedObjects.Count == 1 &&
+                primary)
+            {
+                Rectangle handle =
+                    ResizeHandle(rect);
+                using (Brush brush =
+                    new SolidBrush(
+                        ApplicationTheme.Accent))
+                {
+                    graphics.FillRectangle(
+                        brush,
+                        handle);
+                }
+            }
+        }
+
+
+        private void DrawMultiSelectionBounds(
+            Graphics graphics)
+        {
+            RectangleF bounds =
+                GetSelectionBounds();
+
+            if (bounds == RectangleF.Empty)
                 return;
 
-            using (Pen pen = new Pen(ApplicationTheme.Accent, 2f))
-                graphics.DrawRectangle(pen, Rectangle.Round(rect));
+            bounds.Inflate(
+                4f,
+                4f);
 
-            Rectangle handle = ResizeHandle(rect);
-            using (Brush brush = new SolidBrush(ApplicationTheme.Accent))
-                graphics.FillRectangle(brush, handle);
+            using (Pen pen = new Pen(
+                ApplicationTheme.Accent,
+                1f))
+            {
+                pen.DashStyle =
+                    DashStyle.Dash;
+
+                graphics.DrawRectangle(
+                    pen,
+                    Rectangle.Round(bounds));
+            }
+        }
+
+        private RectangleF GetSelectionBounds()
+        {
+            RectangleF bounds =
+                RectangleF.Empty;
+
+            for (int i = 0;
+                 i < selectedObjects.Count;
+                 i++)
+            {
+                EditorSelectionEntry entry =
+                    selectedObjects[i];
+                RectangleF item =
+                    GetObjectRectangle(
+                        entry.Kind,
+                        entry.Index);
+
+                if (item == RectangleF.Empty)
+                    continue;
+
+                bounds =
+                    bounds == RectangleF.Empty
+                        ? item
+                        : RectangleF.Union(
+                            bounds,
+                            item);
+            }
+
+            return bounds;
+        }
+
+        private RectangleF GetObjectRectangle(
+            EditorObjectKind kind,
+            int index)
+        {
+            long x;
+            long y;
+            long width;
+            long height;
+
+            if (!GetObjectGeometry(
+                    kind,
+                    index,
+                    out x,
+                    out y,
+                    out width,
+                    out height))
+            {
+                return RectangleF.Empty;
+            }
+
+            return ToRectangle(
+                x,
+                y,
+                width,
+                height);
+        }
+
+        private void CaptureDragSelection()
+        {
+            dragSelection.Clear();
+
+            for (int i = 0;
+                 i < selectedObjects.Count;
+                 i++)
+            {
+                EditorSelectionEntry entry =
+                    selectedObjects[i];
+                long x;
+                long y;
+                long width;
+                long height;
+
+                if (!GetObjectGeometry(
+                        entry.Kind,
+                        entry.Index,
+                        out x,
+                        out y,
+                        out width,
+                        out height))
+                {
+                    continue;
+                }
+
+                SelectionGeometrySnapshot item =
+                    new SelectionGeometrySnapshot();
+                item.Kind = entry.Kind;
+                item.Index = entry.Index;
+                item.X = x;
+                item.Y = y;
+                item.Width = width;
+                item.Height = height;
+                dragSelection.Add(item);
+            }
+        }
+
+        private void MoveDragSelection(
+            long dx,
+            long dy)
+        {
+            MoveGeometrySnapshots(
+                dragSelection,
+                dx,
+                dy);
+        }
+
+        private void MoveCurrentSelection(
+            long dx,
+            long dy)
+        {
+            List<SelectionGeometrySnapshot> snapshot =
+                new List<SelectionGeometrySnapshot>();
+
+            for (int i = 0;
+                 i < selectedObjects.Count;
+                 i++)
+            {
+                EditorSelectionEntry entry =
+                    selectedObjects[i];
+                long x;
+                long y;
+                long width;
+                long height;
+
+                if (!GetObjectGeometry(
+                        entry.Kind,
+                        entry.Index,
+                        out x,
+                        out y,
+                        out width,
+                        out height))
+                {
+                    continue;
+                }
+
+                SelectionGeometrySnapshot item =
+                    new SelectionGeometrySnapshot();
+                item.Kind = entry.Kind;
+                item.Index = entry.Index;
+                item.X = x;
+                item.Y = y;
+                item.Width = width;
+                item.Height = height;
+                snapshot.Add(item);
+            }
+
+            MoveGeometrySnapshots(
+                snapshot,
+                dx,
+                dy);
+        }
+
+        private void MoveGeometrySnapshots(
+            List<SelectionGeometrySnapshot> snapshot,
+            long dx,
+            long dy)
+        {
+            if (snapshot == null ||
+                snapshot.Count == 0 ||
+                Document == null)
+            {
+                return;
+            }
+
+            long minX =
+                long.MaxValue;
+            long minY =
+                long.MaxValue;
+            long maxRight =
+                long.MinValue;
+            long maxBottom =
+                long.MinValue;
+
+            for (int i = 0;
+                 i < snapshot.Count;
+                 i++)
+            {
+                SelectionGeometrySnapshot item =
+                    snapshot[i];
+
+                minX =
+                    Math.Min(
+                        minX,
+                        item.X);
+                minY =
+                    Math.Min(
+                        minY,
+                        item.Y);
+                maxRight =
+                    Math.Max(
+                        maxRight,
+                        item.X +
+                        item.Width);
+                maxBottom =
+                    Math.Max(
+                        maxBottom,
+                        item.Y +
+                        item.Height);
+            }
+
+            long clampedDx =
+                Math.Max(
+                    -minX,
+                    Math.Min(
+                        Document.WidthEmu -
+                        maxRight,
+                        dx));
+            long clampedDy =
+                Math.Max(
+                    -minY,
+                    Math.Min(
+                        Document.HeightEmu -
+                        maxBottom,
+                        dy));
+
+            for (int i = 0;
+                 i < snapshot.Count;
+                 i++)
+            {
+                SelectionGeometrySnapshot item =
+                    snapshot[i];
+
+                SetObjectGeometry(
+                    item.Kind,
+                    item.Index,
+                    item.X +
+                    clampedDx,
+                    item.Y +
+                    clampedDy,
+                    item.Width,
+                    item.Height);
+            }
         }
 
         private bool HitTest(
@@ -2164,54 +2803,141 @@ namespace PptxViewer
             out long width,
             out long height)
         {
+            return GetObjectGeometry(
+                SelectedObjectKind,
+                SelectedObjectIndex,
+                out x,
+                out y,
+                out width,
+                out height);
+        }
+
+        private bool GetObjectGeometry(
+            EditorObjectKind kind,
+            int index,
+            out long x,
+            out long y,
+            out long width,
+            out long height)
+        {
             x = 0;
             y = 0;
             width = 1;
             height = 1;
-            PresentationTextBox text = GetSelectedTextBox();
-            if (text != null)
+
+            PresentationSlide slide =
+                GetSlide();
+
+            if (slide == null ||
+                index < 0)
             {
-                x = text.X; y = text.Y; width = text.Width; height = text.Height;
+                return false;
+            }
+
+            if (kind == EditorObjectKind.TextBox &&
+                index < slide.TextBoxes.Count)
+            {
+                PresentationTextBox item =
+                    slide.TextBoxes[index];
+                x = item.X;
+                y = item.Y;
+                width = item.Width;
+                height = item.Height;
                 return true;
             }
 
-            PresentationShape shape = GetSelectedShape();
-            if (shape != null)
+            if (kind == EditorObjectKind.Shape &&
+                index < slide.Shapes.Count)
             {
-                x = shape.X; y = shape.Y; width = shape.Width; height = shape.Height;
+                PresentationShape item =
+                    slide.Shapes[index];
+                x = item.X;
+                y = item.Y;
+                width = item.Width;
+                height = item.Height;
                 return true;
             }
 
-            PresentationImage image = GetSelectedImage();
-            if (image != null)
+            if (kind == EditorObjectKind.Image &&
+                index < slide.Images.Count)
             {
-                x = image.X; y = image.Y; width = image.Width; height = image.Height;
+                PresentationImage item =
+                    slide.Images[index];
+                x = item.X;
+                y = item.Y;
+                width = item.Width;
+                height = item.Height;
                 return true;
             }
 
             return false;
         }
 
-        private void SetSelectedGeometry(long x, long y, long width, long height)
+        private void SetSelectedGeometry(
+            long x,
+            long y,
+            long width,
+            long height)
         {
-            PresentationTextBox text = GetSelectedTextBox();
-            if (text != null)
+            SetObjectGeometry(
+                SelectedObjectKind,
+                SelectedObjectIndex,
+                x,
+                y,
+                width,
+                height);
+        }
+
+        private void SetObjectGeometry(
+            EditorObjectKind kind,
+            int index,
+            long x,
+            long y,
+            long width,
+            long height)
+        {
+            PresentationSlide slide =
+                GetSlide();
+
+            if (slide == null ||
+                index < 0)
             {
-                text.X = x; text.Y = y; text.Width = width; text.Height = height;
                 return;
             }
 
-            PresentationShape shape = GetSelectedShape();
-            if (shape != null)
+            if (kind == EditorObjectKind.TextBox &&
+                index < slide.TextBoxes.Count)
             {
-                shape.X = x; shape.Y = y; shape.Width = width; shape.Height = height;
+                PresentationTextBox item =
+                    slide.TextBoxes[index];
+                item.X = x;
+                item.Y = y;
+                item.Width = width;
+                item.Height = height;
                 return;
             }
 
-            PresentationImage image = GetSelectedImage();
-            if (image != null)
+            if (kind == EditorObjectKind.Shape &&
+                index < slide.Shapes.Count)
             {
-                image.X = x; image.Y = y; image.Width = width; image.Height = height;
+                PresentationShape item =
+                    slide.Shapes[index];
+                item.X = x;
+                item.Y = y;
+                item.Width = width;
+                item.Height = height;
+                return;
+            }
+
+            if (kind == EditorObjectKind.Image &&
+                index < slide.Images.Count)
+            {
+                PresentationImage item =
+                    slide.Images[index];
+                item.X = x;
+                item.Y = y;
+                item.Width = width;
+                item.Height = height;
             }
         }
 
