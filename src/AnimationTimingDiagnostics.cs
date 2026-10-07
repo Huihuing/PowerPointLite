@@ -10,6 +10,14 @@ namespace PptxViewer
 {
     internal static class AnimationTimingDiagnostics
     {
+        private sealed class SyntheticShapeIds
+        {
+            public string EntranceTargetId;
+            public string ExitTargetId;
+            public string DiamondId;
+            public string TriangleId;
+        }
+
         private const string PresentationNamespace =
             "http://schemas.openxmlformats.org/presentationml/2006/main";
 
@@ -73,12 +81,18 @@ namespace PptxViewer
             triangle.FillColorHex = "B56BD8";
 
             PresentationPackageWriter.Save(document, packagePath);
-            InjectSyntheticTiming(packagePath);
-            ValidateTimeline(packagePath, renderDirectory);
+            SyntheticShapeIds shapeIds =
+                InjectSyntheticTiming(packagePath);
+            ValidateTimeline(
+                packagePath,
+                renderDirectory,
+                shapeIds);
         }
 
-        private static void InjectSyntheticTiming(string packagePath)
+        private static SyntheticShapeIds InjectSyntheticTiming(string packagePath)
         {
+            SyntheticShapeIds shapeIds =
+                new SyntheticShapeIds();
             using (ZipArchive archive = ZipFile.Open(
                 packagePath,
                 ZipArchiveMode.Update))
@@ -114,6 +128,43 @@ namespace PptxViewer
                         GetAttr(
                             properties,
                             "id");
+                    string shapeName =
+                        GetAttr(
+                            properties,
+                            "name");
+
+                    if (string.Equals(
+                            shapeName,
+                            "Entrance target",
+                            StringComparison.Ordinal))
+                    {
+                        shapeIds.EntranceTargetId =
+                            shapeId;
+                    }
+                    else if (string.Equals(
+                                 shapeName,
+                                 "Exit target",
+                                 StringComparison.Ordinal))
+                    {
+                        shapeIds.ExitTargetId =
+                            shapeId;
+                    }
+                    else if (string.Equals(
+                                 shapeName,
+                                 "Diamond trigger geometry",
+                                 StringComparison.Ordinal))
+                    {
+                        shapeIds.DiamondId =
+                            shapeId;
+                    }
+                    else if (string.Equals(
+                                 shapeName,
+                                 "Triangle trigger geometry",
+                                 StringComparison.Ordinal))
+                    {
+                        shapeIds.TriangleId =
+                            shapeId;
+                    }
 
                     XmlNode transform =
                         FindFirst(
@@ -126,13 +177,19 @@ namespace PptxViewer
                     if (transformElement == null)
                         continue;
 
-                    if (shapeId == "3")
+                    if (string.Equals(
+                            shapeName,
+                            "Exit target",
+                            StringComparison.Ordinal))
                     {
                         transformElement.SetAttribute(
                             "rot",
                             "2700000");
                     }
-                    else if (shapeId == "4")
+                    else if (string.Equals(
+                                 shapeName,
+                                 "Diamond trigger geometry",
+                                 StringComparison.Ordinal))
                     {
                         transformElement.SetAttribute(
                             "rot",
@@ -140,12 +197,28 @@ namespace PptxViewer
                     }
                 }
 
+                if (string.IsNullOrEmpty(
+                        shapeIds.EntranceTargetId) ||
+                    string.IsNullOrEmpty(
+                        shapeIds.ExitTargetId) ||
+                    string.IsNullOrEmpty(
+                        shapeIds.DiamondId) ||
+                    string.IsNullOrEmpty(
+                        shapeIds.TriangleId))
+                {
+                    throw new InvalidOperationException(
+                        "Synthetic animation shapes could not be resolved by their generated names.");
+                }
+
                 XmlNode oldTiming = FindFirst(slide.DocumentElement, "timing");
                 if (oldTiming != null && oldTiming.ParentNode != null)
                     oldTiming.ParentNode.RemoveChild(oldTiming);
 
                 XmlDocumentFragment fragment = slide.CreateDocumentFragment();
-                fragment.InnerXml = BuildTimingXml();
+                fragment.InnerXml =
+                    BuildTimingXml(
+                        shapeIds.EntranceTargetId,
+                        shapeIds.ExitTargetId);
                 slide.DocumentElement.AppendChild(fragment);
 
                 entry.Delete();
@@ -160,9 +233,13 @@ namespace PptxViewer
                 using (XmlWriter writer = XmlWriter.Create(output, settings))
                     slide.Save(writer);
             }
+
+            return shapeIds;
         }
 
-        private static string BuildTimingXml()
+        private static string BuildTimingXml(
+            string entranceTargetId,
+            string exitTargetId)
         {
             return
                 "<p:timing xmlns:p=\"" + PresentationNamespace + "\">" +
@@ -172,9 +249,9 @@ namespace PptxViewer
 
                 // Step 1: click entrance.
                 "<p:par><p:cTn id=\"10\" dur=\"450\" nodeType=\"clickEffect\" presetClass=\"entr\" presetID=\"1\">" +
-                "<p:stCondLst><p:cond evt=\"onClick\" delay=\"0\"><p:tgtEl><p:spTgt spid=\"3\"/></p:tgtEl></p:cond></p:stCondLst>" +
+                "<p:stCondLst><p:cond evt=\"onClick\" delay=\"0\"><p:tgtEl><p:spTgt spid=\"" + exitTargetId + "\"/></p:tgtEl></p:cond></p:stCondLst>" +
                 "<p:childTnLst><p:animEffect transition=\"in\" filter=\"fade\">" +
-                "<p:cBhvr><p:cTn id=\"11\" dur=\"450\"/><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cBhvr>" +
+                "<p:cBhvr><p:cTn id=\"11\" dur=\"450\"/><p:tgtEl><p:spTgt spid=\"" + entranceTargetId + "\"/></p:tgtEl></p:cBhvr>" +
                 "</p:animEffect></p:childTnLst></p:cTn></p:par>" +
 
                 // Same step: emphasis starts with previous after 80 ms.
@@ -182,32 +259,32 @@ namespace PptxViewer
                 "<p:stCondLst><p:cond evt=\"onBegin\" delay=\"80\"/></p:stCondLst>" +
                 "<p:childTnLst><p:animClr>" +
                 "<p:to><a:schemeClr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" val=\"accent5\"/></p:to>" +
-                "<p:cBhvr><p:cTn id=\"21\" dur=\"300\"/><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cBhvr>" +
+                "<p:cBhvr><p:cTn id=\"21\" dur=\"300\"/><p:tgtEl><p:spTgt spid=\"" + entranceTargetId + "\"/></p:tgtEl></p:cBhvr>" +
                 "</p:animClr></p:childTnLst></p:cTn></p:par>" +
 
                 // Same step: exit starts after previous with an extra delay.
                 "<p:par><p:cTn id=\"30\" dur=\"250\" nodeType=\"afterEffect\" presetClass=\"exit\" presetID=\"10\">" +
                 "<p:stCondLst><p:cond evt=\"onEnd\" delay=\"120\"/></p:stCondLst>" +
                 "<p:childTnLst><p:animEffect transition=\"out\" filter=\"fade\">" +
-                "<p:cBhvr><p:cTn id=\"31\" dur=\"250\"/><p:tgtEl><p:spTgt spid=\"3\"/></p:tgtEl></p:cBhvr>" +
+                "<p:cBhvr><p:cTn id=\"31\" dur=\"250\"/><p:tgtEl><p:spTgt spid=\"" + exitTargetId + "\"/></p:tgtEl></p:cBhvr>" +
                 "</p:animEffect></p:childTnLst></p:cTn></p:par>" +
 
                 // Step 2: another click starts a motion-path approximation.
                 "<p:par><p:cTn id=\"40\" dur=\"600\" nodeType=\"clickEffect\" presetClass=\"path\" presetID=\"1\" autoRev=\"1\">" +
                 "<p:stCondLst><p:cond evt=\"onClick\" delay=\"40\"/></p:stCondLst>" +
                 "<p:childTnLst><p:animMotion path=\"M 0 0 C 0.04 -0.14 0.16 0.14 0.2 0\">" +
-                "<p:cBhvr><p:cTn id=\"41\" dur=\"600\"/><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cBhvr>" +
+                "<p:cBhvr><p:cTn id=\"41\" dur=\"600\"/><p:tgtEl><p:spTgt spid=\"" + entranceTargetId + "\"/></p:tgtEl></p:cBhvr>" +
                 "</p:animMotion></p:childTnLst></p:cTn></p:par>" +
                 "<p:par><p:cTn id=\"50\" dur=\"600\" nodeType=\"withEffect\" presetClass=\"emph\" presetID=\"6\">" +
                 "<p:stCondLst><p:cond evt=\"onBegin\" delay=\"0\"/></p:stCondLst>" +
                 "<p:childTnLst><p:animScale><p:by x=\"125000\" y=\"115000\"/>" +
-                "<p:cBhvr><p:cTn id=\"51\" dur=\"600\"/><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cBhvr>" +
+                "<p:cBhvr><p:cTn id=\"51\" dur=\"600\"/><p:tgtEl><p:spTgt spid=\"" + entranceTargetId + "\"/></p:tgtEl></p:cBhvr>" +
                 "</p:animScale></p:childTnLst></p:cTn></p:par>" +
 
                 "<p:par><p:cTn id=\"60\" dur=\"600\" nodeType=\"withEffect\" presetClass=\"emph\" presetID=\"8\">" +
                 "<p:stCondLst><p:cond evt=\"onBegin\" delay=\"0\"/></p:stCondLst>" +
                 "<p:childTnLst><p:animRot by=\"10800000\">" +
-                "<p:cBhvr><p:cTn id=\"61\" dur=\"600\"/><p:tgtEl><p:spTgt spid=\"2\"/></p:tgtEl></p:cBhvr>" +
+                "<p:cBhvr><p:cTn id=\"61\" dur=\"600\"/><p:tgtEl><p:spTgt spid=\"" + entranceTargetId + "\"/></p:tgtEl></p:cBhvr>" +
                 "</p:animRot></p:childTnLst></p:cTn></p:par>" +
 
 
@@ -217,7 +294,8 @@ namespace PptxViewer
 
         private static void ValidateTimeline(
             string packagePath,
-            string renderDirectory)
+            string renderDirectory,
+            SyntheticShapeIds shapeIds)
         {
             List<InternalPptxRenderer.SlideAnimationTimeline> timelines =
                 InternalPptxRenderer.ReadAnimationTimelines(packagePath);
@@ -249,7 +327,7 @@ namespace PptxViewer
                         shapeRegions[0][i];
 
                     if (region != null &&
-                        region.ShapeId == "3" &&
+                        region.ShapeId == shapeIds.ExitTargetId &&
                         region.Bounds.Width > 0f &&
                         region.Bounds.Height > 0f &&
                         string.Equals(
@@ -322,7 +400,7 @@ namespace PptxViewer
                     }
 
                     if (region != null &&
-                        region.ShapeId == "2" &&
+                        region.ShapeId == shapeIds.EntranceTargetId &&
                         string.Equals(
                             region.GeometryKind,
                             "roundRect",
@@ -356,7 +434,7 @@ namespace PptxViewer
                     }
 
                     if (region != null &&
-                        region.ShapeId == "4" &&
+                        region.ShapeId == shapeIds.DiamondId &&
                         string.Equals(
                             region.GeometryKind,
                             "diamond",
@@ -427,7 +505,7 @@ namespace PptxViewer
                     }
 
                     if (region != null &&
-                        region.ShapeId == "5" &&
+                        region.ShapeId == shapeIds.TriangleId &&
                         string.Equals(
                             region.GeometryKind,
                             "triangle",
@@ -496,8 +574,9 @@ namespace PptxViewer
 
             if (!first.RequiresClick ||
                 first.Actions.Count != 3 ||
-                first.TriggerShapeId != "3" ||
-                first.Actions[0].TriggerShapeId != "3")
+                first.TriggerShapeId != shapeIds.ExitTargetId ||
+                first.Actions[0].TriggerShapeId !=
+                    shapeIds.ExitTargetId)
             {
                 throw new InvalidOperationException(
                     "The first animation step did not preserve its specific click-trigger shape.");
