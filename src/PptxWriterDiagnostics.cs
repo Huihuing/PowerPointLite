@@ -47,20 +47,20 @@ namespace PptxViewer
             generatedImage.Width = 2286000;
             generatedImage.Height = 1371600;
 
-            if (!second.MoveObjectToBack(
-                    PresentationLayerKind.Image,
-                    0))
-            {
-                throw new InvalidOperationException(
-                    "Writer self-test could not move the image behind mixed object types.");
-            }
-
             if (!second.MoveObjectToFront(
                     PresentationLayerKind.Shape,
                     0))
             {
                 throw new InvalidOperationException(
                     "Writer self-test could not move the shape in front of mixed object types.");
+            }
+
+            if (!second.MoveObjectToBack(
+                    PresentationLayerKind.Image,
+                    0))
+            {
+                throw new InvalidOperationException(
+                    "Writer self-test could not move the image behind mixed object types.");
             }
 
             PresentationTable table = second.AddTable(2, 3);
