@@ -99,9 +99,8 @@ namespace PptxViewer
             mainToolbar.Controls.Add(pasteButton);
 
             ComboBox quickShapeKind = new ComboBox();
-            quickShapeKind.Left = 758;
             quickShapeKind.Top = 10;
-            quickShapeKind.Width = 132;
+            quickShapeKind.Width = 148;
             quickShapeKind.DropDownStyle = ComboBoxStyle.DropDownList;
             quickShapeKind.FlatStyle = FlatStyle.Flat;
             quickShapeKind.BackColor = ApplicationTheme.Surface;
@@ -109,6 +108,48 @@ namespace PptxViewer
             AddShapeKindItems(quickShapeKind);
             quickShapeKind.SelectedIndex = 0;
             mainToolbar.Controls.Add(quickShapeKind);
+
+            Action layoutMainToolbar =
+                delegate
+                {
+                    int gap = 12;
+                    int minimumSelectorWidth = 104;
+                    int desiredSelectorWidth = 148;
+                    int selectorRight =
+                        Math.Max(
+                            pasteButton.Right +
+                            gap,
+                            mainToolbar.ClientSize.Width -
+                            10);
+
+                    int availableSelectorWidth =
+                        selectorRight -
+                        pasteButton.Right -
+                        gap;
+
+                    if (availableSelectorWidth <
+                        minimumSelectorWidth)
+                    {
+                        quickShapeKind.Visible = false;
+                        return;
+                    }
+
+                    quickShapeKind.Visible = true;
+                    quickShapeKind.Width =
+                        Math.Min(
+                            desiredSelectorWidth,
+                            availableSelectorWidth);
+                    quickShapeKind.Left =
+                        selectorRight -
+                        quickShapeKind.Width;
+                };
+
+            mainToolbar.Resize += delegate
+            {
+                layoutMainToolbar();
+            };
+
+            layoutMainToolbar();
 
             saveButton.Click += delegate { SaveDocument(false); };
             saveAsButton.Click += delegate { SaveDocument(true); };
