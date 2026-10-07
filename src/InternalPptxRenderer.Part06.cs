@@ -585,6 +585,44 @@ chartDoc);
                 return;
             }
 
+            string primaryValueAxisId =
+                ReadChartAxisId(
+                    FindFirst(
+                        chartDoc,
+                        "valAx"));
+
+            bool hasSecondaryValueAxis =
+                false;
+
+            for (int i = 0;
+                 i < series.Count;
+                 i++)
+            {
+                ChartSeriesData item =
+                    series[i];
+
+                if (item != null &&
+                    !string.IsNullOrEmpty(
+                        item.ValueAxisId) &&
+                    !string.IsNullOrEmpty(
+                        primaryValueAxisId) &&
+                    !string.Equals(
+                        item.ValueAxisId,
+                        primaryValueAxisId,
+                        StringComparison.Ordinal) &&
+                    (string.IsNullOrEmpty(
+                         item.ChartKind) ||
+                     string.Equals(
+                         item.ChartKind,
+                         kind,
+                         StringComparison.OrdinalIgnoreCase)))
+                {
+                    hasSecondaryValueAxis =
+                        true;
+                    break;
+                }
+            }
+
             double minValue = 0.0;
             double maxValue = 0.0;
             int categoryCount = 0;
@@ -598,21 +636,39 @@ chartDoc);
                         categoryCount,
                         series[sIndex].Values.Count);
 
-                for (int i = 0;
-                     i < series[sIndex].Values.Count;
-                     i++)
-                {
-                    double value =
-                        series[sIndex].Values[i];
+                bool useForPrimaryScale =
+                    !hasSecondaryValueAxis ||
+                    string.IsNullOrEmpty(
+                        series[sIndex].ValueAxisId) ||
+                    string.Equals(
+                        series[sIndex].ValueAxisId,
+                        primaryValueAxisId,
+                        StringComparison.Ordinal) ||
+                    (!string.IsNullOrEmpty(
+                         series[sIndex].ChartKind) &&
+                     !string.Equals(
+                         series[sIndex].ChartKind,
+                         kind,
+                         StringComparison.OrdinalIgnoreCase));
 
-                    minValue =
-                        Math.Min(
-                            minValue,
-                            value);
-                    maxValue =
-                        Math.Max(
-                            maxValue,
-                            value);
+                if (useForPrimaryScale)
+                {
+                    for (int i = 0;
+                         i < series[sIndex].Values.Count;
+                         i++)
+                    {
+                        double value =
+                            series[sIndex].Values[i];
+
+                        minValue =
+                            Math.Min(
+                                minValue,
+                                value);
+                        maxValue =
+                            Math.Max(
+                                maxValue,
+                                value);
+                    }
                 }
             }
 
@@ -642,8 +698,17 @@ chartDoc);
             ChartAxisScale axisScale =
                 ReadChartAxisScale(
                     chartDoc,
+                    primaryValueAxisId,
                     minValue,
                     maxValue);
+
+            Dictionary<string, ChartAxisScale>
+                secondaryAxisScales =
+                    BuildChartSecondaryValueAxisScales(
+                        chartDoc,
+                        series,
+                        primaryValueAxisId,
+                        kind);
 
             if (barOptions.IsPercentStacked &&
                 string.IsNullOrEmpty(
@@ -838,6 +903,14 @@ chartDoc);
                 categoryAxisStyle,
                 valueAxisStyle);
 
+            DrawChartSecondaryValueAxes(
+                g,
+                plot,
+                chartDoc,
+                kind,
+                secondaryAxisScales,
+                theme);
+
             using (Font valueFont = SafeFont(
                 "Arial",
                 Math.Max(
@@ -864,6 +937,12 @@ chartDoc);
                         if (sd.Values.Count == 0)
                             continue;
 
+                        ChartAxisScale seriesAxisScale =
+                            ResolveChartSeriesAxisScale(
+                                sd,
+                                axisScale,
+                                secondaryAxisScales);
+
                         List<PointF> points =
                             new List<PointF>();
 
@@ -885,7 +964,7 @@ chartDoc);
                                 (float)(
                                     ChartAxisFraction(
                                         sd.Values[i],
-                                        axisScale) *
+                                        seriesAxisScale) *
                                     plot.Height);
 
                             points.Add(
@@ -946,7 +1025,7 @@ chartDoc);
                                     DrawChartErrorBar(
                                         g,
                                         plot,
-                                        axisScale,
+                                        seriesAxisScale,
                                         "line",
                                         point,
                                         sd.Values[i],
@@ -1015,6 +1094,22 @@ chartDoc);
                                 continue;
                             }
 
+                            ChartAxisScale seriesAxisScale =
+                                barOptions.IsStacked
+                                    ? axisScale
+                                    : ResolveChartSeriesAxisScale(
+                                        series[si],
+                                        axisScale,
+                                        secondaryAxisScales);
+
+                            ChartAxisScale seriesAxisScale =
+                                barOptions.IsStacked
+                                    ? axisScale
+                                    : ResolveChartSeriesAxisScale(
+                                        series[si],
+                                        axisScale,
+                                        secondaryAxisScales);
+
                             double value =
                                 series[si].Values[ci];
 
@@ -1037,7 +1132,7 @@ chartDoc);
                                 (float)(
                                     ChartAxisFraction(
                                         segmentStart,
-                                        axisScale) *
+                                        seriesAxisScale) *
                                     plot.Width);
 
                             float valueX =
@@ -1045,7 +1140,7 @@ chartDoc);
                                 (float)(
                                     ChartAxisFraction(
                                         segmentEnd,
-                                        axisScale) *
+                                        seriesAxisScale) *
                                     plot.Width);
 
                             float left =
@@ -1094,7 +1189,7 @@ chartDoc);
                                 DrawChartErrorBar(
                                     g,
                                     plot,
-                                    axisScale,
+                                    seriesAxisScale,
                                     "bar",
                                     new PointF(
                                         valueX,
@@ -1199,7 +1294,7 @@ chartDoc);
                                 (float)(
                                     ChartAxisFraction(
                                         segmentStart,
-                                        axisScale) *
+                                        seriesAxisScale) *
                                     plot.Height);
 
                             float valueY =
@@ -1207,7 +1302,7 @@ chartDoc);
                                 (float)(
                                     ChartAxisFraction(
                                         segmentEnd,
-                                        axisScale) *
+                                        seriesAxisScale) *
                                     plot.Height);
 
                             float top =
@@ -1256,7 +1351,7 @@ chartDoc);
                                 DrawChartErrorBar(
                                     g,
                                     plot,
-                                    axisScale,
+                                    seriesAxisScale,
                                     "column",
                                     new PointF(
                                         x +
