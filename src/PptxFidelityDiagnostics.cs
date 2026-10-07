@@ -2984,6 +2984,62 @@ namespace PptxViewer
                 }
             }
 
+            XmlDocument manualLayoutChart =
+                new XmlDocument();
+
+            manualLayoutChart.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
+                "<c:chart><c:plotArea><c:layout><c:manualLayout>" +
+                "<c:xMode val=\"edge\"/><c:yMode val=\"edge\"/>" +
+                "<c:wMode val=\"factor\"/><c:hMode val=\"factor\"/>" +
+                "<c:x val=\"0.18\"/><c:y val=\"0.22\"/>" +
+                "<c:w val=\"0.58\"/><c:h val=\"0.52\"/>" +
+                "</c:manualLayout></c:layout></c:plotArea></c:chart>" +
+                "</c:chartSpace>");
+
+            using (Bitmap manualLayoutBitmap =
+                new Bitmap(
+                    360,
+                    240,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics manualLayoutGraphics =
+                Graphics.FromImage(
+                    manualLayoutBitmap))
+            {
+                manualLayoutGraphics.Clear(
+                    Color.White);
+
+                RectangleF manualPlot;
+
+                PrepareChartSurface(
+                    manualLayoutGraphics,
+                    new RectangleF(
+                        10f,
+                        10f,
+                        320f,
+                        200f),
+                    manualLayoutChart,
+                    theme,
+                    out manualPlot);
+
+                if (Math.Abs(
+                        manualPlot.Left -
+                        67.6f) > 1.0f ||
+                    Math.Abs(
+                        manualPlot.Top -
+                        54.0f) > 1.0f ||
+                    Math.Abs(
+                        manualPlot.Width -
+                        185.6f) > 1.0f ||
+                    Math.Abs(
+                        manualPlot.Height -
+                        104.0f) > 1.0f)
+                {
+                    throw new InvalidOperationException(
+                        "Chart plotArea manual layout coordinates were not applied.");
+                }
+            }
+
             XmlDocument doughnut =
                 new XmlDocument();
 
