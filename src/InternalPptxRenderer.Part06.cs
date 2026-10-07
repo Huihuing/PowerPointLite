@@ -981,7 +981,7 @@ chartDoc);
                                 si,
                                 palette);
 
-                        DrawChartLinearTrendline(
+                        DrawChartTrendline(
                             g,
                             plot,
                             points,
@@ -5461,16 +5461,27 @@ chartDoc);
                             "val") ??
                           string.Empty;
 
-                if (string.Equals(
+                bool supportedTrendline =
+                    string.Equals(
                         typeValue,
                         "linear",
-                        StringComparison.OrdinalIgnoreCase))
+                        StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(
+                        typeValue,
+                        "poly",
+                        StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(
+                        typeValue,
+                        "movingAvg",
+                        StringComparison.OrdinalIgnoreCase);
+
+                if (supportedTrendline)
                 {
                     ChartTrendlineOptions options =
                         new ChartTrendlineOptions();
 
                     options.Type =
-                        "linear";
+                        typeValue;
                     options.Forward =
                         ReadChartOverlayNumber(
                             trendline,
@@ -5496,6 +5507,43 @@ chartDoc);
                         options.Backward < 0.0)
                     {
                         options.Backward = 0.0;
+                    }
+
+                    if (string.Equals(
+                            options.Type,
+                            "poly",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        options.Order =
+                            ReadChartOverlayInteger(
+                                trendline,
+                                "order",
+                                2);
+
+                        options.Order =
+                            Math.Max(
+                                2,
+                                Math.Min(
+                                    6,
+                                    options.Order));
+                    }
+                    else if (string.Equals(
+                                 options.Type,
+                                 "movingAvg",
+                                 StringComparison.OrdinalIgnoreCase))
+                    {
+                        options.Period =
+                            ReadChartOverlayInteger(
+                                trendline,
+                                "period",
+                                2);
+
+                        options.Period =
+                            Math.Max(
+                                2,
+                                Math.Min(
+                                    255,
+                                    options.Period));
                     }
 
                     Color fallback =
@@ -5613,6 +5661,33 @@ chartDoc);
 
             data.ErrorBars =
                 errorOptions;
+        }
+
+        private static int ReadChartOverlayInteger(
+            XmlNode parent,
+            string localName,
+            int fallback)
+        {
+            XmlNode node =
+                parent == null
+                    ? null
+                    : DirectChild(
+                        parent,
+                        localName);
+
+            int parsed;
+
+            if (node == null ||
+                !int.TryParse(
+                    GetAttr(
+                        node,
+                        "val"),
+                    out parsed))
+            {
+                return fallback;
+            }
+
+            return parsed;
         }
 
         private static double ReadChartOverlayNumber(
@@ -5881,7 +5956,7 @@ chartDoc);
             }
         }
 
-        private static void DrawChartLinearTrendline(
+        private static void DrawChartTrendline(
             Graphics g,
             RectangleF plot,
             IList<PointF> points,
