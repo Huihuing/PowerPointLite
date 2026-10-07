@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.IO.Compression;
 using System.Xml;
 
@@ -13,6 +14,16 @@ namespace PptxViewer
             "http://schemas.openxmlformats.org/drawingml/2006/main";
         private const string TableGraphicDataUri =
             "http://schemas.openxmlformats.org/drawingml/2006/table";
+        private const string ChartGraphicDataUri =
+            "http://schemas.openxmlformats.org/drawingml/2006/chart";
+        private const string ChartNamespace =
+            "http://schemas.openxmlformats.org/drawingml/2006/chart";
+        private const string RelationshipsNamespace =
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+        private const string ChartRelationship =
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart";
+        private const string ChartContentType =
+            "application/vnd.openxmlformats-officedocument.drawingml.chart+xml";
 
         public static void InjectTables(
             PresentationDocument document,
@@ -24,19 +35,27 @@ namespace PptxViewer
             if (string.IsNullOrEmpty(pptxPath))
                 throw new ArgumentException("PPTX path is required.", "pptxPath");
 
-            bool hasTables = false;
+            bool hasGraphicFrames = false;
+            bool hasCharts = false;
 
             for (int i = 0; i < document.Slides.Count; i++)
             {
                 PresentationSlide slide = document.Slides[i];
-                if (slide != null && slide.Tables.Count > 0)
+
+                if (slide == null)
+                    continue;
+
+                if (slide.Tables.Count > 0 ||
+                    slide.Charts.Count > 0)
                 {
-                    hasTables = true;
-                    break;
+                    hasGraphicFrames = true;
                 }
+
+                if (slide.Charts.Count > 0)
+                    hasCharts = true;
             }
 
-            if (!hasTables)
+            if (!hasGraphicFrames)
                 return;
 
             using (ZipArchive archive = ZipFile.Open(pptxPath, ZipArchiveMode.Update))
@@ -46,8 +65,12 @@ namespace PptxViewer
                      slideIndex++)
                 {
                     PresentationSlide slide = document.Slides[slideIndex];
-                    if (slide == null || slide.Tables.Count == 0)
+                    if (slide == null ||
+                        (slide.Tables.Count == 0 &&
+                         slide.Charts.Count == 0))
+                    {
                         continue;
+                    }
 
                     string partName =
                         "ppt/slides/slide" +
@@ -74,6 +97,8 @@ namespace PptxViewer
                     int nextShapeId = FindMaxShapeId(shapeTree) + 1;
                     XmlElement[] tableFrames =
                         new XmlElement[slide.Tables.Count];
+                    XmlElement[] chartFrames =
+                        new XmlElement[slide.Charts.Count];
 
                     for (int tableIndex = 0;
                          tableIndex < slide.Tables.Count;
@@ -90,11 +115,34 @@ namespace PptxViewer
                                 nextShapeId++);
                     }
 
+                    for (int chartIndex = 0;
+                         chartIndex < slide.Charts.Count;
+                         chartIndex++)
+                    {
+                        PresentationChart chartModel =
+                            slide.Charts[chartIndex];
+
+                        if (chartModel == null ||
+                            !PptxChartReader.IsSelfContainedChartXml(
+                                chartModel.XmlData))
+                        {
+                            throw new InvalidOperationException(
+                                "Chart payload is missing or requires related parts that are not yet editable.");
+                        }
+
+                        chartFrames[chartIndex] =
+                            BuildChartGraphicFrame(
+                                slideDocument,
+                                chartModel,
+                                nextShapeId++,
+                                ChartRelationshipId(
+                                    chartIndex));
+                    }
+
                     // PptxWriter already emits text/shape/image nodes in
-                    // ObjectOrder while skipping tables. Rebuild the object
-                    // section after table XML is available so tables can sit
-                    // between any of those generated nodes instead of always
-                    // being appended at the front-most layer.
+                    // ObjectOrder while skipping graphic-frame kinds.
+                    // Rebuild the object section after table/chart XML is
+                    // available so every editable object shares one z-order.
                     List<XmlNode> generatedObjects =
                         new List<XmlNode>();
 
@@ -145,10 +193,21 @@ namespace PptxViewer
                             shapeTree.AppendChild(
                                 tableFrames[entry.Index]);
                         }
+                        else if (entry.Kind ==
+                                     PresentationLayerKind.Chart &&
+                                 entry.Index >= 0 &&
+                                 entry.Index < chartFrames.Length &&
+                                 chartFrames[entry.Index] != null)
+                        {
+                            shapeTree.AppendChild(
+                                chartFrames[entry.Index]);
+                        }
                         else if (entry.Kind !=
-                                 PresentationLayerKind.Table &&
+                                     PresentationLayerKind.Table &&
+                                 entry.Kind !=
+                                     PresentationLayerKind.Chart &&
                                  generatedIndex <
-                                 generatedObjects.Count)
+                                     generatedObjects.Count)
                         {
                             shapeTree.AppendChild(
                                 generatedObjects[
@@ -168,8 +227,375 @@ namespace PptxViewer
                         archive,
                         partName,
                         slideDocument);
+
+                    if (slide.Charts.Count > 0)
+                    {
+                        WriteChartsForSlide(
+                            archive,
+                            slideIndex,
+                            slide);
+                    }
+                }
+
+                if (hasCharts)
+                {
+                    EnsureChartContentTypes(
+                        archive,
+                        document);
                 }
             }
+        }
+
+        private static void WriteChartsForSlide(
+            ZipArchive archive,
+            int slideIndex,
+            PresentationSlide slide)
+        {
+            string sourcePart =
+                "ppt/slides/slide" +
+                (slideIndex + 1).ToString() +
+                ".xml";
+            List<OpcRelationship> relationships =
+                OpcPackageUtility.ReadRelationships(
+                    archive,
+                    sourcePart);
+
+            for (int chartIndex = 0;
+                 chartIndex < slide.Charts.Count;
+                 chartIndex++)
+            {
+                PresentationChart chart =
+                    slide.Charts[chartIndex];
+
+                if (chart == null ||
+                    !PptxChartReader.IsSelfContainedChartXml(
+                        chart.XmlData))
+                {
+                    throw new InvalidOperationException(
+                        "Cannot write a chart that is not self-contained.");
+                }
+
+                string chartPart =
+                    GetChartPartName(
+                        slideIndex,
+                        chartIndex);
+
+                WriteRawPart(
+                    archive,
+                    chartPart,
+                    chart.XmlData);
+
+                OpcRelationship relationship =
+                    new OpcRelationship();
+                relationship.Id =
+                    ChartRelationshipId(
+                        chartIndex);
+                relationship.Type =
+                    ChartRelationship;
+                relationship.Target =
+                    "../charts/" +
+                    Path.GetFileName(
+                        chartPart);
+                relationships.Add(
+                    relationship);
+            }
+
+            XmlDocument relationshipDocument =
+                OpcPackageUtility
+                    .CreateRelationshipsDocument(
+                        relationships);
+
+            OpcPackageUtility.WriteXmlPart(
+                archive,
+                OpcPackageUtility
+                    .GetRelationshipPartName(
+                        sourcePart),
+                relationshipDocument);
+        }
+
+        private static void EnsureChartContentTypes(
+            ZipArchive archive,
+            PresentationDocument document)
+        {
+            XmlDocument contentTypes =
+                OpcPackageUtility.ReadXmlPart(
+                    archive,
+                    "[Content_Types].xml");
+
+            if (contentTypes == null ||
+                contentTypes.DocumentElement == null)
+            {
+                throw new InvalidOperationException(
+                    "PPTX content types part is missing.");
+            }
+
+            XmlElement root =
+                contentTypes.DocumentElement;
+            string ns =
+                root.NamespaceURI;
+
+            for (int slideIndex = 0;
+                 slideIndex < document.Slides.Count;
+                 slideIndex++)
+            {
+                PresentationSlide slide =
+                    document.Slides[slideIndex];
+
+                if (slide == null)
+                    continue;
+
+                for (int chartIndex = 0;
+                     chartIndex < slide.Charts.Count;
+                     chartIndex++)
+                {
+                    string partName =
+                        "/" +
+                        GetChartPartName(
+                            slideIndex,
+                            chartIndex);
+
+                    if (HasContentTypeOverride(
+                            root,
+                            partName))
+                    {
+                        continue;
+                    }
+
+                    XmlElement element =
+                        contentTypes.CreateElement(
+                            "Override",
+                            ns);
+                    element.SetAttribute(
+                        "PartName",
+                        partName);
+                    element.SetAttribute(
+                        "ContentType",
+                        ChartContentType);
+                    root.AppendChild(element);
+                }
+            }
+
+            OpcPackageUtility.WriteXmlPart(
+                archive,
+                "[Content_Types].xml",
+                contentTypes);
+        }
+
+        private static bool HasContentTypeOverride(
+            XmlElement root,
+            string partName)
+        {
+            if (root == null)
+                return false;
+
+            for (int i = 0;
+                 i < root.ChildNodes.Count;
+                 i++)
+            {
+                XmlNode node =
+                    root.ChildNodes[i];
+
+                if (node.LocalName !=
+                    "Override" ||
+                    node.Attributes == null)
+                {
+                    continue;
+                }
+
+                XmlAttribute attribute =
+                    node.Attributes[
+                        "PartName"];
+
+                if (attribute != null &&
+                    string.Equals(
+                        attribute.Value,
+                        partName,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static void WriteRawPart(
+            ZipArchive archive,
+            string partName,
+            byte[] data)
+        {
+            string normalized =
+                OpcPackageUtility
+                    .NormalizePartName(
+                        partName);
+            ZipArchiveEntry existing =
+                archive.GetEntry(
+                    normalized);
+
+            if (existing != null)
+                existing.Delete();
+
+            ZipArchiveEntry entry =
+                archive.CreateEntry(
+                    normalized,
+                    CompressionLevel.Optimal);
+
+            using (Stream stream =
+                entry.Open())
+            {
+                stream.Write(
+                    data,
+                    0,
+                    data.Length);
+            }
+        }
+
+        private static string GetChartPartName(
+            int slideIndex,
+            int chartIndex)
+        {
+            return
+                "ppt/charts/slide" +
+                (slideIndex + 1).ToString() +
+                "_chart" +
+                (chartIndex + 1).ToString() +
+                ".xml";
+        }
+
+        private static string ChartRelationshipId(
+            int chartIndex)
+        {
+            return
+                "rIdChart" +
+                (chartIndex + 1).ToString();
+        }
+
+        private static XmlElement BuildChartGraphicFrame(
+            XmlDocument document,
+            PresentationChart chart,
+            int shapeId,
+            string relationshipId)
+        {
+            XmlElement frame =
+                P(
+                    document,
+                    "graphicFrame");
+
+            XmlElement nv =
+                P(
+                    document,
+                    "nvGraphicFramePr");
+            XmlElement cNvPr =
+                P(
+                    document,
+                    "cNvPr");
+            cNvPr.SetAttribute(
+                "id",
+                shapeId.ToString());
+            cNvPr.SetAttribute(
+                "name",
+                string.IsNullOrEmpty(
+                    chart.Name)
+                    ? "Chart " +
+                      shapeId.ToString()
+                    : chart.Name);
+            nv.AppendChild(cNvPr);
+
+            XmlElement cNvGraphic =
+                P(
+                    document,
+                    "cNvGraphicFramePr");
+            XmlElement locks =
+                A(
+                    document,
+                    "graphicFrameLocks");
+            locks.SetAttribute(
+                "noGrp",
+                "1");
+            cNvGraphic.AppendChild(
+                locks);
+            nv.AppendChild(
+                cNvGraphic);
+            nv.AppendChild(
+                P(
+                    document,
+                    "nvPr"));
+            frame.AppendChild(nv);
+
+            XmlElement transform =
+                P(
+                    document,
+                    "xfrm");
+            XmlElement offset =
+                A(
+                    document,
+                    "off");
+            offset.SetAttribute(
+                "x",
+                Math.Max(
+                    0L,
+                    chart.X).ToString());
+            offset.SetAttribute(
+                "y",
+                Math.Max(
+                    0L,
+                    chart.Y).ToString());
+            transform.AppendChild(
+                offset);
+
+            XmlElement extent =
+                A(
+                    document,
+                    "ext");
+            extent.SetAttribute(
+                "cx",
+                Math.Max(
+                    1L,
+                    chart.Width).ToString());
+            extent.SetAttribute(
+                "cy",
+                Math.Max(
+                    1L,
+                    chart.Height).ToString());
+            transform.AppendChild(
+                extent);
+            frame.AppendChild(
+                transform);
+
+            XmlElement graphic =
+                A(
+                    document,
+                    "graphic");
+            XmlElement graphicData =
+                A(
+                    document,
+                    "graphicData");
+            graphicData.SetAttribute(
+                "uri",
+                ChartGraphicDataUri);
+
+            XmlElement chartReference =
+                document.CreateElement(
+                    "c",
+                    "chart",
+                    ChartNamespace);
+            XmlAttribute relationshipAttribute =
+                document.CreateAttribute(
+                    "r",
+                    "id",
+                    RelationshipsNamespace);
+            relationshipAttribute.Value =
+                relationshipId;
+            chartReference.Attributes.Append(
+                relationshipAttribute);
+            graphicData.AppendChild(
+                chartReference);
+            graphic.AppendChild(
+                graphicData);
+            frame.AppendChild(
+                graphic);
+
+            return frame;
         }
 
         private static XmlElement BuildGraphicFrame(

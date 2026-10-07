@@ -157,7 +157,7 @@ namespace PptxViewer
             return chart;
         }
 
-        private static bool IsSelfContainedChartXml(
+        internal static bool IsSelfContainedChartXml(
             byte[] data)
         {
             if (data == null ||
