@@ -942,6 +942,197 @@ namespace PptxViewer
                     "Chart minorUnit did not produce minor axis ticks.");
             }
 
+            XmlDocument seriesOverlayDoc =
+                new XmlDocument();
+
+            seriesOverlayDoc.LoadXml(
+                "<c:ser xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<c:trendline><c:trendlineType val=\"linear\"/><c:forward val=\"1\"/><c:backward val=\"0.5\"/>" +
+                "<c:spPr><a:ln w=\"19050\"><a:solidFill><a:srgbClr val=\"CC3344\"/></a:solidFill><a:prstDash val=\"dash\"/></a:ln></c:spPr></c:trendline>" +
+                "<c:errBars><c:errDir val=\"y\"/><c:errBarType val=\"both\"/><c:errValType val=\"fixedVal\"/><c:val val=\"10\"/>" +
+                "<c:spPr><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"228844\"/></a:solidFill></a:ln></c:spPr></c:errBars>" +
+                "</c:ser>");
+
+            ChartSeriesData overlaySeries =
+                new ChartSeriesData();
+
+            ReadChartSeriesVisualStyle(
+                seriesOverlayDoc.DocumentElement,
+                overlaySeries,
+                theme);
+
+            if (overlaySeries.Trendline == null ||
+                overlaySeries.Trendline.Type != "linear" ||
+                Math.Abs(
+                    overlaySeries.Trendline.Forward -
+                    1.0) > 0.0001 ||
+                Math.Abs(
+                    overlaySeries.Trendline.Backward -
+                    0.5) > 0.0001 ||
+                overlaySeries.Trendline.LineStyle == null ||
+                overlaySeries.Trendline.LineStyle.Color.R !=
+                    0xCC ||
+                overlaySeries.Trendline.LineStyle.Color.G !=
+                    0x33 ||
+                overlaySeries.Trendline.LineStyle.Color.B !=
+                    0x44 ||
+                overlaySeries.Trendline.LineStyle.DashStyle !=
+                    DashStyle.Dash ||
+                overlaySeries.ErrorBars == null ||
+                overlaySeries.ErrorBars.Direction != "y" ||
+                overlaySeries.ErrorBars.BarType != "both" ||
+                overlaySeries.ErrorBars.ValueType != "fixedVal" ||
+                Math.Abs(
+                    overlaySeries.ErrorBars.Value -
+                    10.0) > 0.0001 ||
+                overlaySeries.ErrorBars.LineStyle == null ||
+                overlaySeries.ErrorBars.LineStyle.Color.R !=
+                    0x22 ||
+                overlaySeries.ErrorBars.LineStyle.Color.G !=
+                    0x88 ||
+                overlaySeries.ErrorBars.LineStyle.Color.B !=
+                    0x44)
+            {
+                throw new InvalidOperationException(
+                    "Chart trendline or error-bar series options were not parsed correctly.");
+            }
+
+            using (Bitmap overlayBitmap =
+                new Bitmap(
+                    240,
+                    160,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics overlayGraphics =
+                Graphics.FromImage(
+                    overlayBitmap))
+            {
+                RectangleF overlayPlot =
+                    new RectangleF(
+                        20f,
+                        20f,
+                        200f,
+                        120f);
+
+                overlayGraphics.Clear(
+                    Color.White);
+
+                List<PointF> trendPoints =
+                    new List<PointF>();
+                trendPoints.Add(
+                    new PointF(
+                        40f,
+                        120f));
+                trendPoints.Add(
+                    new PointF(
+                        90f,
+                        94f));
+                trendPoints.Add(
+                    new PointF(
+                        150f,
+                        62f));
+                trendPoints.Add(
+                    new PointF(
+                        200f,
+                        38f));
+
+                DrawChartLinearTrendline(
+                    overlayGraphics,
+                    overlayPlot,
+                    trendPoints,
+                    overlaySeries.Trendline,
+                    Color.Black);
+
+                bool trendlineVisible =
+                    false;
+
+                for (int y = 70;
+                     y <= 105 &&
+                     !trendlineVisible;
+                     y++)
+                {
+                    for (int x = 75;
+                         x <= 130;
+                         x++)
+                    {
+                        Color pixel =
+                            overlayBitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.R >
+                                pixel.G + 70 &&
+                            pixel.R >
+                                pixel.B + 50)
+                        {
+                            trendlineVisible =
+                                true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!trendlineVisible)
+                {
+                    throw new InvalidOperationException(
+                        "Chart linear trendline was not rendered.");
+                }
+
+                overlayGraphics.Clear(
+                    Color.White);
+
+                ChartAxisScale overlayScale =
+                    new ChartAxisScale();
+                overlayScale.Minimum = 0.0;
+                overlayScale.Maximum = 100.0;
+
+                DrawChartErrorBar(
+                    overlayGraphics,
+                    overlayPlot,
+                    overlayScale,
+                    "line",
+                    new PointF(
+                        120f,
+                        80f),
+                    50.0,
+                    overlaySeries.ErrorBars,
+                    Color.Black);
+
+                bool errorBarVisible =
+                    false;
+
+                for (int y = 64;
+                     y <= 96 &&
+                     !errorBarVisible;
+                     y++)
+                {
+                    for (int x = 115;
+                         x <= 125;
+                         x++)
+                    {
+                        Color pixel =
+                            overlayBitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.G >
+                                pixel.R + 45 &&
+                            pixel.G >
+                                pixel.B + 20)
+                        {
+                            errorBarVisible =
+                                true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!errorBarVisible)
+                {
+                    throw new InvalidOperationException(
+                        "Chart fixed-value error bar was not rendered.");
+                }
+            }
+
             ChartLabelOptions labels =
                 ReadChartLabelOptions(
                     chart,
