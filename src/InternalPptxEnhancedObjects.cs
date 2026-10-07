@@ -12481,7 +12481,15 @@ namespace PptxViewer
                     "valAx"),
                 ReadChartAxisTitle(
                     chartDoc,
-                    "catAx"));
+                    "catAx"),
+                ReadChartAxisTitleTextStyle(
+                    chartDoc,
+                    "valAx",
+                    theme),
+                ReadChartAxisTitleTextStyle(
+                    chartDoc,
+                    "catAx",
+                    theme));
 
             DrawChartLegend(
                 g,
