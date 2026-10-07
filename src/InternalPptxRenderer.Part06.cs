@@ -56,6 +56,10 @@ internal static partial class InternalPptxRenderer
             public string BarType;
             public string ValueType;
             public double Value;
+            public readonly List<double> PlusValues =
+                new List<double>();
+            public readonly List<double> MinusValues =
+                new List<double>();
             public ChartLineStyle LineStyle;
         }
 
