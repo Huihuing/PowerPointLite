@@ -4154,6 +4154,73 @@ namespace PptxViewer
                 processConnectorGraphics.Clear(
                     Color.White);
 
+                processSource.Children.Clear();
+                processSource.Children.Add(
+                    processNextRow.Id);
+
+                processPositions[
+                    processNextRow.Id] =
+                    new RectangleF(
+                        180f,
+                        120f,
+                        80f,
+                        40f);
+
+                processPositions[
+                    "processBlocker"] =
+                    new RectangleF(
+                        110f,
+                        70f,
+                        50f,
+                        40f);
+
+                DrawSmartArtConnectors(
+                    processConnectorGraphics,
+                    "process",
+                    processNodes,
+                    processNodeMap,
+                    processPositions,
+                    new Color[]
+                    {
+                        Color.FromArgb(
+                            76,
+                            123,
+                            205)
+                    });
+
+                Color blockedMiddlePixel =
+                    processConnectorBitmap.GetPixel(
+                        130,
+                        90);
+
+                Color clearChannelPixel =
+                    processConnectorBitmap.GetPixel(
+                        130,
+                        64);
+
+                bool blockedMiddleStayedClear =
+                    blockedMiddlePixel.R >= 245 &&
+                    blockedMiddlePixel.G >= 245 &&
+                    blockedMiddlePixel.B >= 245;
+
+                bool clearChannelVisible =
+                    clearChannelPixel.R < 245 ||
+                    clearChannelPixel.G < 245 ||
+                    clearChannelPixel.B < 245;
+
+                if (!blockedMiddleStayedClear ||
+                    !clearChannelVisible)
+                {
+                    throw new InvalidOperationException(
+                        "SmartArt process connector did not avoid an intervening node.");
+                }
+
+                processPositions.Remove(
+                    "processBlocker");
+
+                processConnectorGraphics.Clear(
+                    Color.White);
+
                 Dictionary<string, RectangleF> verticalPositions =
                     new Dictionary<string, RectangleF>(
                         StringComparer.Ordinal);
