@@ -238,12 +238,27 @@ internal static partial class InternalPptxRenderer
             string title =
                 ReadChartTitle(chartDoc);
 
-            float topPad =
-                string.IsNullOrEmpty(title)
+            float titleHeight =
+                string.IsNullOrEmpty(
+                    title)
                     ? 12f
                     : Math.Max(
                         34f,
-                        rect.Height * 0.10f);
+                        rect.Height *
+                        0.10f);
+
+            bool titleOverlay =
+                ReadChartOverlay(
+                    chartDoc,
+                    "title");
+
+            float topPad =
+                string.IsNullOrEmpty(
+                    title)
+                    ? 12f
+                    : titleOverlay
+                        ? 12f
+                        : titleHeight;
 
             if (!string.IsNullOrEmpty(title))
             {
@@ -287,7 +302,7 @@ internal static partial class InternalPptxRenderer
                             rect.Left + 5,
                             rect.Top + 4,
                             rect.Width - 10,
-                            topPad - 4),
+                            titleHeight - 4),
                         sf);
                 }
             }
@@ -295,6 +310,10 @@ internal static partial class InternalPptxRenderer
             string legendPosition =
                 ReadChartLegendPosition(
                     chartDoc);
+            bool legendOverlay =
+                ReadChartOverlay(
+                    chartDoc,
+                    "legend");
 
             string valueAxisTitle =
                 ReadChartAxisTitle(
@@ -322,34 +341,37 @@ internal static partial class InternalPptxRenderer
                 rect.Top +
                 topPad;
 
-            if (legendPosition == "r" ||
-                legendPosition == "tr")
+            if (!legendOverlay)
             {
-                rightPad =
-                    Math.Max(
-                        92f,
-                        rect.Width * 0.20f);
-            }
-            else if (legendPosition == "l")
-            {
-                leftPad =
-                    Math.Max(
-                        92f,
-                        rect.Width * 0.20f);
-            }
-            else if (legendPosition == "b")
-            {
-                bottomPad =
-                    Math.Max(
-                        66f,
-                        rect.Height * 0.18f);
-            }
-            else if (legendPosition == "t")
-            {
-                plotTop +=
-                    Math.Max(
-                        28f,
-                        rect.Height * 0.10f);
+                if (legendPosition == "r" ||
+                    legendPosition == "tr")
+                {
+                    rightPad =
+                        Math.Max(
+                            92f,
+                            rect.Width * 0.20f);
+                }
+                else if (legendPosition == "l")
+                {
+                    leftPad =
+                        Math.Max(
+                            92f,
+                            rect.Width * 0.20f);
+                }
+                else if (legendPosition == "b")
+                {
+                    bottomPad =
+                        Math.Max(
+                            66f,
+                            rect.Height * 0.18f);
+                }
+                else if (legendPosition == "t")
+                {
+                    plotTop +=
+                        Math.Max(
+                            28f,
+                            rect.Height * 0.10f);
+                }
             }
 
             if (kind == "bar")
@@ -2485,6 +2507,30 @@ internal static partial class InternalPptxRenderer
                     ? ", "
                     : options.Separator,
                 parts.ToArray());
+        }
+
+        private static bool ReadChartOverlay(
+            XmlDocument chartDoc,
+            string elementName)
+        {
+            if (chartDoc == null ||
+                string.IsNullOrEmpty(
+                    elementName))
+            {
+                return false;
+            }
+
+            XmlNode element =
+                FindFirst(
+                    chartDoc,
+                    elementName);
+
+            if (element == null)
+                return false;
+
+            return ReadChartBooleanChild(
+                element,
+                "overlay");
         }
 
         private static HashSet<int> ReadChartLegendHiddenEntries(
