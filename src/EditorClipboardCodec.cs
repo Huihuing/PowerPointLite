@@ -12,6 +12,7 @@ namespace PptxViewer
         public PresentationShape Shape { get; set; }
         public PresentationImage Image { get; set; }
         public PresentationTable Table { get; set; }
+        public PresentationChart Chart { get; set; }
 
         public EditorClipboardObject Clone()
         {
@@ -34,6 +35,10 @@ namespace PptxViewer
                 Table == null
                     ? null
                     : Table.Clone();
+            copy.Chart =
+                Chart == null
+                    ? null
+                    : Chart.Clone();
             return copy;
         }
 
@@ -88,6 +93,16 @@ namespace PptxViewer
                 return true;
             }
 
+            if (Kind == EditorObjectKind.Chart &&
+                Chart != null)
+            {
+                x = Chart.X;
+                y = Chart.Y;
+                width = Chart.Width;
+                height = Chart.Height;
+                return true;
+            }
+
             return false;
         }
 
@@ -118,6 +133,12 @@ namespace PptxViewer
             {
                 Table.X += dx;
                 Table.Y += dy;
+            }
+            else if (Kind == EditorObjectKind.Chart &&
+                     Chart != null)
+            {
+                Chart.X += dx;
+                Chart.Y += dy;
             }
         }
     }
@@ -158,20 +179,24 @@ namespace PptxViewer
     internal static class EditorClipboardCodec
     {
         public const string ClipboardFormat =
-            "PowerPointLite.ObjectSelection.v3";
+            "PowerPointLite.ObjectSelection.v4";
         public const string LegacyClipboardFormat =
+            "PowerPointLite.ObjectSelection.v3";
+        public const string LegacyClipboardFormatV2 =
             "PowerPointLite.ObjectSelection.v2";
         public const string LegacyClipboardFormatV1 =
             "PowerPointLite.ObjectSelection.v1";
 
         private const string Magic =
             "PPLT_OBJECTS";
-        private const int Version = 3;
+        private const int Version = 4;
         private const int MaxObjects = 512;
         private const int MaxParagraphs = 4096;
         private const int MaxRuns = 16384;
         private const int MaxImageBytes =
             48 * 1024 * 1024;
+        private const int MaxChartBytes =
+            16 * 1024 * 1024;
         private const int MaxEncodedLength =
             96 * 1024 * 1024;
 
@@ -396,6 +421,18 @@ namespace PptxViewer
                 return item;
             }
 
+            if (kind == EditorObjectKind.Chart &&
+                index >= 0 &&
+                index < slide.Charts.Count)
+            {
+                EditorClipboardObject item =
+                    new EditorClipboardObject();
+                item.Kind = kind;
+                item.Chart =
+                    slide.Charts[index].Clone();
+                return item;
+            }
+
             return null;
         }
 
@@ -437,6 +474,9 @@ namespace PptxViewer
             if (kind == PresentationLayerKind.Table)
                 return EditorObjectKind.Table;
 
+            if (kind == PresentationLayerKind.Chart)
+                return EditorObjectKind.Chart;
+
             return EditorObjectKind.None;
         }
 
@@ -458,6 +498,8 @@ namespace PptxViewer
                 WriteImage(writer, item.Image);
             else if (item.Kind == EditorObjectKind.Table)
                 WriteTable(writer, item.Table);
+            else if (item.Kind == EditorObjectKind.Chart)
+                WriteChart(writer, item.Chart);
             else
                 throw new InvalidDataException(
                     "Unsupported clipboard object kind.");
@@ -484,6 +526,9 @@ namespace PptxViewer
                         version);
             else if (kind == EditorObjectKind.Table)
                 item.Table = ReadTable(reader);
+            else if (kind == EditorObjectKind.Chart &&
+                     version >= 4)
+                item.Chart = ReadChart(reader);
             else
                 return null;
 
@@ -906,6 +951,67 @@ namespace PptxViewer
             return table;
         }
 
+        private static void WriteChart(
+            BinaryWriter writer,
+            PresentationChart chart)
+        {
+            if (chart == null)
+                throw new InvalidDataException(
+                    "Clipboard chart is missing.");
+
+            WriteString(writer, chart.Name);
+            writer.Write(chart.X);
+            writer.Write(chart.Y);
+            writer.Write(chart.Width);
+            writer.Write(chart.Height);
+
+            byte[] data =
+                chart.XmlData ??
+                new byte[0];
+
+            if (data.Length <= 0 ||
+                data.Length > MaxChartBytes)
+            {
+                throw new InvalidDataException(
+                    "Clipboard chart payload is invalid.");
+            }
+
+            writer.Write(data.Length);
+            writer.Write(data);
+        }
+
+        private static PresentationChart ReadChart(
+            BinaryReader reader)
+        {
+            PresentationChart chart =
+                new PresentationChart();
+            chart.Name =
+                reader.ReadString();
+            chart.X = reader.ReadInt64();
+            chart.Y = reader.ReadInt64();
+            chart.Width = reader.ReadInt64();
+            chart.Height = reader.ReadInt64();
+
+            int length =
+                reader.ReadInt32();
+
+            if (length <= 0 ||
+                length > MaxChartBytes)
+            {
+                throw new InvalidDataException(
+                    "Clipboard chart payload length is invalid.");
+            }
+
+            byte[] data =
+                reader.ReadBytes(length);
+
+            if (data.Length != length)
+                throw new EndOfStreamException();
+
+            chart.XmlData = data;
+            return chart;
+        }
+
         private static void WriteString(
             BinaryWriter writer,
             string value)
@@ -980,6 +1086,17 @@ namespace PptxViewer
             text.Bold = true;
             text.ColorHex = "2255AA";
 
+            PresentationChart chart =
+                slide.AddChart(
+                    Encoding.UTF8.GetBytes(
+                        "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"><c:chart><c:plotArea/></c:chart></c:chartSpace>"));
+            chart.Name =
+                "Clipboard chart";
+            chart.X = 7315200;
+            chart.Y = 3657600;
+            chart.Width = 2743200;
+            chart.Height = 1828800;
+
             PresentationTable table =
                 slide.AddTable(2, 2);
             table.Name = "Clipboard table";
@@ -1009,6 +1126,10 @@ namespace PptxViewer
                 Selection(
                     EditorObjectKind.Table,
                     slide.Tables.Count - 1));
+            selection.Add(
+                Selection(
+                    EditorObjectKind.Chart,
+                    slide.Charts.Count - 1));
 
             EditorClipboardPackage package =
                 EditorClipboardCodec.CreatePackage(
@@ -1016,7 +1137,7 @@ namespace PptxViewer
                     selection);
 
             if (package == null ||
-                package.Objects.Count != 4)
+                package.Objects.Count != 5)
             {
                 throw new InvalidOperationException(
                     "Clipboard package did not preserve the selected object count.");
@@ -1031,7 +1152,7 @@ namespace PptxViewer
                     encoded,
                     out decoded) ||
                 decoded == null ||
-                decoded.Objects.Count != 4)
+                decoded.Objects.Count != 5)
             {
                 throw new InvalidOperationException(
                     "Clipboard package codec round-trip failed.");
@@ -1044,7 +1165,9 @@ namespace PptxViewer
                 decoded.Objects[2].Kind !=
                     EditorObjectKind.TextBox ||
                 decoded.Objects[3].Kind !=
-                    EditorObjectKind.Table)
+                    EditorObjectKind.Table ||
+                decoded.Objects[4].Kind !=
+                    EditorObjectKind.Chart)
             {
                 throw new InvalidOperationException(
                     "Clipboard package did not preserve relative z-order.");
@@ -1077,7 +1200,16 @@ namespace PptxViewer
                     "Table cell" ||
                 !decoded.Objects[3].Table.GetCell(
                     0,
-                    0).Bold)
+                    0).Bold ||
+                decoded.Objects[4].Chart == null ||
+                decoded.Objects[4].Chart.Name !=
+                    "Clipboard chart" ||
+                decoded.Objects[4].Chart.XmlData == null ||
+                Encoding.UTF8.GetString(
+                    decoded.Objects[4].Chart.XmlData)
+                    .IndexOf(
+                        "chartSpace",
+                        StringComparison.Ordinal) < 0)
             {
                 throw new InvalidOperationException(
                     "Clipboard package object properties were not preserved.");
