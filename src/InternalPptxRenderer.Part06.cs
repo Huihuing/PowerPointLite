@@ -2532,19 +2532,35 @@ chartDoc);
                 parts.ToArray());
         }
 
+        private static XmlNode ReadChartTopLevelElement(
+            XmlDocument chartDoc,
+            string localName)
+        {
+            if (chartDoc == null ||
+                string.IsNullOrEmpty(
+                    localName))
+            {
+                return null;
+            }
+
+            XmlNode chart =
+                FindFirst(
+                    chartDoc,
+                    "chart");
+
+            return chart == null
+                ? null
+                : DirectChild(
+                    chart,
+                    localName);
+        }
+
         private static bool ReadChartOverlay(
             XmlDocument chartDoc,
             string elementName)
         {
-            if (chartDoc == null ||
-                string.IsNullOrEmpty(
-                    elementName))
-            {
-                return false;
-            }
-
             XmlNode element =
-                FindFirst(
+                ReadChartTopLevelElement(
                     chartDoc,
                     elementName);
 
@@ -2563,11 +2579,9 @@ chartDoc);
                 new HashSet<int>();
 
             XmlNode legend =
-                chartDoc == null
-                    ? null
-                    : FindFirst(
-                        chartDoc,
-                        "legend");
+                ReadChartTopLevelElement(
+                    chartDoc,
+                    "legend");
 
             if (legend == null)
                 return hidden;
@@ -6122,11 +6136,9 @@ chartDoc);
                 new ChartLabelOptions();
 
             XmlNode title =
-                chartDoc == null
-                    ? null
-                    : FindFirst(
-                        chartDoc,
-                        "title");
+                ReadChartTopLevelElement(
+                    chartDoc,
+                    "title");
 
             if (title == null)
                 return result;
