@@ -99,7 +99,24 @@ namespace PptxViewer
             if (toolbar == null)
                 return;
 
-            int buttonHeight = 32;
+            int measuredTextHeight =
+                TextRenderer.MeasureText(
+                    "Ag",
+                    toolbar.Font,
+                    new Size(
+                        200,
+                        80),
+                    TextFormatFlags.SingleLine |
+                    TextFormatFlags.NoPadding).Height;
+
+            int buttonHeight =
+                Math.Max(
+                    32,
+                    Math.Min(
+                        40,
+                        measuredTextHeight +
+                        12));
+
             Control documentStrip =
                 toolbar.Controls["DocumentWorkspaceStrip"];
             int reservedBottom =
@@ -117,7 +134,12 @@ namespace PptxViewer
                  buttonHeight) /
                 2);
             int x = 10;
-            int gap = 4;
+            int gap =
+                Math.Max(
+                    4,
+                    4 +
+                    (buttonHeight - 32) /
+                    4);
             int separatorIndex = 0;
 
             HideToolbarSeparators();
