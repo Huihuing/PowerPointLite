@@ -156,6 +156,7 @@ Microsoft PowerPoint (설치된 경우)
   - layout definition 기반 hierarchy / process / vertical process / cycle / radial / matrix / pyramid / list / venn 배치 근사
   - layout별 connector 방향과 node shape 기본 차등 표현
   - hierarchy의 type="asst" assistant node 보존, 부모 좌우 보조 박스 배치 및 side connector 근사
+  - 동일 부모의 다중 assistant는 좌우로 번갈아 분배하고 같은 쪽 stack을 수직 중앙 정렬·비겹침 배치
   - hierarchy 일반 자식을 부모 중심별 그룹으로 묶어 sibling spacing과 행 배치를 근사
   - hierarchy parent-child 및 assistant connector를 직각 elbow routing으로 근사
   - process 같은 행은 node edge 연결, 행 전환 및 verticalProcess는 직각 elbow routing으로 근사
