@@ -11519,8 +11519,13 @@ namespace PptxViewer
             if (!string.IsNullOrEmpty(
                     title))
             {
+                ChartLabelOptions titleTextStyle =
+                    ReadChartTitleTextStyle(
+                        chartDoc,
+                        theme);
+
                 using (Font font =
-                    SafeFont(
+                    SafeChartTextFont(
                         "Arial",
                         Math.Max(
                             10f,
@@ -11528,13 +11533,17 @@ namespace PptxViewer
                                 18f,
                                 rect.Height /
                                 18f)),
-                        FontStyle.Bold))
+                        FontStyle.Bold,
+                        titleTextStyle))
                 using (Brush brush =
                     new SolidBrush(
-                        Color.FromArgb(
-                            45,
-                            45,
-                            45)))
+                        titleTextStyle != null &&
+                        titleTextStyle.TextColor.HasValue
+                            ? titleTextStyle.TextColor.Value
+                            : Color.FromArgb(
+                                45,
+                                45,
+                                45)))
                 using (StringFormat sf =
                     new StringFormat())
                 {
