@@ -1035,7 +1035,7 @@ namespace PptxViewer
                         200f,
                         38f));
 
-                DrawChartLinearTrendline(
+                DrawChartTrendline(
                     overlayGraphics,
                     overlayPlot,
                     trendPoints,
