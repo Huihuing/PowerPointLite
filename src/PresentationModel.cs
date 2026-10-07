@@ -20,6 +20,28 @@ namespace PptxViewer
         Diamond
     }
 
+    internal enum PresentationLayerKind
+    {
+        TextBox,
+        Shape,
+        Image
+    }
+
+    internal sealed class PresentationLayerEntry
+    {
+        public PresentationLayerKind Kind { get; set; }
+        public int Index { get; set; }
+
+        public PresentationLayerEntry Clone()
+        {
+            PresentationLayerEntry copy =
+                new PresentationLayerEntry();
+            copy.Kind = Kind;
+            copy.Index = Index;
+            return copy;
+        }
+    }
+
     internal sealed class PresentationTextRun
     {
         public string Text { get; set; }
@@ -405,6 +427,8 @@ namespace PptxViewer
             new List<PresentationImage>();
         private readonly List<PresentationTable> tables =
             new List<PresentationTable>();
+        private readonly List<PresentationLayerEntry> objectOrder =
+            new List<PresentationLayerEntry>();
 
         public string Name { get; set; }
 
@@ -428,6 +452,11 @@ namespace PptxViewer
             get { return tables; }
         }
 
+        public IList<PresentationLayerEntry> ObjectOrder
+        {
+            get { return objectOrder; }
+        }
+
         public PresentationSlide()
         {
             Name = "Slide";
@@ -438,6 +467,9 @@ namespace PptxViewer
             PresentationTextBox box = new PresentationTextBox();
             box.Text = text ?? string.Empty;
             textBoxes.Add(box);
+            RegisterObjectOrder(
+                PresentationLayerKind.TextBox,
+                textBoxes.Count - 1);
             return box;
         }
 
@@ -461,6 +493,9 @@ namespace PptxViewer
             shape.Kind = kind;
             shape.Name = kind.ToString();
             shapes.Add(shape);
+            RegisterObjectOrder(
+                PresentationLayerKind.Shape,
+                shapes.Count - 1);
             return shape;
         }
 
@@ -478,6 +513,9 @@ namespace PptxViewer
                 ? "image/png"
                 : contentType;
             images.Add(image);
+            RegisterObjectOrder(
+                PresentationLayerKind.Image,
+                images.Count - 1);
             return image;
         }
 
@@ -494,6 +532,9 @@ namespace PptxViewer
             if (index < 0 || index >= textBoxes.Count)
                 return false;
             textBoxes.RemoveAt(index);
+            RemoveObjectOrder(
+                PresentationLayerKind.TextBox,
+                index);
             return true;
         }
 
@@ -502,6 +543,9 @@ namespace PptxViewer
             if (index < 0 || index >= shapes.Count)
                 return false;
             shapes.RemoveAt(index);
+            RemoveObjectOrder(
+                PresentationLayerKind.Shape,
+                index);
             return true;
         }
 
@@ -510,6 +554,9 @@ namespace PptxViewer
             if (index < 0 || index >= images.Count)
                 return false;
             images.RemoveAt(index);
+            RemoveObjectOrder(
+                PresentationLayerKind.Image,
+                index);
             return true;
         }
 
@@ -519,6 +566,316 @@ namespace PptxViewer
                 return false;
             tables.RemoveAt(index);
             return true;
+        }
+
+
+        public void RegisterObjectOrder(
+            PresentationLayerKind kind,
+            int index)
+        {
+            if (!IsValidObjectIndex(
+                    kind,
+                    index))
+            {
+                return;
+            }
+
+            for (int i = 0;
+                 i < objectOrder.Count;
+                 i++)
+            {
+                PresentationLayerEntry existing =
+                    objectOrder[i];
+
+                if (existing != null &&
+                    existing.Kind == kind &&
+                    existing.Index == index)
+                {
+                    return;
+                }
+            }
+
+            PresentationLayerEntry entry =
+                new PresentationLayerEntry();
+            entry.Kind = kind;
+            entry.Index = index;
+            objectOrder.Add(entry);
+        }
+
+        public void SynchronizeObjectOrder()
+        {
+            List<PresentationLayerEntry> normalized =
+                new List<PresentationLayerEntry>();
+
+            bool[] textSeen =
+                new bool[textBoxes.Count];
+            bool[] shapeSeen =
+                new bool[shapes.Count];
+            bool[] imageSeen =
+                new bool[images.Count];
+
+            for (int i = 0;
+                 i < objectOrder.Count;
+                 i++)
+            {
+                PresentationLayerEntry entry =
+                    objectOrder[i];
+
+                if (entry == null ||
+                    !IsValidObjectIndex(
+                        entry.Kind,
+                        entry.Index))
+                {
+                    continue;
+                }
+
+                bool alreadySeen = false;
+
+                if (entry.Kind ==
+                    PresentationLayerKind.TextBox)
+                {
+                    alreadySeen =
+                        textSeen[entry.Index];
+                    textSeen[entry.Index] = true;
+                }
+                else if (entry.Kind ==
+                         PresentationLayerKind.Shape)
+                {
+                    alreadySeen =
+                        shapeSeen[entry.Index];
+                    shapeSeen[entry.Index] = true;
+                }
+                else if (entry.Kind ==
+                         PresentationLayerKind.Image)
+                {
+                    alreadySeen =
+                        imageSeen[entry.Index];
+                    imageSeen[entry.Index] = true;
+                }
+
+                if (!alreadySeen)
+                    normalized.Add(
+                        entry.Clone());
+            }
+
+            for (int i = 0;
+                 i < shapes.Count;
+                 i++)
+            {
+                if (!shapeSeen[i])
+                    AddNormalizedLayerEntry(
+                        normalized,
+                        PresentationLayerKind.Shape,
+                        i);
+            }
+
+            for (int i = 0;
+                 i < images.Count;
+                 i++)
+            {
+                if (!imageSeen[i])
+                    AddNormalizedLayerEntry(
+                        normalized,
+                        PresentationLayerKind.Image,
+                        i);
+            }
+
+            for (int i = 0;
+                 i < textBoxes.Count;
+                 i++)
+            {
+                if (!textSeen[i])
+                    AddNormalizedLayerEntry(
+                        normalized,
+                        PresentationLayerKind.TextBox,
+                        i);
+            }
+
+            objectOrder.Clear();
+
+            for (int i = 0;
+                 i < normalized.Count;
+                 i++)
+            {
+                objectOrder.Add(
+                    normalized[i]);
+            }
+        }
+
+        public bool MoveObjectToFront(
+            PresentationLayerKind kind,
+            int index)
+        {
+            SynchronizeObjectOrder();
+
+            int position =
+                FindObjectOrderPosition(
+                    kind,
+                    index);
+
+            if (position < 0 ||
+                position ==
+                    objectOrder.Count - 1)
+            {
+                return false;
+            }
+
+            PresentationLayerEntry entry =
+                objectOrder[position];
+
+            objectOrder.RemoveAt(position);
+            objectOrder.Add(entry);
+            return true;
+        }
+
+        public bool MoveObjectToBack(
+            PresentationLayerKind kind,
+            int index)
+        {
+            SynchronizeObjectOrder();
+
+            int position =
+                FindObjectOrderPosition(
+                    kind,
+                    index);
+
+            if (position <= 0)
+                return false;
+
+            PresentationLayerEntry entry =
+                objectOrder[position];
+
+            objectOrder.RemoveAt(position);
+            objectOrder.Insert(
+                0,
+                entry);
+            return true;
+        }
+
+        public bool CanMoveObjectToFront(
+            PresentationLayerKind kind,
+            int index)
+        {
+            SynchronizeObjectOrder();
+
+            int position =
+                FindObjectOrderPosition(
+                    kind,
+                    index);
+
+            return position >= 0 &&
+                position <
+                    objectOrder.Count - 1;
+        }
+
+        public bool CanMoveObjectToBack(
+            PresentationLayerKind kind,
+            int index)
+        {
+            SynchronizeObjectOrder();
+
+            return FindObjectOrderPosition(
+                kind,
+                index) > 0;
+        }
+
+        private static void AddNormalizedLayerEntry(
+            List<PresentationLayerEntry> target,
+            PresentationLayerKind kind,
+            int index)
+        {
+            PresentationLayerEntry entry =
+                new PresentationLayerEntry();
+            entry.Kind = kind;
+            entry.Index = index;
+            target.Add(entry);
+        }
+
+        private int FindObjectOrderPosition(
+            PresentationLayerKind kind,
+            int index)
+        {
+            for (int i = 0;
+                 i < objectOrder.Count;
+                 i++)
+            {
+                PresentationLayerEntry entry =
+                    objectOrder[i];
+
+                if (entry != null &&
+                    entry.Kind == kind &&
+                    entry.Index == index)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private bool IsValidObjectIndex(
+            PresentationLayerKind kind,
+            int index)
+        {
+            if (index < 0)
+                return false;
+
+            if (kind ==
+                PresentationLayerKind.TextBox)
+            {
+                return index <
+                    textBoxes.Count;
+            }
+
+            if (kind ==
+                PresentationLayerKind.Shape)
+            {
+                return index <
+                    shapes.Count;
+            }
+
+            if (kind ==
+                PresentationLayerKind.Image)
+            {
+                return index <
+                    images.Count;
+            }
+
+            return false;
+        }
+
+        private void RemoveObjectOrder(
+            PresentationLayerKind kind,
+            int removedIndex)
+        {
+            for (int i =
+                     objectOrder.Count - 1;
+                 i >= 0;
+                 i--)
+            {
+                PresentationLayerEntry entry =
+                    objectOrder[i];
+
+                if (entry == null)
+                {
+                    objectOrder.RemoveAt(i);
+                    continue;
+                }
+
+                if (entry.Kind != kind)
+                    continue;
+
+                if (entry.Index ==
+                    removedIndex)
+                {
+                    objectOrder.RemoveAt(i);
+                }
+                else if (entry.Index >
+                         removedIndex)
+                {
+                    entry.Index--;
+                }
+            }
         }
 
         public PresentationSlide Clone()
@@ -537,6 +894,16 @@ namespace PptxViewer
 
             for (int i = 0; i < tables.Count; i++)
                 copy.tables.Add(tables[i].Clone());
+
+            SynchronizeObjectOrder();
+
+            for (int i = 0;
+                 i < objectOrder.Count;
+                 i++)
+            {
+                copy.objectOrder.Add(
+                    objectOrder[i].Clone());
+            }
 
             return copy;
         }

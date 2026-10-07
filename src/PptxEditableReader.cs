@@ -173,7 +173,12 @@ namespace PptxViewer
                     {
                         PresentationTextBox box = ReadTextBox(node);
                         if (box != null)
+                        {
                             slide.TextBoxes.Add(box);
+                            slide.RegisterObjectOrder(
+                                PresentationLayerKind.TextBox,
+                                slide.TextBoxes.Count - 1);
+                        }
                         else
                             result.HasUnsupportedContent = true;
                     }
@@ -181,7 +186,12 @@ namespace PptxViewer
                     {
                         PresentationShape shape = ReadShape(node);
                         if (shape != null)
+                        {
                             slide.Shapes.Add(shape);
+                            slide.RegisterObjectOrder(
+                                PresentationLayerKind.Shape,
+                                slide.Shapes.Count - 1);
+                        }
                         else
                             result.HasUnsupportedContent = true;
                     }
@@ -194,7 +204,12 @@ namespace PptxViewer
                         byId);
 
                     if (image != null)
+                    {
                         slide.Images.Add(image);
+                        slide.RegisterObjectOrder(
+                            PresentationLayerKind.Image,
+                            slide.Images.Count - 1);
+                    }
                     else
                         result.HasUnsupportedContent = true;
                 }

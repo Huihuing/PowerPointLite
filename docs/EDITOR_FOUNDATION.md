@@ -147,7 +147,9 @@ RUN_WRITER_SELFTEST.cmd
 RUN_ANIMATION_SELFTEST.cmd
 ```
 
-Writer 자체 테스트는 프로젝트 코드만으로 text box, shape, 자체 생성 image, table이 포함된 PPTX를 만들고 read-edit-write round-trip을 검사한다.
+Writer 자체 테스트는 프로젝트 코드만으로 text box, shape, 자체 생성 image, table이 포함된 PPTX를 만들고 read-edit-write round-trip을 검사한다. text box/shape/image는 `PresentationSlide.ObjectOrder`에 공통 layer 순서를 기록하며, Writer와 editable reader가 PPTX `spTree` 순서를 왕복 보존하는지도 함께 검증한다.
+
+Advanced Editor는 선택 객체에 대해 **Send Back / Bring Front**를 제공한다. 이 동작은 단순 화면 표시 순서가 아니라 모델의 공통 layer order를 변경하며, Canvas paint/hit-test와 Writer 저장에 동일하게 적용된다. `Ctrl+Shift+Down` / `Ctrl+Shift+Up`으로도 실행할 수 있다.
 
 Animation 자체 테스트는 합성 `p:timing`을 프로젝트가 만든 PPTX에 주입해 click entrance, with-previous emphasis, after-previous exit, delayed motion step과 단계별 render state를 검사한다.
 
@@ -159,7 +161,6 @@ Animation 자체 테스트는 합성 `p:timing`을 프로젝트가 만든 PPTX�
 - Viewer renderer와 interactive canvas의 공통 layout/render primitive 확대
 - chart/SmartArt/media 등 고급 요소는 Viewer fidelity를 보존하면서 단계적 편집 지원
 - table을 일반 object selection과 통합해 drag/resize
-- object z-order controls
 - multi-selection
 - system clipboard interoperability
 - accessible focus order 강화

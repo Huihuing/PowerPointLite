@@ -47,6 +47,22 @@ namespace PptxViewer
             generatedImage.Width = 2286000;
             generatedImage.Height = 1371600;
 
+            if (!second.MoveObjectToBack(
+                    PresentationLayerKind.Image,
+                    0))
+            {
+                throw new InvalidOperationException(
+                    "Writer self-test could not move the image behind mixed object types.");
+            }
+
+            if (!second.MoveObjectToFront(
+                    PresentationLayerKind.Shape,
+                    0))
+            {
+                throw new InvalidOperationException(
+                    "Writer self-test could not move the shape in front of mixed object types.");
+            }
+
             PresentationTable table = second.AddTable(2, 3);
             table.Name = "Generated Table";
             table.X = 1371600;
@@ -133,6 +149,18 @@ namespace PptxViewer
                 throw new InvalidOperationException("Editable reader did not preserve the generated image.");
             }
 
+            second.SynchronizeObjectOrder();
+
+            if (second.ObjectOrder.Count < 4 ||
+                second.ObjectOrder[0].Kind !=
+                    PresentationLayerKind.Image ||
+                second.ObjectOrder[second.ObjectOrder.Count - 1].Kind !=
+                    PresentationLayerKind.Shape)
+            {
+                throw new InvalidOperationException(
+                    "Editable reader did not preserve mixed object z-order.");
+            }
+
             if (second.Tables.Count != 1 ||
                 second.Tables[0].Rows != 2 ||
                 second.Tables[0].Columns != 3 ||
@@ -188,6 +216,18 @@ namespace PptxViewer
                     verify.Images[0].Data.Length == 0)
                 {
                     throw new InvalidOperationException("Image round-trip verification failed.");
+                }
+
+                verify.SynchronizeObjectOrder();
+
+                if (verify.ObjectOrder.Count < 4 ||
+                    verify.ObjectOrder[0].Kind !=
+                        PresentationLayerKind.Image ||
+                    verify.ObjectOrder[verify.ObjectOrder.Count - 1].Kind !=
+                        PresentationLayerKind.Shape)
+                {
+                    throw new InvalidOperationException(
+                        "Mixed object z-order was not preserved after read-edit-write.");
                 }
 
                 if (verify.Tables.Count != 1 ||

@@ -311,19 +311,51 @@ namespace PptxViewer
             StringBuilder objects = new StringBuilder();
             int shapeId = 2;
 
-            for (int i = 0; i < slide.Shapes.Count; i++)
-                objects.Append(BuildBasicShape(slide.Shapes[i], shapeId++));
+            slide.SynchronizeObjectOrder();
 
-            for (int i = 0; i < slide.Images.Count; i++)
+            for (int i = 0;
+                 i < slide.ObjectOrder.Count;
+                 i++)
             {
-                objects.Append(BuildImageShape(
-                    slide.Images[i],
-                    shapeId++,
-                    "rId" + (i + 2).ToString()));
-            }
+                PresentationLayerEntry entry =
+                    slide.ObjectOrder[i];
 
-            for (int i = 0; i < slide.TextBoxes.Count; i++)
-                objects.Append(BuildTextShape(slide.TextBoxes[i], shapeId++));
+                if (entry == null)
+                    continue;
+
+                if (entry.Kind ==
+                        PresentationLayerKind.Shape &&
+                    entry.Index >= 0 &&
+                    entry.Index < slide.Shapes.Count)
+                {
+                    objects.Append(
+                        BuildBasicShape(
+                            slide.Shapes[entry.Index],
+                            shapeId++));
+                }
+                else if (entry.Kind ==
+                             PresentationLayerKind.Image &&
+                         entry.Index >= 0 &&
+                         entry.Index < slide.Images.Count)
+                {
+                    objects.Append(
+                        BuildImageShape(
+                            slide.Images[entry.Index],
+                            shapeId++,
+                            "rId" +
+                            (entry.Index + 2).ToString()));
+                }
+                else if (entry.Kind ==
+                             PresentationLayerKind.TextBox &&
+                         entry.Index >= 0 &&
+                         entry.Index < slide.TextBoxes.Count)
+                {
+                    objects.Append(
+                        BuildTextShape(
+                            slide.TextBoxes[entry.Index],
+                            shapeId++));
+                }
+            }
 
             string slideName = EscapeXml(
                 string.IsNullOrEmpty(slide.Name)

@@ -39,6 +39,8 @@ namespace PptxViewer
         private readonly Button deleteObjectButton;
         private readonly Button copyButton;
         private readonly Button pasteButton;
+        private readonly Button sendBackButton;
+        private readonly Button bringFrontButton;
 
         private bool loadingProperties;
         private bool propertyEditSnapshotActive;
@@ -101,7 +103,9 @@ namespace PptxViewer
                         {
                             161,
                             306,
-                            609
+                            609,
+                            754,
+                            948
                         };
 
                     for (int i = 0;
@@ -132,6 +136,8 @@ namespace PptxViewer
             deleteObjectButton = MakeButton("Delete", 534, 70);
             copyButton = MakeButton("Copy", 614, 64);
             pasteButton = MakeButton("Paste", 684, 64);
+            sendBackButton = MakeButton("Send Back", 760, 84);
+            bringFrontButton = MakeButton("Bring Front", 850, 92);
 
             saveButton.Tag = "Primary";
             ApplicationTheme.ApplyButton(
@@ -150,6 +156,8 @@ namespace PptxViewer
             mainToolbar.Controls.Add(deleteObjectButton);
             mainToolbar.Controls.Add(copyButton);
             mainToolbar.Controls.Add(pasteButton);
+            mainToolbar.Controls.Add(sendBackButton);
+            mainToolbar.Controls.Add(bringFrontButton);
 
             Label quickShapeLabel =
                 MakeLabel(
@@ -187,14 +195,14 @@ namespace PptxViewer
                     int desiredSelectorWidth = 148;
                     int selectorRight =
                         Math.Max(
-                            pasteButton.Right +
+                            bringFrontButton.Right +
                             gap,
                             mainToolbar.ClientSize.Width -
                             10);
 
                     int availableSelectorWidth =
                         selectorRight -
-                        pasteButton.Right -
+                        bringFrontButton.Right -
                         gap;
 
                     if (availableSelectorWidth <
@@ -249,6 +257,8 @@ namespace PptxViewer
             deleteObjectButton.Click += delegate { DeleteSelectedObject(); };
             copyButton.Click += delegate { CopySelectedObject(); };
             pasteButton.Click += delegate { PasteObject(); };
+            sendBackButton.Click += delegate { MoveSelectedObjectLayer(false); };
+            bringFrontButton.Click += delegate { MoveSelectedObjectLayer(true); };
 
             Panel slideToolbar = new Panel();
             slideToolbar.Dock = DockStyle.Top;
@@ -472,7 +482,7 @@ namespace PptxViewer
             properties.Controls.Add(lineColorEditor);
 
             Label hint = MakeLabel(
-                "Drag objects to move. Drag the lower-right handle to resize. Arrow keys nudge the selected object.",
+                "Drag objects to move. Drag the lower-right handle to resize. Arrow keys nudge. Ctrl+Shift+Up/Down changes layer order.",
                 0,
                 516,
                 270,
@@ -817,6 +827,24 @@ namespace PptxViewer
                 return true;
             }
 
+            if (keyData ==
+                (Keys.Control |
+                 Keys.Shift |
+                 Keys.Up))
+            {
+                MoveSelectedObjectLayer(true);
+                return true;
+            }
+
+            if (keyData ==
+                (Keys.Control |
+                 Keys.Shift |
+                 Keys.Down))
+            {
+                MoveSelectedObjectLayer(false);
+                return true;
+            }
+
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
@@ -1064,6 +1092,89 @@ namespace PptxViewer
             UpdateStatus();
         }
 
+        private bool TryGetSelectedLayerKind(
+            out PresentationLayerKind kind)
+        {
+            kind =
+                PresentationLayerKind.TextBox;
+
+            if (canvas.SelectedObjectKind ==
+                EditorObjectKind.TextBox)
+            {
+                kind =
+                    PresentationLayerKind.TextBox;
+                return true;
+            }
+
+            if (canvas.SelectedObjectKind ==
+                EditorObjectKind.Shape)
+            {
+                kind =
+                    PresentationLayerKind.Shape;
+                return true;
+            }
+
+            if (canvas.SelectedObjectKind ==
+                EditorObjectKind.Image)
+            {
+                kind =
+                    PresentationLayerKind.Image;
+                return true;
+            }
+
+            return false;
+        }
+
+        private void MoveSelectedObjectLayer(
+            bool toFront)
+        {
+            PresentationSlide slide =
+                GetSelectedSlide();
+
+            PresentationLayerKind kind;
+            int index =
+                canvas.SelectedObjectIndex;
+
+            if (slide == null ||
+                index < 0 ||
+                !TryGetSelectedLayerKind(
+                    out kind))
+            {
+                return;
+            }
+
+            bool canMove =
+                toFront
+                    ? slide.CanMoveObjectToFront(
+                        kind,
+                        index)
+                    : slide.CanMoveObjectToBack(
+                        kind,
+                        index);
+
+            if (!canMove)
+                return;
+
+            CaptureHistory();
+
+            bool moved =
+                toFront
+                    ? slide.MoveObjectToFront(
+                        kind,
+                        index)
+                    : slide.MoveObjectToBack(
+                        kind,
+                        index);
+
+            if (!moved)
+                return;
+
+            propertyEditSnapshotActive = false;
+            session.MarkDirty();
+            canvas.Invalidate();
+            UpdateStatus();
+        }
+
         private void CopySelectedObject()
         {
             copiedTextBox = null;
@@ -1103,6 +1214,9 @@ namespace PptxViewer
                 copy.X += offset;
                 copy.Y += offset;
                 slide.TextBoxes.Add(copy);
+                slide.RegisterObjectOrder(
+                    PresentationLayerKind.TextBox,
+                    slide.TextBoxes.Count - 1);
                 canvas.SelectObject(EditorObjectKind.TextBox, slide.TextBoxes.Count - 1);
             }
             else if (copiedShape != null)
@@ -1111,6 +1225,9 @@ namespace PptxViewer
                 copy.X += offset;
                 copy.Y += offset;
                 slide.Shapes.Add(copy);
+                slide.RegisterObjectOrder(
+                    PresentationLayerKind.Shape,
+                    slide.Shapes.Count - 1);
                 canvas.SelectObject(EditorObjectKind.Shape, slide.Shapes.Count - 1);
             }
             else if (copiedImage != null)
@@ -1119,6 +1236,9 @@ namespace PptxViewer
                 copy.X += offset;
                 copy.Y += offset;
                 slide.Images.Add(copy);
+                slide.RegisterObjectOrder(
+                    PresentationLayerKind.Image,
+                    slide.Images.Count - 1);
                 canvas.SelectObject(EditorObjectKind.Image, slide.Images.Count - 1);
             }
 
@@ -1401,6 +1521,26 @@ namespace PptxViewer
             deleteObjectButton.Enabled = hasSelection;
             copyButton.Enabled = hasSelection;
             pasteButton.Enabled = copiedTextBox != null || copiedShape != null || copiedImage != null;
+
+            PresentationSlide slide =
+                GetSelectedSlide();
+            PresentationLayerKind layerKind;
+            bool hasLayerSelection =
+                hasSelection &&
+                slide != null &&
+                TryGetSelectedLayerKind(
+                    out layerKind);
+
+            sendBackButton.Enabled =
+                hasLayerSelection &&
+                slide.CanMoveObjectToBack(
+                    layerKind,
+                    canvas.SelectedObjectIndex);
+            bringFrontButton.Enabled =
+                hasLayerSelection &&
+                slide.CanMoveObjectToFront(
+                    layerKind,
+                    canvas.SelectedObjectIndex);
         }
 
         private void OnEditorClosing(object sender, FormClosingEventArgs e)
@@ -1584,14 +1724,49 @@ namespace PptxViewer
             if (slide == null)
                 return;
 
-            for (int i = 0; i < slide.Shapes.Count; i++)
-                DrawShape(e.Graphics, slide.Shapes[i], i);
+            slide.SynchronizeObjectOrder();
 
-            for (int i = 0; i < slide.Images.Count; i++)
-                DrawImage(e.Graphics, slide.Images[i], i);
+            for (int i = 0;
+                 i < slide.ObjectOrder.Count;
+                 i++)
+            {
+                PresentationLayerEntry entry =
+                    slide.ObjectOrder[i];
 
-            for (int i = 0; i < slide.TextBoxes.Count; i++)
-                DrawTextBox(e.Graphics, slide.TextBoxes[i], i);
+                if (entry == null)
+                    continue;
+
+                if (entry.Kind ==
+                        PresentationLayerKind.Shape &&
+                    entry.Index >= 0 &&
+                    entry.Index < slide.Shapes.Count)
+                {
+                    DrawShape(
+                        e.Graphics,
+                        slide.Shapes[entry.Index],
+                        entry.Index);
+                }
+                else if (entry.Kind ==
+                             PresentationLayerKind.Image &&
+                         entry.Index >= 0 &&
+                         entry.Index < slide.Images.Count)
+                {
+                    DrawImage(
+                        e.Graphics,
+                        slide.Images[entry.Index],
+                        entry.Index);
+                }
+                else if (entry.Kind ==
+                             PresentationLayerKind.TextBox &&
+                         entry.Index >= 0 &&
+                         entry.Index < slide.TextBoxes.Count)
+                {
+                    DrawTextBox(
+                        e.Graphics,
+                        slide.TextBoxes[entry.Index],
+                        entry.Index);
+                }
+            }
         }
 
         protected override void OnMouseDown(MouseEventArgs e)
@@ -1893,49 +2068,76 @@ namespace PptxViewer
             if (slide == null)
                 return false;
 
-            for (int i = slide.TextBoxes.Count - 1; i >= 0; i--)
-            {
-                RectangleF candidate = ToRectangle(
-                    slide.TextBoxes[i].X,
-                    slide.TextBoxes[i].Y,
-                    slide.TextBoxes[i].Width,
-                    slide.TextBoxes[i].Height);
-                if (candidate.Contains(point))
-                {
-                    kind = EditorObjectKind.TextBox;
-                    index = i;
-                    rect = candidate;
-                    return true;
-                }
-            }
+            slide.SynchronizeObjectOrder();
 
-            for (int i = slide.Images.Count - 1; i >= 0; i--)
+            for (int orderIndex =
+                     slide.ObjectOrder.Count - 1;
+                 orderIndex >= 0;
+                 orderIndex--)
             {
-                RectangleF candidate = ToRectangle(
-                    slide.Images[i].X,
-                    slide.Images[i].Y,
-                    slide.Images[i].Width,
-                    slide.Images[i].Height);
-                if (candidate.Contains(point))
-                {
-                    kind = EditorObjectKind.Image;
-                    index = i;
-                    rect = candidate;
-                    return true;
-                }
-            }
+                PresentationLayerEntry entry =
+                    slide.ObjectOrder[orderIndex];
 
-            for (int i = slide.Shapes.Count - 1; i >= 0; i--)
-            {
-                RectangleF candidate = ToRectangle(
-                    slide.Shapes[i].X,
-                    slide.Shapes[i].Y,
-                    slide.Shapes[i].Width,
-                    slide.Shapes[i].Height);
-                if (candidate.Contains(point))
+                if (entry == null)
+                    continue;
+
+                RectangleF candidate =
+                    RectangleF.Empty;
+                EditorObjectKind candidateKind =
+                    EditorObjectKind.None;
+
+                if (entry.Kind ==
+                        PresentationLayerKind.TextBox &&
+                    entry.Index >= 0 &&
+                    entry.Index < slide.TextBoxes.Count)
                 {
-                    kind = EditorObjectKind.Shape;
-                    index = i;
+                    PresentationTextBox item =
+                        slide.TextBoxes[entry.Index];
+                    candidate = ToRectangle(
+                        item.X,
+                        item.Y,
+                        item.Width,
+                        item.Height);
+                    candidateKind =
+                        EditorObjectKind.TextBox;
+                }
+                else if (entry.Kind ==
+                             PresentationLayerKind.Image &&
+                         entry.Index >= 0 &&
+                         entry.Index < slide.Images.Count)
+                {
+                    PresentationImage item =
+                        slide.Images[entry.Index];
+                    candidate = ToRectangle(
+                        item.X,
+                        item.Y,
+                        item.Width,
+                        item.Height);
+                    candidateKind =
+                        EditorObjectKind.Image;
+                }
+                else if (entry.Kind ==
+                             PresentationLayerKind.Shape &&
+                         entry.Index >= 0 &&
+                         entry.Index < slide.Shapes.Count)
+                {
+                    PresentationShape item =
+                        slide.Shapes[entry.Index];
+                    candidate = ToRectangle(
+                        item.X,
+                        item.Y,
+                        item.Width,
+                        item.Height);
+                    candidateKind =
+                        EditorObjectKind.Shape;
+                }
+
+                if (candidateKind !=
+                        EditorObjectKind.None &&
+                    candidate.Contains(point))
+                {
+                    kind = candidateKind;
+                    index = entry.Index;
                     rect = candidate;
                     return true;
                 }
