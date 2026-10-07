@@ -15775,76 +15775,42 @@ namespace PptxViewer
                         {
                             if (destinationIsAssistant)
                             {
-                                float middleX =
-                                    from.X +
-                                    (to.X -
-                                     from.X) /
-                                    2f;
-
-                                g.DrawLines(
+                                DrawSmartArtElbowConnector(
+                                    g,
                                     connector,
-                                    new PointF[]
-                                    {
-                                        from,
-                                        new PointF(
-                                            middleX,
-                                            from.Y),
-                                        new PointF(
-                                            middleX,
-                                            to.Y),
-                                        to
-                                    });
+                                    from,
+                                    to,
+                                    positions,
+                                    node.Id,
+                                    node.Children[i],
+                                    true);
                             }
                             else
                             {
-                                float middleY =
-                                    ChooseSmartArtHorizontalChannel(
-                                        from,
-                                        to,
-                                        positions,
-                                        node.Id,
-                                        node.Children[i]);
-
-                                g.DrawLines(
+                                DrawSmartArtElbowConnector(
+                                    g,
                                     connector,
-                                    new PointF[]
-                                    {
-                                        from,
-                                        new PointF(
-                                            from.X,
-                                            middleY),
-                                        new PointF(
-                                            to.X,
-                                            middleY),
-                                        to
-                                    });
+                                    from,
+                                    to,
+                                    positions,
+                                    node.Id,
+                                    node.Children[i],
+                                    false);
                             }
                         }
                         else if (layoutKind == "verticalProcess" ||
                                  (layoutKind == "process" &&
                                   !processSameRow))
                         {
-                            float middleY =
-                                ChooseSmartArtHorizontalChannel(
-                                    from,
-                                    to,
-                                    positions,
-                                    node.Id,
-                                    node.Children[i]);
-
-                            g.DrawLines(
+                            DrawSmartArtElbowConnector(
+                                g,
                                 connector,
-                                new PointF[]
-                                {
-                                    from,
-                                    new PointF(
-                                        from.X,
-                                        middleY),
-                                    new PointF(
-                                        to.X,
-                                        middleY),
-                                    to
-                                });
+                                from,
+                                to,
+                                positions,
+                                node.Id,
+                                node.Children[i],
+                                false);
                         }
                         else
                         {
@@ -15858,12 +15824,101 @@ namespace PptxViewer
             }
         }
 
-        private static float ChooseSmartArtHorizontalChannel(
+        private static void DrawSmartArtElbowConnector(
+            Graphics g,
+            Pen connector,
             PointF from,
             PointF to,
             Dictionary<string, RectangleF> positions,
             string sourceId,
-            string destinationId)
+            string destinationId,
+            bool preferVerticalChannel)
+        {
+            PointF[] route =
+                BuildSmartArtElbowRoute(
+                    from,
+                    to,
+                    positions,
+                    sourceId,
+                    destinationId,
+                    preferVerticalChannel);
+
+            g.DrawLines(
+                connector,
+                route);
+        }
+
+        private static PointF[] BuildSmartArtElbowRoute(
+            PointF from,
+            PointF to,
+            Dictionary<string, RectangleF> positions,
+            string sourceId,
+            string destinationId,
+            bool preferVerticalChannel)
+        {
+            PointF[] route;
+
+            if (preferVerticalChannel &&
+                TryBuildSmartArtVerticalChannelRoute(
+                    from,
+                    to,
+                    positions,
+                    sourceId,
+                    destinationId,
+                    out route))
+            {
+                return route;
+            }
+
+            if (TryBuildSmartArtHorizontalChannelRoute(
+                    from,
+                    to,
+                    positions,
+                    sourceId,
+                    destinationId,
+                    out route))
+            {
+                return route;
+            }
+
+            if (!preferVerticalChannel &&
+                TryBuildSmartArtVerticalChannelRoute(
+                    from,
+                    to,
+                    positions,
+                    sourceId,
+                    destinationId,
+                    out route))
+            {
+                return route;
+            }
+
+            float middleY =
+                from.Y +
+                (to.Y -
+                 from.Y) /
+                2f;
+
+            return new PointF[]
+            {
+                from,
+                new PointF(
+                    from.X,
+                    middleY),
+                new PointF(
+                    to.X,
+                    middleY),
+                to
+            };
+        }
+
+        private static bool TryBuildSmartArtHorizontalChannelRoute(
+            PointF from,
+            PointF to,
+            Dictionary<string, RectangleF> positions,
+            string sourceId,
+            string destinationId,
+            out PointF[] route)
         {
             float low =
                 Math.Min(
@@ -15880,15 +15935,12 @@ namespace PptxViewer
                     0f,
                     high - low);
 
-            float preferred =
-                low +
-                span /
-                2f;
-
             float[] candidates =
                 new float[]
                 {
-                    preferred,
+                    low +
+                        span /
+                        2f,
                     low +
                         span *
                         0.25f,
@@ -15911,25 +15963,166 @@ namespace PptxViewer
                  i < candidates.Length;
                  i++)
             {
-                if (IsSmartArtHorizontalChannelClear(
-                        candidates[i],
-                        from.X,
-                        to.X,
+                PointF[] candidate =
+                    new PointF[]
+                    {
+                        from,
+                        new PointF(
+                            from.X,
+                            candidates[i]),
+                        new PointF(
+                            to.X,
+                            candidates[i]),
+                        to
+                    };
+
+                if (IsSmartArtRouteClear(
+                        candidate,
                         positions,
                         sourceId,
                         destinationId))
                 {
-                    return candidates[i];
+                    route =
+                        candidate;
+                    return true;
                 }
             }
 
-            return preferred;
+            route = null;
+            return false;
         }
 
-        private static bool IsSmartArtHorizontalChannelClear(
-            float y,
-            float x1,
-            float x2,
+        private static bool TryBuildSmartArtVerticalChannelRoute(
+            PointF from,
+            PointF to,
+            Dictionary<string, RectangleF> positions,
+            string sourceId,
+            string destinationId,
+            out PointF[] route)
+        {
+            List<float> candidates =
+                new List<float>();
+
+            float low =
+                Math.Min(
+                    from.X,
+                    to.X);
+
+            float high =
+                Math.Max(
+                    from.X,
+                    to.X);
+
+            float span =
+                Math.Max(
+                    0f,
+                    high - low);
+
+            candidates.Add(
+                low +
+                span /
+                2f);
+            candidates.Add(
+                low +
+                span *
+                0.25f);
+            candidates.Add(
+                low +
+                span *
+                0.75f);
+
+            const float clearance =
+                5f;
+
+            if (positions != null)
+            {
+                foreach (KeyValuePair<string, RectangleF> pair
+                    in positions)
+                {
+                    if (pair.Key == sourceId ||
+                        pair.Key == destinationId)
+                    {
+                        continue;
+                    }
+
+                    RectangleF obstacle =
+                        pair.Value;
+
+                    candidates.Add(
+                        obstacle.Left -
+                        clearance);
+                    candidates.Add(
+                        obstacle.Right +
+                        clearance);
+                }
+            }
+
+            for (int i = 0;
+                 i < candidates.Count;
+                 i++)
+            {
+                PointF[] candidate =
+                    new PointF[]
+                    {
+                        from,
+                        new PointF(
+                            candidates[i],
+                            from.Y),
+                        new PointF(
+                            candidates[i],
+                            to.Y),
+                        to
+                    };
+
+                if (IsSmartArtRouteClear(
+                        candidate,
+                        positions,
+                        sourceId,
+                        destinationId))
+                {
+                    route =
+                        candidate;
+                    return true;
+                }
+            }
+
+            route = null;
+            return false;
+        }
+
+        private static bool IsSmartArtRouteClear(
+            PointF[] route,
+            Dictionary<string, RectangleF> positions,
+            string sourceId,
+            string destinationId)
+        {
+            if (route == null ||
+                route.Length < 2)
+            {
+                return false;
+            }
+
+            for (int i = 1;
+                 i < route.Length;
+                 i++)
+            {
+                if (!IsSmartArtSegmentClear(
+                        route[i - 1],
+                        route[i],
+                        positions,
+                        sourceId,
+                        destinationId))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool IsSmartArtSegmentClear(
+            PointF from,
+            PointF to,
             Dictionary<string, RectangleF> positions,
             string sourceId,
             string destinationId)
@@ -15937,18 +16130,33 @@ namespace PptxViewer
             if (positions == null)
                 return true;
 
-            float left =
-                Math.Min(
-                    x1,
-                    x2);
-
-            float right =
-                Math.Max(
-                    x1,
-                    x2);
-
             const float clearance =
                 3f;
+
+            bool vertical =
+                Math.Abs(
+                    from.X -
+                    to.X) < 0.5f;
+
+            float minX =
+                Math.Min(
+                    from.X,
+                    to.X);
+
+            float maxX =
+                Math.Max(
+                    from.X,
+                    to.X);
+
+            float minY =
+                Math.Min(
+                    from.Y,
+                    to.Y);
+
+            float maxY =
+                Math.Max(
+                    from.Y,
+                    to.Y);
 
             foreach (KeyValuePair<string, RectangleF> pair
                 in positions)
@@ -15962,20 +16170,45 @@ namespace PptxViewer
                 RectangleF obstacle =
                     pair.Value;
 
-                if (y <=
+                if (vertical)
+                {
+                    if (from.X <=
+                            obstacle.Left -
+                            clearance ||
+                        from.X >=
+                            obstacle.Right +
+                            clearance)
+                    {
+                        continue;
+                    }
+
+                    if (maxY <=
+                            obstacle.Top -
+                            clearance ||
+                        minY >=
+                            obstacle.Bottom +
+                            clearance)
+                    {
+                        continue;
+                    }
+
+                    return false;
+                }
+
+                if (from.Y <=
                         obstacle.Top -
                         clearance ||
-                    y >=
+                    from.Y >=
                         obstacle.Bottom +
                         clearance)
                 {
                     continue;
                 }
 
-                if (right <=
+                if (maxX <=
                         obstacle.Left -
                         clearance ||
-                    left >=
+                    minX >=
                         obstacle.Right +
                         clearance)
                 {
