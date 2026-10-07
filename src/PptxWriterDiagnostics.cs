@@ -194,6 +194,13 @@ namespace PptxViewer
             if (loaded == null || loaded.Document == null)
                 throw new InvalidOperationException("Editable reader returned no document.");
 
+            // Match PresentationEditSession.OpenEditable(): the conservative
+            // base reader decides edit safety, then the rich-text layer restores
+            // paragraph/run formatting before the document is written again.
+            PptxRichTextPackage.ReadIntoDocument(
+                path,
+                loaded.Document);
+
             if (!loaded.CanRoundTripSafely)
                 throw new InvalidOperationException("Writer output was not considered safe for editable round-trip: " + loaded.Warning);
 
