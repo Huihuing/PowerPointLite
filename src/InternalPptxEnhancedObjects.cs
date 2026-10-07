@@ -13191,6 +13191,32 @@ namespace PptxViewer
                         }
                     }
 
+                    if (!stacked)
+                    {
+                        DrawChartLinearTrendline(
+                            g,
+                            plot,
+                            topPoints,
+                            item.Trendline,
+                            color);
+
+                        for (int i = 0;
+                             i < topPoints.Count &&
+                             i < item.Values.Count;
+                             i++)
+                        {
+                            DrawChartErrorBar(
+                                g,
+                                plot,
+                                axisScale,
+                                "line",
+                                topPoints[i],
+                                item.Values[i],
+                                item.ErrorBars,
+                                color);
+                        }
+                    }
+
                     if (item.MarkerEnabled)
                     {
                         for (int i = 0;
@@ -13485,6 +13511,15 @@ namespace PptxViewer
                     minY + 1.0;
             }
 
+            ChartAxisScale scatterYScale =
+                new ChartAxisScale();
+            scatterYScale.Minimum =
+                minY;
+            scatterYScale.Maximum =
+                maxY;
+            scatterYScale.MajorUnit = 0.0;
+            scatterYScale.MinorUnit = 0.0;
+
             using (Pen axis =
                 new Pen(
                     Color.FromArgb(
@@ -13583,6 +13618,13 @@ namespace PptxViewer
                             y);
                 }
 
+                DrawChartLinearTrendline(
+                    g,
+                    plot,
+                    points,
+                    style.Trendline,
+                    seriesColor);
+
                 if (drawSeriesLine &&
                     points.Length > 1)
                 {
@@ -13622,6 +13664,24 @@ namespace PptxViewer
                             style,
                             i,
                             palette);
+
+                    if (!string.Equals(
+                            style.ErrorBars == null
+                                ? string.Empty
+                                : style.ErrorBars.Direction,
+                            "x",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        DrawChartErrorBar(
+                            g,
+                            plot,
+                            scatterYScale,
+                            "line",
+                            points[i],
+                            allY[s][i],
+                            style.ErrorBars,
+                            pointColor);
+                    }
 
                     if (bubble)
                     {
