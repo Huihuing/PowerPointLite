@@ -11529,6 +11529,26 @@ namespace PptxViewer
                         chartDoc,
                         theme);
 
+                RectangleF titleRect =
+                    new RectangleF(
+                        rect.Left + 5f,
+                        rect.Top + 4f,
+                        rect.Width - 10f,
+                        titleHeight - 4f);
+
+                RectangleF manualTitleRect;
+
+                if (TryResolveChartElementManualLayout(
+                        chartDoc,
+                        "title",
+                        rect,
+                        titleRect,
+                        out manualTitleRect))
+                {
+                    titleRect =
+                        manualTitleRect;
+                }
+
                 using (Font font =
                     SafeChartTextFont(
                         "Arial",
@@ -11561,11 +11581,7 @@ namespace PptxViewer
                         title,
                         font,
                         brush,
-                        new RectangleF(
-                            rect.Left + 5f,
-                            rect.Top + 4f,
-                            rect.Width - 10f,
-                            titleHeight - 4f),
+                        titleRect,
                         sf);
                 }
             }
@@ -12099,7 +12115,8 @@ namespace PptxViewer
                     chartDoc,
                     theme),
                 ReadChartLegendHiddenEntries(
-                    chartDoc));
+                    chartDoc),
+                    chartDoc);
         }
 
         private static void DrawDoughnutChartValueLabels(
@@ -12830,7 +12847,8 @@ namespace PptxViewer
                     chartDoc,
                     theme),
                 ReadChartLegendHiddenEntries(
-                    chartDoc));
+                    chartDoc),
+                    chartDoc);
         }
 
         private static string ReadAreaChartGrouping(
@@ -13221,7 +13239,8 @@ namespace PptxViewer
                         chartDoc,
                         theme),
                     ReadChartLegendHiddenEntries(
-                        chartDoc));
+                        chartDoc),
+                        chartDoc);
             }
         }
 
@@ -13386,7 +13405,8 @@ namespace PptxViewer
                     chartDoc,
                     theme),
                 ReadChartLegendHiddenEntries(
-                    chartDoc));
+                    chartDoc),
+                    chartDoc);
         }
 
         private static void DrawRadarCategoryLabels(
