@@ -75,7 +75,8 @@ PPTX 시각 표현과 animation 범위는 `docs/PPTX_FIDELITY.md`를 함께 본�
 - object drag / resize
 - keyboard nudge
 - snapshot undo / redo
-- text / shape / image copy-paste
+- text / shape / image / table / self-contained chart copy-paste
+- self-contained chart 선택 / drag / resize / z-order / align / delete
 - basic table manager/editor
 - table cell text edit
 - table first-row header style
@@ -96,8 +97,10 @@ PresentationDocument
      │       └─ PresentationTextRun[]
      ├─ PresentationShape[]
      ├─ PresentationImage[]
-     └─ PresentationTable[]
-         └─ PresentationTableCell[]
+     ├─ PresentationTable[]
+     │   └─ PresentationTableCell[]
+     └─ PresentationChart[]
+         └─ raw chart XML payload
 ```
 
 `PresentationTextRun`은 font family/size, bold, italic, underline, color, baseline을 보존한다.
@@ -150,11 +153,11 @@ RUN_WRITER_SELFTEST.cmd
 RUN_ANIMATION_SELFTEST.cmd
 ```
 
-Writer 자체 테스트는 프로젝트 코드만으로 text box, shape, 자체 생성 image, table이 포함된 PPTX를 만들고 read-edit-write round-trip을 검사한다. text box/shape/image/table 모두 `PresentationSlide.ObjectOrder`에 공통 layer 순서를 기록하며, Writer와 editable reader가 PPTX `spTree` 순서를 왕복 보존하는지도 함께 검증한다. Table XML은 후처리 writer가 생성하지만 최종 `spTree`를 공통 order로 재조립하므로 table도 다른 객체 사이의 z-order를 유지한다.
+Writer 자체 테스트는 프로젝트 코드만으로 text box, shape, 자체 생성 image, table, self-contained column chart가 포함된 PPTX를 만들고 read-edit-write round-trip을 검사한다. text box/shape/image/table/chart 모두 `PresentationSlide.ObjectOrder`에 공통 layer 순서를 기록하며, Writer와 editable reader가 PPTX `spTree` 순서를 왕복 보존하는지도 함께 검증한다. 후처리 writer가 table/chart `graphicFrame`을 만든 뒤 최종 `spTree`를 공통 order로 재조립하므로 graphic-frame 객체도 다른 객체 사이의 z-order를 유지한다. Chart 검증은 chart part, slide relationship, content-type override, frame geometry, raw XML payload까지 확인한다.
 
 Advanced Editor는 선택 객체에 대해 **Send Back / Bring Front**를 제공한다. 이 동작은 단순 화면 표시 순서가 아니라 모델의 공통 layer order를 변경하며, Canvas paint/hit-test와 Writer 저장에 동일하게 적용된다. `Ctrl+Shift+Down` / `Ctrl+Shift+Up`으로도 실행할 수 있다.
 
-또한 **Ctrl+클릭 multi-selection**을 지원한다. text box/shape/image/table을 섞어서 선택하면 각 객체 선택선과 전체 group bounds가 표시되고, 마우스 drag 또는 방향키로 상대 간격을 유지한 채 동시에 이동할 수 있다. 그룹이 slide 경계에 닿으면 전체 그룹 기준으로 이동량을 제한하며, Delete는 선택된 객체를 종류별 역순으로 제거해 index 변화에도 안전하게 동작한다. 다중 선택 중에는 개별 속성 편집과 단일-object z-order 버튼만 잠그고, Copy/Cut/Duplicate는 선택 묶음 전체를 대상으로 동작한다.
+또한 **Ctrl+클릭 multi-selection**을 지원한다. text box/shape/image/table/chart를 섞어서 선택하면 각 객체 선택선과 전체 group bounds가 표시되고, 마우스 drag 또는 방향키로 상대 간격을 유지한 채 동시에 이동할 수 있다. 그룹이 slide 경계에 닿으면 전체 그룹 기준으로 이동량을 제한하며, Delete는 선택된 객체를 종류별 역순으로 제거해 index 변화에도 안전하게 동작한다. 다중 선택 중에는 개별 속성 편집과 단일-object z-order 버튼만 잠그고, Copy/Cut/Duplicate는 선택 묶음 전체를 대상으로 동작한다.
 
 Image의 OOXML `a:srcRect` crop은 editable model의 `CropLeft/Top/Right/Bottom`에 0~100000 단위로 보존된다. Viewer와 Editor Canvas는 모두 `PresentationRenderPrimitives.CalculateImageSourceRectangle`을 사용해 같은 source rectangle을 계산하고, Writer가 `a:srcRect`를 다시 기록하므로 read-edit-write에서도 crop이 유지된다. Properties의 **Image crop (%)**에서 Left/Top/Right/Bottom을 0~99.9%로 직접 편집할 수 있으며, 두 방향 crop 합이 100%에 도달하지 않도록 공통 normalization을 적용한다.
 
@@ -162,11 +165,15 @@ Picture transform도 editable model에 OOXML 원본 단위를 유지한다. `Rot
 
 Table도 Canvas의 일반 객체 paint/hit-test 경로를 사용한다. 따라서 단일 table은 drag/resize 및 Send Back/Bring Front를 사용할 수 있고, 다른 객체와 함께 multi-selection/align/distribute/delete/copy/cut/duplicate에 참여한다. 기존 table preview child-control 오버레이는 제거했으며, table을 더블클릭하면 기존 Table Editor를 열어 cell 내용을 수정한다.
 
+Self-contained chart는 `PresentationChart`에 **원본 chart XML bytes를 opaque payload로 그대로 보존**하고, Editor 모델은 graphicFrame의 name/X/Y/Width/Height와 공통 z-order만 관리한다. Advanced Editor Canvas는 별도의 저품질 chart renderer를 만들지 않고 기존 `InternalPptxRenderer` chart 경로를 `TryDrawEditableChart` wrapper로 재사용한다. 따라서 chart는 선택, Ctrl+클릭 multi-selection, drag/resize, 방향키 이동, align/distribute, Send Back/Bring Front, delete, copy/cut/duplicate/paste에 참여한다. 현재 단계에서는 chart title/series/data/style 자체를 Properties에서 수정하지 않는다.
+
+안전 범위는 의도적으로 좁다. `PptxChartReader`는 chart part에 outgoing relationship이 하나라도 있거나 `externalData`, `pivotSource`, `userShapes`가 있으면 editable chart로 승격하지 않는다. 따라서 embedded workbook, 외부 데이터, 별도 chart style/color/userShapes 등 package graph를 추가로 보존해야 하는 chart는 계속 deny-by-default다. 임의의 외부 PPTX에 대한 기존 `IsPowerPointLiteGenerated && !HasUnsupportedContent` 안전 조건도 완화하지 않는다.
+
 multi-selection 상태에서는 상단 **Align** 메뉴가 활성화된다. 2개 이상 객체에 대해 left/center/right/top/middle/bottom 정렬을 제공하고, 3개 이상에서는 horizontal/vertical distribute를 추가로 활성화한다. distribute는 양 끝 객체의 center를 고정한 채 중간 객체의 center 간격을 균등하게 재배치한다.
 
-복사/붙여넣기는 단일 객체뿐 아니라 **현재 multi-selection 전체**를 처리한다. 선택 객체는 원본 `ObjectOrder` 순서대로 PowerPointLite 전용 versioned Clipboard payload에 기록되고, text/shape/image/table의 상대 좌표·서식·table cell 내용·이미지 bytes·상대 z-order를 유지한 채 현재 슬라이드에 붙여넣는다. 그룹이 슬라이드 경계를 벗어날 때는 객체별로 잘라 맞추지 않고 그룹 bounds에 하나의 translation을 적용해 내부 간격을 보존한다.
+복사/붙여넣기는 단일 객체뿐 아니라 **현재 multi-selection 전체**를 처리한다. 선택 객체는 원본 `ObjectOrder` 순서대로 PowerPointLite 전용 versioned Clipboard payload에 기록되고, text/shape/image/table/chart의 상대 좌표·서식·table cell 내용·이미지 bytes·chart XML payload·상대 z-order를 유지한 채 현재 슬라이드에 붙여넣는다. 그룹이 슬라이드 경계를 벗어날 때는 객체별로 잘라 맞추지 않고 그룹 bounds에 하나의 translation을 적용해 내부 간격을 보존한다.
 
-Windows system clipboard에는 현재 `PowerPointLite.ObjectSelection.v3` 포맷을 기록하고 이전 `v1/v2` payload도 읽을 수 있다. v2는 image crop, v3는 rotation/flip/opacity 값을 추가로 보존한다. 따라서 다른 PowerPointLite 창/프로세스에서도 객체 묶음을 붙여넣을 수 있다. 단일 text box는 Unicode text도 함께 내보내고 단일 image는 Bitmap도 함께 내보낸다. 반대로 외부 프로그램에서 복사한 일반 text와 Bitmap image도 각각 새 text box / image 객체로 받아들인다. 전용 payload codec은 이미지 크기와 object/run count에 상한을 두고 structural self-test에서 encode/decode와 relative z-order round-trip을 검증한다.
+Windows system clipboard에는 현재 `PowerPointLite.ObjectSelection.v4` 포맷을 기록하고 이전 `v1/v2/v3` payload도 읽을 수 있다. v2는 image crop, v3는 rotation/flip/opacity, v4는 self-contained chart의 geometry와 raw XML payload를 추가로 보존한다. 따라서 다른 PowerPointLite 창/프로세스에서도 객체 묶음을 붙여넣을 수 있다. 단일 text box는 Unicode text도 함께 내보내고 단일 image는 Bitmap도 함께 내보낸다. 반대로 외부 프로그램에서 복사한 일반 text와 Bitmap image도 각각 새 text box / image 객체로 받아들인다. 전용 payload codec은 이미지 크기와 object/run count에 상한을 두고 structural self-test에서 encode/decode와 relative z-order round-trip을 검증한다.
 
 기본 편집 단축키는 `Ctrl+C` Copy, `Ctrl+X` Cut, `Ctrl+V` Paste, `Ctrl+D` Duplicate, `Ctrl+A` Select All이다. Text box가 선택되어 있을 때 `Ctrl+B`, `Ctrl+I`, `Ctrl+U`는 각각 Bold/Italic/Underline을 토글하며, text editor에서 문자열을 선택한 상태라면 선택 영역에만 적용된다. 혼합 서식 범위는 indeterminate 상태로 표시하고 첫 토글은 서식을 켜는 방향으로 동작한다. Canvas 우클릭 메뉴에서도 동일한 작업을 제공한다. 우클릭한 객체가 기존 selection 밖에 있으면 해당 객체를 먼저 단일 선택하고, 빈 canvas를 우클릭하면 selection을 해제한다. Properties의 text/number/combobox 입력에 포커스가 있을 때는 Copy/Cut/Paste/Select All 단축키를 폼이 가로채지 않고 해당 입력 컨트롤에 넘긴다.
 
@@ -176,8 +183,8 @@ Animation 자체 테스트는 합성 `p:timing`을 프로젝트가 만든 PPTX�
 
 ## 현재 남은 Editor 작업
 
-- Viewer renderer와 interactive canvas의 공통 layout/render primitive를 chart/SmartArt 등 고급 요소까지 확대
-- chart/SmartArt/media 등 고급 요소는 Viewer fidelity를 보존하면서 단계적 편집 지원
+- SmartArt/media 등 고급 요소는 Viewer fidelity를 보존하면서 단계적 일반-object 편집 지원
+- chart의 cached series/title/style 같은 **내용 편집**과 embedded workbook/external chart relationship의 lossless package-graph 보존
 - accessible focus order 강화
 - arbitrary existing PPTX unknown/unsupported part preservation
 - Windows 실제 `BUILD_EXE.cmd` / `RUN_PREMERGE_CHECKS.cmd` 검증

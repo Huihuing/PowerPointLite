@@ -298,11 +298,13 @@ Editor의 `미리보기 / Preview`는 현재 편집 모델을 임시 PPTX로 저
 
 `PresentationTextBox`는 plain text 속성과 함께 선택적으로 paragraph/run 모델을 가진다. 기존 안전 편집 대상으로 판정된 문서에서는 rich text run을 읽고 다시 저장할 수 있다. 사용자가 plain text 자체를 수정하면 stale run 정보를 억지로 재적용하지 않고 해당 textbox의 run-level 서식을 안전하게 평문화한다.
 
+Self-contained chart는 `PresentationChart`가 raw chart XML bytes를 보존하고 graphicFrame geometry/z-order만 편집한다. Editor Canvas는 `InternalPptxRenderer.TryDrawEditableChart`를 통해 기존 Viewer chart renderer를 재사용한다. 현재는 chart data/title/style 내용을 직접 수정하지 않으며, chart part에 outgoing relationship이 있거나 `externalData` / `pivotSource` / `userShapes`가 있으면 editable 모델로 승격하지 않는다. 즉 embedded workbook이나 별도 chart style/color 등 추가 package graph가 필요한 chart는 계속 안전 편집 대상에서 제외한다.
+
 ## 문서 안전성
 
 렌더링 지원과 편집 안전성은 별개다.
 
-Viewer가 chart, SmartArt, animation 등을 화면에 표시할 수 있다고 해서 해당 외부 PPTX를 현재 Editor로 안전하게 round-trip할 수 있다는 뜻은 아니다.
+Viewer가 chart, SmartArt, animation 등을 화면에 표시할 수 있다고 해서 해당 외부 PPTX를 현재 Editor로 안전하게 round-trip할 수 있다는 뜻은 아니다. Chart의 현재 Editor 지원도 **PowerPointLite-generated 문서 안의 self-contained chart payload**라는 제한된 안전 범위에만 적용된다.
 
 `PptxEditableReader`의 deny-by-default 정책은 유지한다. 현재 편집 모델이 package의 unsupported/unknown content를 손실 없이 보존한다고 확인되지 않으면 원본 파일을 Editor 저장 경로에 넣지 않는다.
 
