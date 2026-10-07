@@ -634,16 +634,27 @@ chartDoc);
             maxValue =
                 axisScale.Maximum;
 
-            string valueTickLabelPosition =
-                ReadChartAxisTickLabelPosition(
+            bool valueAxisDeleted =
+                ReadChartAxisDeleted(
                     chartDoc,
                     "valAx");
+            bool categoryAxisDeleted =
+                ReadChartAxisDeleted(
+                    chartDoc,
+                    "catAx");
+
+            string valueTickLabelPosition =
+                ResolveChartAxisTickLabelPosition(
+                    chartDoc,
+                    "valAx",
+                    kind);
 
             DrawChartValueGrid(
                 g,
                 plot,
                 axisScale,
                 kind,
+                !valueAxisDeleted &&
                 !string.Equals(
                     valueTickLabelPosition,
                     "none",
@@ -730,37 +741,64 @@ chartDoc);
                 valueAxis.DashStyle =
                     valueAxisStyle.DashStyle;
 
+                string valueAxisPosition =
+                    ReadChartAxisPosition(
+                        chartDoc,
+                        "valAx");
+
                 if (kind == "bar")
                 {
-                    g.DrawLine(
-                        categoryAxis,
-                        zeroX,
-                        plot.Top,
-                        zeroX,
-                        plot.Bottom);
+                    if (!categoryAxisDeleted)
+                    {
+                        g.DrawLine(
+                            categoryAxis,
+                            zeroX,
+                            plot.Top,
+                            zeroX,
+                            plot.Bottom);
+                    }
 
-                    g.DrawLine(
-                        valueAxis,
-                        plot.Left,
-                        plot.Bottom,
-                        plot.Right,
-                        plot.Bottom);
+                    if (!valueAxisDeleted)
+                    {
+                        float valueAxisY =
+                            valueAxisPosition == "t"
+                                ? plot.Top
+                                : plot.Bottom;
+
+                        g.DrawLine(
+                            valueAxis,
+                            plot.Left,
+                            valueAxisY,
+                            plot.Right,
+                            valueAxisY);
+                    }
                 }
                 else
                 {
-                    g.DrawLine(
-                        categoryAxis,
-                        plot.Left,
-                        zeroY,
-                        plot.Right,
-                        zeroY);
+                    if (!categoryAxisDeleted)
+                    {
+                        g.DrawLine(
+                            categoryAxis,
+                            plot.Left,
+                            zeroY,
+                            plot.Right,
+                            zeroY);
+                    }
 
-                    g.DrawLine(
-                        valueAxis,
-                        plot.Left,
-                        plot.Top,
-                        plot.Left,
-                        plot.Bottom);
+                    if (!valueAxisDeleted)
+                    {
+                        float valueAxisX =
+                            valueAxisPosition == "r"
+                                ? plot.Right
+                                : plot.Left;
+
+                        g.DrawLine(
+                            valueAxis,
+                            valueAxisX,
+                            plot.Top,
+                            valueAxisX,
+                            plot.Bottom);
+                    }
                 }
             }
 
@@ -1191,11 +1229,13 @@ chartDoc);
             }
 
             string categoryTickLabelPosition =
-                ReadChartAxisTickLabelPosition(
+                ResolveChartAxisTickLabelPosition(
                     chartDoc,
-                    "catAx");
+                    "catAx",
+                    kind);
 
-            if (!string.Equals(
+            if (!categoryAxisDeleted &&
+                !string.Equals(
                     categoryTickLabelPosition,
                     "none",
                     StringComparison.OrdinalIgnoreCase))
@@ -1220,8 +1260,12 @@ chartDoc);
                 plot,
                 rect,
                 kind,
-                valueAxisTitle,
-                categoryAxisTitle,
+                valueAxisDeleted
+                    ? string.Empty
+                    : valueAxisTitle,
+                categoryAxisDeleted
+                    ? string.Empty
+                    : categoryAxisTitle,
                 ReadChartAxisTitleTextStyle(
                     chartDoc,
                     "valAx",
@@ -5168,21 +5212,36 @@ chartDoc);
                 return;
             }
 
+            bool categoryAxisDeleted =
+                ReadChartAxisDeleted(
+                    chartDoc,
+                    "catAx");
+            bool valueAxisDeleted =
+                ReadChartAxisDeleted(
+                    chartDoc,
+                    "valAx");
+
             string categoryMajor =
-                ReadChartAxisTickMark(
-                    chartDoc,
-                    "catAx",
-                    "majorTickMark");
+                categoryAxisDeleted
+                    ? "none"
+                    : ReadChartAxisTickMark(
+                        chartDoc,
+                        "catAx",
+                        "majorTickMark");
             string valueMajor =
-                ReadChartAxisTickMark(
-                    chartDoc,
-                    "valAx",
-                    "majorTickMark");
+                valueAxisDeleted
+                    ? "none"
+                    : ReadChartAxisTickMark(
+                        chartDoc,
+                        "valAx",
+                        "majorTickMark");
             string valueMinor =
-                ReadChartAxisTickMark(
-                    chartDoc,
-                    "valAx",
-                    "minorTickMark");
+                valueAxisDeleted
+                    ? "none"
+                    : ReadChartAxisTickMark(
+                        chartDoc,
+                        "valAx",
+                        "minorTickMark");
 
             if ((string.IsNullOrEmpty(
                      categoryMajor) ||
@@ -5615,6 +5674,118 @@ chartDoc);
                     1f,
                     size),
                 fontStyle);
+        }
+
+        private static bool ReadChartAxisDeleted(
+            XmlDocument chartDoc,
+            string axisName)
+        {
+            if (chartDoc == null ||
+                string.IsNullOrEmpty(
+                    axisName))
+            {
+                return false;
+            }
+
+            XmlNode axis =
+                FindFirst(
+                    chartDoc,
+                    axisName);
+
+            return axis != null &&
+                ReadChartBooleanChild(
+                    axis,
+                    "delete");
+        }
+
+        private static string ReadChartAxisPosition(
+            XmlDocument chartDoc,
+            string axisName)
+        {
+            if (chartDoc == null ||
+                string.IsNullOrEmpty(
+                    axisName))
+            {
+                return string.Empty;
+            }
+
+            XmlNode axis =
+                FindFirst(
+                    chartDoc,
+                    axisName);
+
+            XmlNode position =
+                axis == null
+                    ? null
+                    : DirectChild(
+                        axis,
+                        "axPos");
+
+            string value =
+                position == null
+                    ? string.Empty
+                    : GetAttr(
+                        position,
+                        "val") ??
+                      string.Empty;
+
+            if (value == "l" ||
+                value == "r" ||
+                value == "t" ||
+                value == "b")
+            {
+                return value;
+            }
+
+            return string.Empty;
+        }
+
+        private static string ResolveChartAxisTickLabelPosition(
+            XmlDocument chartDoc,
+            string axisName,
+            string kind)
+        {
+            string explicitPosition =
+                ReadChartAxisTickLabelPosition(
+                    chartDoc,
+                    axisName);
+
+            if (explicitPosition == "high" ||
+                explicitPosition == "low" ||
+                explicitPosition == "none")
+            {
+                return explicitPosition;
+            }
+
+            string axisPosition =
+                ReadChartAxisPosition(
+                    chartDoc,
+                    axisName);
+
+            if (axisName == "valAx")
+            {
+                if (kind == "bar")
+                {
+                    return axisPosition == "t"
+                        ? "high"
+                        : "low";
+                }
+
+                return axisPosition == "r"
+                    ? "high"
+                    : "low";
+            }
+
+            if (kind == "bar")
+            {
+                return axisPosition == "r"
+                    ? "high"
+                    : "low";
+            }
+
+            return axisPosition == "t"
+                ? "high"
+                : "low";
         }
 
         private static string ReadChartAxisTickLabelPosition(
