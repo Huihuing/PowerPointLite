@@ -801,6 +801,85 @@ namespace PptxViewer
             canvas.BackColor = ApplicationTheme.Canvas;
             canvasHost.Controls.Add(canvas);
 
+            ContextMenuStrip canvasMenu =
+                new ContextMenuStrip();
+            ToolStripMenuItem cutMenuItem =
+                new ToolStripMenuItem("Cut");
+            ToolStripMenuItem copyMenuItem =
+                new ToolStripMenuItem("Copy");
+            ToolStripMenuItem pasteMenuItem =
+                new ToolStripMenuItem("Paste");
+            ToolStripMenuItem duplicateMenuItem =
+                new ToolStripMenuItem("Duplicate");
+            ToolStripMenuItem deleteMenuItem =
+                new ToolStripMenuItem("Delete");
+            ToolStripMenuItem selectAllMenuItem =
+                new ToolStripMenuItem("Select All");
+
+            cutMenuItem.ShortcutKeyDisplayString = "Ctrl+X";
+            copyMenuItem.ShortcutKeyDisplayString = "Ctrl+C";
+            pasteMenuItem.ShortcutKeyDisplayString = "Ctrl+V";
+            duplicateMenuItem.ShortcutKeyDisplayString = "Ctrl+D";
+            deleteMenuItem.ShortcutKeyDisplayString = "Del";
+            selectAllMenuItem.ShortcutKeyDisplayString = "Ctrl+A";
+
+            canvasMenu.Items.Add(cutMenuItem);
+            canvasMenu.Items.Add(copyMenuItem);
+            canvasMenu.Items.Add(pasteMenuItem);
+            canvasMenu.Items.Add(duplicateMenuItem);
+            canvasMenu.Items.Add(new ToolStripSeparator());
+            canvasMenu.Items.Add(deleteMenuItem);
+            canvasMenu.Items.Add(new ToolStripSeparator());
+            canvasMenu.Items.Add(selectAllMenuItem);
+            ApplicationTheme.ApplyContextMenu(
+                canvasMenu);
+            canvas.ContextMenuStrip = canvasMenu;
+
+            cutMenuItem.Click += delegate
+            {
+                CutSelectedObjects();
+            };
+            copyMenuItem.Click += delegate
+            {
+                CopySelectedObject();
+            };
+            pasteMenuItem.Click += delegate
+            {
+                PasteObject();
+            };
+            duplicateMenuItem.Click += delegate
+            {
+                DuplicateSelectedObjects();
+            };
+            deleteMenuItem.Click += delegate
+            {
+                DeleteSelectedObject();
+            };
+            selectAllMenuItem.Click += delegate
+            {
+                canvas.SelectAllObjects();
+            };
+
+            canvasMenu.Opening += delegate
+            {
+                bool hasSelection =
+                    canvas.SelectedObjectCount > 0;
+                PresentationSlide selectedSlide =
+                    GetSelectedSlide();
+                bool hasObjects =
+                    selectedSlide != null &&
+                    (selectedSlide.TextBoxes.Count > 0 ||
+                     selectedSlide.Shapes.Count > 0 ||
+                     selectedSlide.Images.Count > 0);
+
+                cutMenuItem.Enabled = hasSelection;
+                copyMenuItem.Enabled = hasSelection;
+                duplicateMenuItem.Enabled = hasSelection;
+                deleteMenuItem.Enabled = hasSelection;
+                pasteMenuItem.Enabled = CanPasteObject();
+                selectAllMenuItem.Enabled = hasObjects;
+            };
+
             Action layoutEditorColumns =
                 delegate
                 {
@@ -910,6 +989,21 @@ namespace PptxViewer
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
+            bool textEditing =
+                IsTextEditingControlActive();
+
+            if (textEditing &&
+                (keyData == (Keys.Control | Keys.C) ||
+                 keyData == (Keys.Control | Keys.X) ||
+                 keyData == (Keys.Control | Keys.V) ||
+                 keyData == (Keys.Control | Keys.A) ||
+                 keyData == (Keys.Control | Keys.D)))
+            {
+                return base.ProcessCmdKey(
+                    ref msg,
+                    keyData);
+            }
+
             if (keyData == (Keys.Control | Keys.S))
             {
                 SaveDocument(false);
@@ -940,9 +1034,27 @@ namespace PptxViewer
                 return true;
             }
 
+            if (keyData == (Keys.Control | Keys.X))
+            {
+                CutSelectedObjects();
+                return true;
+            }
+
             if (keyData == (Keys.Control | Keys.V))
             {
                 PasteObject();
+                return true;
+            }
+
+            if (keyData == (Keys.Control | Keys.D))
+            {
+                DuplicateSelectedObjects();
+                return true;
+            }
+
+            if (keyData == (Keys.Control | Keys.A))
+            {
+                canvas.SelectAllObjects();
                 return true;
             }
 
@@ -971,6 +1083,47 @@ namespace PptxViewer
             }
 
             return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        private bool IsTextEditingControlActive()
+        {
+            Control focused =
+                FindFocusedControl(this);
+
+            return
+                focused is TextBoxBase ||
+                focused is ComboBox ||
+                focused is NumericUpDown;
+        }
+
+        private static Control FindFocusedControl(
+            Control root)
+        {
+            if (root == null ||
+                !root.ContainsFocus)
+            {
+                return null;
+            }
+
+            for (int i = 0;
+                 i < root.Controls.Count;
+                 i++)
+            {
+                Control child =
+                    root.Controls[i];
+
+                if (child != null &&
+                    child.ContainsFocus)
+                {
+                    Control nested =
+                        FindFocusedControl(child);
+                    return nested ?? child;
+                }
+            }
+
+            return root.Focused
+                ? root
+                : null;
         }
 
         private Button MakeButton(string text, int left, int width)
@@ -1460,7 +1613,19 @@ namespace PptxViewer
             UpdateStatus();
         }
 
-        private void CopySelectedObject()
+        private void CutSelectedObjects()
+        {
+            if (canvas == null ||
+                canvas.SelectedObjectCount == 0)
+            {
+                return;
+            }
+
+            if (CopySelectedObject())
+                DeleteSelectedObject();
+        }
+
+        private void DuplicateSelectedObjects()
         {
             PresentationSlide slide =
                 GetSelectedSlide();
@@ -1486,9 +1651,46 @@ namespace PptxViewer
                 return;
             }
 
+            CaptureHistory();
+            PasteClipboardPackage(
+                slide,
+                package);
+            session.MarkDirty();
+            canvas.Invalidate();
+            LoadSelectedProperties();
+            UpdateStatus();
+        }
+
+        private bool CopySelectedObject()
+        {
+            PresentationSlide slide =
+                GetSelectedSlide();
+            List<EditorSelectionEntry> selection =
+                canvas == null
+                    ? new List<EditorSelectionEntry>()
+                    : canvas.GetSelectedObjects();
+
+            if (slide == null ||
+                selection.Count == 0)
+            {
+                return false;
+            }
+
+            EditorClipboardPackage package =
+                EditorClipboardCodec.CreatePackage(
+                    slide,
+                    selection);
+
+            if (package == null ||
+                !package.HasObjects)
+            {
+                return false;
+            }
+
             copiedObjects = package.Clone();
             TryWriteSystemClipboard(package);
             UpdateButtons();
+            return true;
         }
 
         private void PasteObject()
@@ -2488,6 +2690,76 @@ namespace PptxViewer
             NotifySelectionChanged();
         }
 
+        public void SelectAllObjects()
+        {
+            PresentationSlide slide =
+                GetSlide();
+            selectedObjects.Clear();
+
+            if (slide != null)
+            {
+                slide.SynchronizeObjectOrder();
+
+                for (int i = 0;
+                     i < slide.ObjectOrder.Count;
+                     i++)
+                {
+                    PresentationLayerEntry layer =
+                        slide.ObjectOrder[i];
+
+                    if (layer == null)
+                        continue;
+
+                    EditorObjectKind kind =
+                        EditorObjectKind.None;
+
+                    if (layer.Kind ==
+                        PresentationLayerKind.TextBox)
+                    {
+                        kind =
+                            EditorObjectKind.TextBox;
+                    }
+                    else if (layer.Kind ==
+                             PresentationLayerKind.Shape)
+                    {
+                        kind =
+                            EditorObjectKind.Shape;
+                    }
+                    else if (layer.Kind ==
+                             PresentationLayerKind.Image)
+                    {
+                        kind =
+                            EditorObjectKind.Image;
+                    }
+
+                    if (kind != EditorObjectKind.None)
+                    {
+                        AddSelectionEntry(
+                            kind,
+                            layer.Index);
+                    }
+                }
+            }
+
+            if (selectedObjects.Count > 0)
+            {
+                EditorSelectionEntry primary =
+                    selectedObjects[
+                        selectedObjects.Count - 1];
+                SetPrimarySelection(
+                    primary.Kind,
+                    primary.Index);
+            }
+            else
+            {
+                SetPrimarySelection(
+                    EditorObjectKind.None,
+                    -1);
+            }
+
+            NotifySelectionChanged();
+        }
+
         public List<EditorSelectionEntry>
             GetSelectedObjects()
         {
@@ -2766,12 +3038,37 @@ namespace PptxViewer
             base.OnMouseDown(e);
             Focus();
 
-            if (e.Button != MouseButtons.Left)
-                return;
-
             EditorObjectKind kind;
             int index;
             RectangleF rect;
+
+            if (e.Button == MouseButtons.Right)
+            {
+                if (HitTest(
+                        e.Location,
+                        out kind,
+                        out index,
+                        out rect))
+                {
+                    if (!IsObjectSelected(
+                            kind,
+                            index))
+                    {
+                        SelectObject(
+                            kind,
+                            index);
+                    }
+                }
+                else
+                {
+                    ClearSelection();
+                }
+
+                return;
+            }
+
+            if (e.Button != MouseButtons.Left)
+                return;
 
             bool controlPressed =
                 (ModifierKeys & Keys.Control) ==
