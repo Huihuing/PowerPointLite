@@ -4549,6 +4549,16 @@ chartDoc);
 
         private static void ReadChartSeriesVisualStyle(
             XmlNode series,
+            ChartSeriesData data)
+        {
+            ReadChartSeriesVisualStyle(
+                series,
+                data,
+                null);
+        }
+
+        private static void ReadChartSeriesVisualStyle(
+            XmlNode series,
             ChartSeriesData data,
             Dictionary<string, Color> theme)
         {
