@@ -6929,7 +6929,7 @@ chartDoc);
                     (float)(
                         ChartAxisFraction(
                             value +
-                            magnitude,
+                            plusMagnitude,
                             scale) *
                         plot.Height);
 
@@ -6938,7 +6938,7 @@ chartDoc);
                     (float)(
                         ChartAxisFraction(
                             value -
-                            magnitude,
+                            minusMagnitude,
                             scale) *
                         plot.Height);
 
