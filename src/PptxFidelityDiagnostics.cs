@@ -4968,15 +4968,38 @@ namespace PptxViewer
                             205)
                     });
 
+                PointF[] blockerRoute =
+                    BuildSmartArtElbowRoute(
+                        new PointF(
+                            60f,
+                            60f),
+                        new PointF(
+                            220f,
+                            120f),
+                        processPositions,
+                        processSource.Id,
+                        processNextRow.Id,
+                        false);
+
                 Color blockedMiddlePixel =
                     processConnectorBitmap.GetPixel(
                         130,
                         90);
 
+                int clearChannelY =
+                    Math.Max(
+                        0,
+                        Math.Min(
+                            processConnectorBitmap.Height -
+                            1,
+                            (int)Math.Round(
+                                blockerRoute[
+                                    1].Y)));
+
                 Color clearChannelPixel =
                     processConnectorBitmap.GetPixel(
                         130,
-                        64);
+                        clearChannelY);
 
                 bool blockedMiddleStayedClear =
                     blockedMiddlePixel.R >= 245 &&
@@ -4988,8 +5011,15 @@ namespace PptxViewer
                     clearChannelPixel.G < 245 ||
                     clearChannelPixel.B < 245;
 
-                if (!blockedMiddleStayedClear ||
-                    !clearChannelVisible)
+                if (blockerRoute == null ||
+                    blockerRoute.Length != 4 ||
+                    !blockedMiddleStayedClear ||
+                    !clearChannelVisible ||
+                    !IsSmartArtRouteClear(
+                        blockerRoute,
+                        processPositions,
+                        processSource.Id,
+                        processNextRow.Id))
                 {
                     throw new InvalidOperationException(
                         "SmartArt process connector did not avoid an intervening node.");
