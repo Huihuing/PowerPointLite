@@ -25,7 +25,8 @@ namespace PptxViewer
         TextBox,
         Shape,
         Image,
-        Table
+        Table,
+        Chart
     }
 
     internal sealed class PresentationLayerEntry
@@ -361,6 +362,42 @@ namespace PptxViewer
         }
     }
 
+    internal sealed class PresentationChart
+    {
+        public string Name { get; set; }
+        public byte[] XmlData { get; set; }
+        public long X { get; set; }
+        public long Y { get; set; }
+        public long Width { get; set; }
+        public long Height { get; set; }
+
+        public PresentationChart()
+        {
+            Name = "Chart";
+            XmlData = new byte[0];
+            X = 1371600;
+            Y = 1371600;
+            Width = 7315200;
+            Height = 4114800;
+        }
+
+        public PresentationChart Clone()
+        {
+            PresentationChart copy =
+                new PresentationChart();
+            copy.Name = Name;
+            copy.XmlData =
+                XmlData == null
+                    ? new byte[0]
+                    : (byte[])XmlData.Clone();
+            copy.X = X;
+            copy.Y = Y;
+            copy.Width = Width;
+            copy.Height = Height;
+            return copy;
+        }
+    }
+
     internal sealed class PresentationTableCell
     {
         public string Text { get; set; }
@@ -458,6 +495,8 @@ namespace PptxViewer
             new List<PresentationImage>();
         private readonly List<PresentationTable> tables =
             new List<PresentationTable>();
+        private readonly List<PresentationChart> charts =
+            new List<PresentationChart>();
         private readonly List<PresentationLayerEntry> objectOrder =
             new List<PresentationLayerEntry>();
 
@@ -481,6 +520,11 @@ namespace PptxViewer
         public IList<PresentationTable> Tables
         {
             get { return tables; }
+        }
+
+        public IList<PresentationChart> Charts
+        {
+            get { return charts; }
         }
 
         public IList<PresentationLayerEntry> ObjectOrder
@@ -561,6 +605,25 @@ namespace PptxViewer
             return table;
         }
 
+        public PresentationChart AddChart(
+            byte[] xmlData)
+        {
+            PresentationChart chart =
+                new PresentationChart();
+            chart.Name =
+                "Chart " +
+                (charts.Count + 1).ToString();
+            chart.XmlData =
+                xmlData == null
+                    ? new byte[0]
+                    : (byte[])xmlData.Clone();
+            charts.Add(chart);
+            RegisterObjectOrder(
+                PresentationLayerKind.Chart,
+                charts.Count - 1);
+            return chart;
+        }
+
         public bool RemoveTextBox(int index)
         {
             if (index < 0 || index >= textBoxes.Count)
@@ -601,6 +664,17 @@ namespace PptxViewer
             tables.RemoveAt(index);
             RemoveObjectOrder(
                 PresentationLayerKind.Table,
+                index);
+            return true;
+        }
+
+        public bool RemoveChart(int index)
+        {
+            if (index < 0 || index >= charts.Count)
+                return false;
+            charts.RemoveAt(index);
+            RemoveObjectOrder(
+                PresentationLayerKind.Chart,
                 index);
             return true;
         }
@@ -652,6 +726,8 @@ namespace PptxViewer
                 new bool[images.Count];
             bool[] tableSeen =
                 new bool[tables.Count];
+            bool[] chartSeen =
+                new bool[charts.Count];
 
             for (int i = 0;
                  i < objectOrder.Count;
@@ -698,6 +774,13 @@ namespace PptxViewer
                         tableSeen[entry.Index];
                     tableSeen[entry.Index] = true;
                 }
+                else if (entry.Kind ==
+                         PresentationLayerKind.Chart)
+                {
+                    alreadySeen =
+                        chartSeen[entry.Index];
+                    chartSeen[entry.Index] = true;
+                }
 
                 if (!alreadySeen)
                     normalized.Add(
@@ -737,9 +820,9 @@ namespace PptxViewer
                         i);
             }
 
-            // Tables historically rendered after the other editable
-            // object kinds. Keep that fallback for legacy model instances
-            // that predate the shared layer-order list.
+            // Graphic-frame kinds historically rendered after the basic
+            // editable object kinds. Keep that fallback for legacy model
+            // instances that predate the shared layer-order list.
             for (int i = 0;
                  i < tables.Count;
                  i++)
@@ -748,6 +831,17 @@ namespace PptxViewer
                     AddNormalizedLayerEntry(
                         normalized,
                         PresentationLayerKind.Table,
+                        i);
+            }
+
+            for (int i = 0;
+                 i < charts.Count;
+                 i++)
+            {
+                if (!chartSeen[i])
+                    AddNormalizedLayerEntry(
+                        normalized,
+                        PresentationLayerKind.Chart,
                         i);
             }
 
@@ -908,6 +1002,13 @@ namespace PptxViewer
                     tables.Count;
             }
 
+            if (kind ==
+                PresentationLayerKind.Chart)
+            {
+                return index <
+                    charts.Count;
+            }
+
             return false;
         }
 
@@ -961,6 +1062,9 @@ namespace PptxViewer
 
             for (int i = 0; i < tables.Count; i++)
                 copy.tables.Add(tables[i].Clone());
+
+            for (int i = 0; i < charts.Count; i++)
+                copy.charts.Add(charts[i].Clone());
 
             SynchronizeObjectOrder();
 

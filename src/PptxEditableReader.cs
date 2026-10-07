@@ -26,6 +26,7 @@ namespace PptxViewer
         private const string SlideRelationshipSuffix = "/slide";
         private const string SlideLayoutRelationshipSuffix = "/slideLayout";
         private const string ImageRelationshipSuffix = "/image";
+        private const string ChartRelationshipSuffix = "/chart";
 
         public static PptxEditableLoadResult Read(string path)
         {
@@ -153,7 +154,8 @@ namespace PptxViewer
 
                 bool supportedRelationship =
                     relationship.Type.EndsWith(SlideLayoutRelationshipSuffix, StringComparison.Ordinal) ||
-                    relationship.Type.EndsWith(ImageRelationshipSuffix, StringComparison.Ordinal);
+                    relationship.Type.EndsWith(ImageRelationshipSuffix, StringComparison.Ordinal) ||
+                    relationship.Type.EndsWith(ChartRelationshipSuffix, StringComparison.Ordinal);
 
                 if (!supportedRelationship)
                     result.HasUnsupportedContent = true;
@@ -215,7 +217,8 @@ namespace PptxViewer
                 }
                 else if (node.LocalName == "graphicFrame")
                 {
-                    PresentationTable table = PptxTableReader.Read(node);
+                    PresentationTable table =
+                        PptxTableReader.Read(node);
 
                     if (table != null)
                     {
@@ -225,7 +228,25 @@ namespace PptxViewer
                             slide.Tables.Count - 1);
                     }
                     else
-                        result.HasUnsupportedContent = true;
+                    {
+                        PresentationChart chart =
+                            PptxChartReader.Read(
+                                archive,
+                                node,
+                                byId);
+
+                        if (chart != null)
+                        {
+                            slide.Charts.Add(chart);
+                            slide.RegisterObjectOrder(
+                                PresentationLayerKind.Chart,
+                                slide.Charts.Count - 1);
+                        }
+                        else
+                        {
+                            result.HasUnsupportedContent = true;
+                        }
+                    }
                 }
                 else if (node.LocalName != "nvGrpSpPr" &&
                          node.LocalName != "grpSpPr")
