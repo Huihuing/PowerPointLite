@@ -1319,8 +1319,8 @@ namespace PptxViewer
 
                 Color manualLabelFillPixel =
                     dataLabelBitmap.GetPixel(
-                        130,
-                        30);
+                        160,
+                        42);
 
                 Color oldAutomaticLabelPixel =
                     dataLabelBitmap.GetPixel(
