@@ -16139,61 +16139,126 @@ namespace PptxViewer
                     0f,
                     high - low);
 
-            float[] candidates =
-                new float[]
+            float preferred =
+                low +
+                span /
+                2f;
+
+            List<float> candidates =
+                new List<float>();
+
+            candidates.Add(
+                preferred);
+            candidates.Add(
+                low +
+                span *
+                0.25f);
+            candidates.Add(
+                low +
+                span *
+                0.75f);
+            candidates.Add(
+                low +
+                Math.Min(
+                    4f,
+                    span /
+                    2f));
+            candidates.Add(
+                high -
+                Math.Min(
+                    4f,
+                    span /
+                    2f));
+
+            const float clearance =
+                5f;
+
+            if (positions != null)
+            {
+                foreach (KeyValuePair<string, RectangleF> pair
+                    in positions)
                 {
-                    low +
-                        span /
-                        2f,
-                    low +
-                        span *
-                        0.25f,
-                    low +
-                        span *
-                        0.75f,
-                    low +
-                        Math.Min(
-                            4f,
-                            span /
-                            2f),
-                    high -
-                        Math.Min(
-                            4f,
-                            span /
-                            2f)
-                };
+                    if (pair.Key == sourceId ||
+                        pair.Key == destinationId)
+                    {
+                        continue;
+                    }
+
+                    candidates.Add(
+                        pair.Value.Top -
+                        clearance);
+                    candidates.Add(
+                        pair.Value.Bottom +
+                        clearance);
+                }
+            }
+
+            PointF[] bestRoute =
+                null;
+            double bestScore =
+                double.MaxValue;
+            float bestChannel =
+                float.MaxValue;
 
             for (int i = 0;
-                 i < candidates.Length;
+                 i < candidates.Count;
                  i++)
             {
+                float channel =
+                    candidates[i];
+
                 PointF[] candidate =
                     new PointF[]
                     {
                         from,
                         new PointF(
                             from.X,
-                            candidates[i]),
+                            channel),
                         new PointF(
                             to.X,
-                            candidates[i]),
+                            channel),
                         to
                     };
 
-                if (IsSmartArtRouteClear(
+                if (!IsSmartArtRouteClear(
                         candidate,
                         positions,
                         sourceId,
                         destinationId))
                 {
-                    route =
+                    continue;
+                }
+
+                double score =
+                    CalculateSmartArtRouteLength(
+                        candidate) +
+                    Math.Abs(
+                        channel -
+                        preferred) *
+                    0.05;
+
+                if (score <
+                        bestScore -
+                        0.001 ||
+                    (Math.Abs(
+                         score -
+                         bestScore) <=
+                     0.001 &&
+                     channel <
+                     bestChannel))
+                {
+                    bestRoute =
                         candidate;
-                    return true;
+                    bestScore =
+                        score;
+                    bestChannel =
+                        channel;
                 }
             }
 
-            route = null;
-            return false;
+            route =
+                bestRoute;
+            return route != null;
         }
 
         private static bool TryBuildSmartArtVerticalChannelRoute(
@@ -16204,9 +16269,6 @@ namespace PptxViewer
             string destinationId,
             out PointF[] route)
         {
-            List<float> candidates =
-                new List<float>();
-
             float low =
                 Math.Min(
                     from.X,
@@ -16222,10 +16284,16 @@ namespace PptxViewer
                     0f,
                     high - low);
 
-            candidates.Add(
+            float preferred =
                 low +
                 span /
-                2f);
+                2f;
+
+            List<float> candidates =
+                new List<float>();
+
+            candidates.Add(
+                preferred);
             candidates.Add(
                 low +
                 span *
@@ -16261,37 +16329,99 @@ namespace PptxViewer
                 }
             }
 
+            PointF[] bestRoute =
+                null;
+            double bestScore =
+                double.MaxValue;
+            float bestChannel =
+                float.MaxValue;
+
             for (int i = 0;
                  i < candidates.Count;
                  i++)
             {
+                float channel =
+                    candidates[i];
+
                 PointF[] candidate =
                     new PointF[]
                     {
                         from,
                         new PointF(
-                            candidates[i],
+                            channel,
                             from.Y),
                         new PointF(
-                            candidates[i],
+                            channel,
                             to.Y),
                         to
                     };
 
-                if (IsSmartArtRouteClear(
+                if (!IsSmartArtRouteClear(
                         candidate,
                         positions,
                         sourceId,
                         destinationId))
                 {
-                    route =
+                    continue;
+                }
+
+                double score =
+                    CalculateSmartArtRouteLength(
+                        candidate) +
+                    Math.Abs(
+                        channel -
+                        preferred) *
+                    0.05;
+
+                if (score <
+                        bestScore -
+                        0.001 ||
+                    (Math.Abs(
+                         score -
+                         bestScore) <=
+                     0.001 &&
+                     channel <
+                     bestChannel))
+                {
+                    bestRoute =
                         candidate;
-                    return true;
+                    bestScore =
+                        score;
+                    bestChannel =
+                        channel;
                 }
             }
 
-            route = null;
-            return false;
+            route =
+                bestRoute;
+            return route != null;
+        }
+
+        private static double CalculateSmartArtRouteLength(
+            PointF[] route)
+        {
+            if (route == null ||
+                route.Length < 2)
+            {
+                return double.MaxValue;
+            }
+
+            double length = 0.0;
+
+            for (int i = 1;
+                 i < route.Length;
+                 i++)
+            {
+                length +=
+                    Math.Abs(
+                        route[i].X -
+                        route[i - 1].X) +
+                    Math.Abs(
+                        route[i].Y -
+                        route[i - 1].Y);
+            }
+
+            return length;
         }
 
         private static bool IsSmartArtRouteClear(
