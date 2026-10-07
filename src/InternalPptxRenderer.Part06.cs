@@ -506,7 +506,9 @@ internal static partial class InternalPptxRenderer
                     legendPosition,
                     ReadChartLegendTextStyle(
                         chartDoc,
-                        theme));
+                        theme),
+                    ReadChartLegendHiddenEntries(
+                        chartDoc));
                 return;
             }
 
@@ -1189,7 +1191,9 @@ internal static partial class InternalPptxRenderer
                 legendPosition,
                 ReadChartLegendTextStyle(
                     chartDoc,
-                    theme));
+                    theme),
+                ReadChartLegendHiddenEntries(
+                    chartDoc));
         }
 
         private static ChartBarOptions ReadChartBarOptions(
@@ -2481,6 +2485,68 @@ internal static partial class InternalPptxRenderer
                     ? ", "
                     : options.Separator,
                 parts.ToArray());
+        }
+
+        private static HashSet<int> ReadChartLegendHiddenEntries(
+            XmlDocument chartDoc)
+        {
+            HashSet<int> hidden =
+                new HashSet<int>();
+
+            XmlNode legend =
+                chartDoc == null
+                    ? null
+                    : FindFirst(
+                        chartDoc,
+                        "legend");
+
+            if (legend == null)
+                return hidden;
+
+            for (int i = 0;
+                 i < legend.ChildNodes.Count;
+                 i++)
+            {
+                XmlNode entry =
+                    legend.ChildNodes[i];
+
+                if (entry == null ||
+                    entry.NodeType !=
+                        XmlNodeType.Element ||
+                    entry.LocalName !=
+                        "legendEntry")
+                {
+                    continue;
+                }
+
+                XmlNode index =
+                    DirectChild(
+                        entry,
+                        "idx");
+
+                int parsed;
+
+                if (index == null ||
+                    !int.TryParse(
+                        GetAttr(
+                            index,
+                            "val"),
+                        out parsed) ||
+                    parsed < 0)
+                {
+                    continue;
+                }
+
+                if (ReadChartBooleanChild(
+                        entry,
+                        "delete"))
+                {
+                    hidden.Add(
+                        parsed);
+                }
+            }
+
+            return hidden;
         }
 
         private static ChartLabelOptions ReadChartLegendTextStyle(
@@ -6031,7 +6097,8 @@ internal static partial class InternalPptxRenderer
             Color[] palette,
             string kind,
             string position,
-            ChartLabelOptions textStyle = null)
+            ChartLabelOptions textStyle = null,
+            HashSet<int> hiddenEntries = null)
         {
             if (string.IsNullOrEmpty(position) ||
                 series == null ||
@@ -6055,6 +6122,12 @@ internal static partial class InternalPptxRenderer
                      i < series[0].Categories.Count;
                      i++)
                 {
+                    if (hiddenEntries != null &&
+                        hiddenEntries.Contains(i))
+                    {
+                        continue;
+                    }
+
                     labels.Add(
                         string.IsNullOrEmpty(
                             series[0].Categories[i])
@@ -6075,6 +6148,12 @@ internal static partial class InternalPptxRenderer
                      i < series.Count;
                      i++)
                 {
+                    if (hiddenEntries != null &&
+                        hiddenEntries.Contains(i))
+                    {
+                        continue;
+                    }
+
                     labels.Add(
                         string.IsNullOrEmpty(
                             series[i].Name)
