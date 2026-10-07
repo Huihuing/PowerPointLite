@@ -205,7 +205,8 @@ internal static partial class InternalPptxRenderer
 
                 ReadChartSeriesVisualStyle(
                     ser,
-                    data);
+                    data,
+                    theme);
 
                 ReadChartSeriesLabelOverrides(
                     ser,
@@ -4493,7 +4494,8 @@ chartDoc);
 
         private static void ReadChartSeriesVisualStyle(
             XmlNode series,
-            ChartSeriesData data)
+            ChartSeriesData data,
+            Dictionary<string, Color> theme)
         {
             if (series == null ||
                 data == null)
@@ -4547,6 +4549,11 @@ chartDoc);
                         dashValue);
             }
 
+            ReadChartSeriesOverlayOptions(
+                series,
+                data,
+                theme);
+
             XmlNode marker =
                 DirectChild(
                     series,
@@ -4599,6 +4606,276 @@ chartDoc);
                             24f,
                             sizeValue));
             }
+        }
+
+        private static void ReadChartSeriesOverlayOptions(
+            XmlNode series,
+            ChartSeriesData data,
+            Dictionary<string, Color> theme)
+        {
+            if (series == null ||
+                data == null)
+            {
+                return;
+            }
+
+            XmlNode trendline =
+                DirectChild(
+                    series,
+                    "trendline");
+
+            if (trendline != null)
+            {
+                XmlNode type =
+                    DirectChild(
+                        trendline,
+                        "trendlineType");
+
+                string typeValue =
+                    type == null
+                        ? string.Empty
+                        : GetAttr(
+                            type,
+                            "val") ??
+                          string.Empty;
+
+                if (string.Equals(
+                        typeValue,
+                        "linear",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    ChartTrendlineOptions options =
+                        new ChartTrendlineOptions();
+
+                    options.Type =
+                        "linear";
+                    options.Forward =
+                        ReadChartOverlayNumber(
+                            trendline,
+                            "forward");
+                    options.Backward =
+                        ReadChartOverlayNumber(
+                            trendline,
+                            "backward");
+
+                    Color fallback =
+                        data.ExplicitColor ??
+                        Color.FromArgb(
+                            95,
+                            95,
+                            95);
+
+                    options.LineStyle =
+                        ReadChartOverlayLineStyle(
+                            trendline,
+                            theme,
+                            fallback,
+                            Math.Max(
+                                1f,
+                                data.LineWidth));
+
+                    data.Trendline =
+                        options;
+                }
+            }
+
+            XmlNode errorBars =
+                DirectChild(
+                    series,
+                    "errBars");
+
+            if (errorBars == null)
+                return;
+
+            XmlNode valueType =
+                DirectChild(
+                    errorBars,
+                    "errValType");
+
+            string valueTypeName =
+                valueType == null
+                    ? string.Empty
+                    : GetAttr(
+                        valueType,
+                        "val") ??
+                      string.Empty;
+
+            bool supportedValueType =
+                string.Equals(
+                    valueTypeName,
+                    "fixedVal",
+                    StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(
+                    valueTypeName,
+                    "percentage",
+                    StringComparison.OrdinalIgnoreCase);
+
+            if (!supportedValueType)
+                return;
+
+            double value =
+                ReadChartOverlayNumber(
+                    errorBars,
+                    "val");
+
+            if (double.IsNaN(value) ||
+                double.IsInfinity(value) ||
+                value < 0.0)
+            {
+                return;
+            }
+
+            ChartErrorBarOptions errorOptions =
+                new ChartErrorBarOptions();
+
+            XmlNode direction =
+                DirectChild(
+                    errorBars,
+                    "errDir");
+            errorOptions.Direction =
+                direction == null
+                    ? "y"
+                    : GetAttr(
+                        direction,
+                        "val") ??
+                      "y";
+
+            XmlNode barType =
+                DirectChild(
+                    errorBars,
+                    "errBarType");
+            errorOptions.BarType =
+                barType == null
+                    ? "both"
+                    : GetAttr(
+                        barType,
+                        "val") ??
+                      "both";
+
+            errorOptions.ValueType =
+                valueTypeName;
+            errorOptions.Value =
+                value;
+
+            Color errorFallback =
+                data.ExplicitColor ??
+                Color.FromArgb(
+                    95,
+                    95,
+                    95);
+
+            errorOptions.LineStyle =
+                ReadChartOverlayLineStyle(
+                    errorBars,
+                    theme,
+                    errorFallback,
+                    1f);
+
+            data.ErrorBars =
+                errorOptions;
+        }
+
+        private static double ReadChartOverlayNumber(
+            XmlNode parent,
+            string localName)
+        {
+            XmlNode node =
+                parent == null
+                    ? null
+                    : DirectChild(
+                        parent,
+                        localName);
+
+            double parsed;
+
+            if (node == null ||
+                !double.TryParse(
+                    GetAttr(
+                        node,
+                        "val"),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out parsed))
+            {
+                return double.NaN;
+            }
+
+            return parsed;
+        }
+
+        private static ChartLineStyle ReadChartOverlayLineStyle(
+            XmlNode container,
+            Dictionary<string, Color> theme,
+            Color fallbackColor,
+            float fallbackWidth)
+        {
+            ChartLineStyle style =
+                new ChartLineStyle();
+
+            style.Color =
+                fallbackColor;
+            style.Width =
+                Math.Max(
+                    1f,
+                    fallbackWidth);
+
+            XmlNode shapeProperties =
+                container == null
+                    ? null
+                    : DirectChild(
+                        container,
+                        "spPr");
+
+            XmlNode line =
+                shapeProperties == null
+                    ? null
+                    : DirectChild(
+                        shapeProperties,
+                        "ln");
+
+            if (line == null)
+                return style;
+
+            Color? color =
+                ReadSolidFill(
+                    line,
+                    theme);
+
+            if (color.HasValue)
+            {
+                style.Color =
+                    color.Value;
+            }
+
+            long width =
+                GetLong(
+                    line,
+                    "w",
+                    0);
+
+            if (width > 0)
+            {
+                style.Width =
+                    Math.Max(
+                        1f,
+                        EmuToRenderPixels(
+                            width));
+            }
+
+            XmlNode dash =
+                DirectChild(
+                    line,
+                    "prstDash");
+
+            style.DashStyle =
+                ParseChartDashStyle(
+                    dash == null
+                        ? string.Empty
+                        : GetAttr(
+                            dash,
+                            "val"));
+
+            return style;
         }
 
         private static DashStyle ParseChartDashStyle(
