@@ -219,6 +219,7 @@ namespace PptxViewer
             properties.Dock = DockStyle.Right;
             properties.Width = 300;
             properties.Padding = new Padding(14);
+            properties.AutoScroll = true;
             properties.BackColor = ApplicationTheme.Sidebar;
             properties.Paint += delegate(object sender, PaintEventArgs e)
             {
@@ -383,6 +384,142 @@ namespace PptxViewer
                 false);
             hint.ForeColor = ApplicationTheme.SecondaryText;
             properties.Controls.Add(hint);
+
+            Action layoutPropertyFields =
+                delegate
+                {
+                    const int contentLeft = 14;
+                    const int contentRight = 14;
+                    const int columnGap = 14;
+
+                    int contentWidth =
+                        Math.Max(
+                            220,
+                            properties.ClientSize.Width -
+                            contentLeft -
+                            contentRight);
+
+                    int halfWidth =
+                        Math.Max(
+                            96,
+                            (contentWidth -
+                             columnGap) /
+                            2);
+
+                    int rightColumnLeft =
+                        contentLeft +
+                        halfWidth +
+                        columnGap;
+
+                    title.Left =
+                        contentLeft;
+                    title.Width =
+                        contentWidth;
+
+                    objectTypeLabel.Left =
+                        contentLeft;
+                    objectTypeLabel.Width =
+                        contentWidth;
+
+                    textLabel.Left =
+                        contentLeft;
+                    textLabel.Width =
+                        contentWidth;
+
+                    textEditor.Left =
+                        contentLeft;
+                    textEditor.Width =
+                        contentWidth;
+
+                    fontLabel.Left =
+                        contentLeft;
+                    fontLabel.Width =
+                        contentWidth;
+
+                    fontPicker.Left =
+                        contentLeft;
+                    fontPicker.Width =
+                        contentWidth;
+
+                    sizeLabel.Left =
+                        contentLeft;
+                    fontSize.Left =
+                        contentLeft;
+                    boldCheck.Left =
+                        contentLeft +
+                        92;
+                    italicCheck.Left =
+                        contentLeft +
+                        164;
+
+                    alignLabel.Left =
+                        contentLeft;
+                    alignLabel.Width =
+                        halfWidth;
+
+                    alignmentPicker.Left =
+                        contentLeft;
+                    alignmentPicker.Width =
+                        halfWidth;
+
+                    textColorLabel.Left =
+                        rightColumnLeft;
+                    textColorLabel.Width =
+                        halfWidth;
+
+                    textColorEditor.Left =
+                        rightColumnLeft;
+                    textColorEditor.Width =
+                        halfWidth;
+
+                    shapeLabel.Left =
+                        contentLeft;
+                    shapeLabel.Width =
+                        contentWidth;
+
+                    shapeKindPicker.Left =
+                        contentLeft;
+                    shapeKindPicker.Width =
+                        contentWidth;
+
+                    fillLabel.Left =
+                        contentLeft;
+                    fillLabel.Width =
+                        halfWidth;
+
+                    fillColorEditor.Left =
+                        contentLeft;
+                    fillColorEditor.Width =
+                        halfWidth;
+
+                    lineLabel.Left =
+                        rightColumnLeft;
+                    lineLabel.Width =
+                        halfWidth;
+
+                    lineColorEditor.Left =
+                        rightColumnLeft;
+                    lineColorEditor.Width =
+                        halfWidth;
+
+                    hint.Left =
+                        contentLeft;
+                    hint.Width =
+                        contentWidth;
+
+                    properties.AutoScrollMinSize =
+                        new Size(
+                            0,
+                            hint.Bottom +
+                            16);
+                };
+
+            properties.Resize += delegate
+            {
+                layoutPropertyFields();
+            };
+
+            layoutPropertyFields();
 
             Panel slidePanel = new Panel();
             slidePanel.Dock = DockStyle.Left;
