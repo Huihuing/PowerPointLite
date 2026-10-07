@@ -267,6 +267,26 @@ internal static partial class InternalPptxRenderer
                         chartDoc,
                         theme);
 
+                RectangleF titleRect =
+                    new RectangleF(
+                        rect.Left + 5f,
+                        rect.Top + 4f,
+                        rect.Width - 10f,
+                        titleHeight - 4f);
+
+                RectangleF manualTitleRect;
+
+                if (TryResolveChartElementManualLayout(
+                        chartDoc,
+                        "title",
+                        rect,
+                        titleRect,
+                        out manualTitleRect))
+                {
+                    titleRect =
+                        manualTitleRect;
+                }
+
                 using (Font font =
                     SafeChartTextFont(
                         "Arial",
@@ -298,11 +318,7 @@ internal static partial class InternalPptxRenderer
                         title,
                         font,
                         brush,
-                        new RectangleF(
-                            rect.Left + 5,
-                            rect.Top + 4,
-                            rect.Width - 10,
-                            titleHeight - 4),
+                        titleRect,
                         sf);
                 }
             }
@@ -535,7 +551,8 @@ internal static partial class InternalPptxRenderer
                         chartDoc,
                         theme),
                     ReadChartLegendHiddenEntries(
-                        chartDoc));
+                        chartDoc),
+chartDoc);
                 return;
             }
 
@@ -1220,7 +1237,8 @@ internal static partial class InternalPptxRenderer
                     chartDoc,
                     theme),
                 ReadChartLegendHiddenEntries(
-                    chartDoc));
+                    chartDoc),
+chartDoc);
         }
 
         private static ChartBarOptions ReadChartBarOptions(
@@ -6149,7 +6167,8 @@ internal static partial class InternalPptxRenderer
             string kind,
             string position,
             ChartLabelOptions textStyle = null,
-            HashSet<int> hiddenEntries = null)
+            HashSet<int> hiddenEntries = null,
+            XmlDocument chartDoc = null)
         {
             if (string.IsNullOrEmpty(position) ||
                 series == null ||
@@ -6247,7 +6266,7 @@ internal static partial class InternalPptxRenderer
                 if (position == "t" ||
                     position == "b")
                 {
-                    float y =
+                    float automaticY =
                         position == "t"
                             ? rect.Top +
                                 Math.Max(
@@ -6260,9 +6279,38 @@ internal static partial class InternalPptxRenderer
                                     rect.Height *
                                     0.08f);
 
+                    RectangleF automaticLegendRect =
+                        new RectangleF(
+                            rect.Left + 12f,
+                            automaticY,
+                            Math.Max(
+                                20f,
+                                rect.Width - 20f),
+                            Math.Max(
+                                font.Height + 7f,
+                                rect.Height * 0.10f));
+
+                    RectangleF legendRect =
+                        automaticLegendRect;
+
+                    RectangleF manualLegendRect;
+
+                    if (TryResolveChartElementManualLayout(
+                            chartDoc,
+                            "legend",
+                            rect,
+                            automaticLegendRect,
+                            out manualLegendRect))
+                    {
+                        legendRect =
+                            manualLegendRect;
+                    }
+
+                    float y =
+                        legendRect.Top;
+
                     float x =
-                        rect.Left +
-                        12f;
+                        legendRect.Left;
 
                     for (int i = 0;
                          i < labels.Count;
@@ -6279,11 +6327,10 @@ internal static partial class InternalPptxRenderer
                             12f;
 
                         if (x + itemWidth >
-                            rect.Right - 8f)
+                            legendRect.Right)
                         {
                             x =
-                                rect.Left +
-                                12f;
+                                legendRect.Left;
                             y +=
                                 font.Height +
                                 7f;
@@ -6335,6 +6382,36 @@ internal static partial class InternalPptxRenderer
                                 35f,
                                 rect.Height *
                                 0.12f);
+
+                RectangleF automaticLegendRect =
+                    new RectangleF(
+                        legendX,
+                        legendY,
+                        legendWidth,
+                        Math.Max(
+                            font.Height + 4f,
+                            Math.Min(
+                                rect.Bottom -
+                                    legendY,
+                                labels.Count *
+                                (font.Height + 4f))));
+
+                RectangleF manualLegendRect;
+
+                if (TryResolveChartElementManualLayout(
+                        chartDoc,
+                        "legend",
+                        rect,
+                        automaticLegendRect,
+                        out manualLegendRect))
+                {
+                    legendX =
+                        manualLegendRect.Left;
+                    legendY =
+                        manualLegendRect.Top;
+                    legendWidth =
+                        manualLegendRect.Width;
+                }
 
                 for (int i = 0;
                      i < labels.Count;
