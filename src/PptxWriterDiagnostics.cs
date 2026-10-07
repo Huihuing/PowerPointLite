@@ -12,6 +12,8 @@ namespace PptxViewer
     {
         public static void CreateAndValidate(string outputPath)
         {
+            EditorClipboardCodecDiagnostics.Validate();
+
             PresentationDocument document =
                 PresentationDocument.CreateNew("Writer Self Test");
 

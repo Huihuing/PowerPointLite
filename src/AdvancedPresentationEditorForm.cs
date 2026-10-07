@@ -72,9 +72,7 @@ namespace PptxViewer
 
         private bool loadingProperties;
         private bool propertyEditSnapshotActive;
-        private PresentationTextBox copiedTextBox;
-        private PresentationShape copiedShape;
-        private PresentationImage copiedImage;
+        private EditorClipboardPackage copiedObjects;
 
         public string SavedFilePath
         {
@@ -892,6 +890,10 @@ namespace PptxViewer
             lineColorEditor.Leave += delegate { propertyEditSnapshotActive = false; };
 
             FormClosing += OnEditorClosing;
+            Activated += delegate
+            {
+                UpdateButtons();
+            };
 
             RefreshSlideList();
             if (slideList.Items.Count > 0)
@@ -1161,31 +1163,85 @@ namespace PptxViewer
             {
                 using (Image image = Image.FromFile(path))
                 {
-                    double ratio = image.Width / (double)Math.Max(1, image.Height);
-                    long maxWidth = 5486400;
-                    long maxHeight = 3657600;
-                    long width = maxWidth;
-                    long height = (long)Math.Round(width / ratio);
-
-                    if (height > maxHeight)
-                    {
-                        height = maxHeight;
-                        width = (long)Math.Round(height * ratio);
-                    }
-
-                    item.Width = Math.Max(914400L, width);
-                    item.Height = Math.Max(914400L, height);
-                    item.X = Math.Max(0L, (session.Document.WidthEmu - item.Width) / 2L);
-                    item.Y = Math.Max(0L, (session.Document.HeightEmu - item.Height) / 2L);
+                    SetImageDefaultSize(
+                        item,
+                        image.Width,
+                        image.Height);
                 }
             }
             catch
             {
-                item.X = 1828800;
-                item.Y = 1600200;
-                item.Width = 5486400;
-                item.Height = 3657600;
+                SetImageFallbackSize(item);
             }
+        }
+
+        private void SetImageDefaultSize(
+            PresentationImage item,
+            int pixelWidth,
+            int pixelHeight)
+        {
+            if (item == null ||
+                pixelWidth <= 0 ||
+                pixelHeight <= 0)
+            {
+                SetImageFallbackSize(item);
+                return;
+            }
+
+            double ratio =
+                pixelWidth /
+                (double)Math.Max(
+                    1,
+                    pixelHeight);
+            long maxWidth = 5486400;
+            long maxHeight = 3657600;
+            long width = maxWidth;
+            long height =
+                (long)Math.Round(
+                    width /
+                    ratio);
+
+            if (height > maxHeight)
+            {
+                height = maxHeight;
+                width =
+                    (long)Math.Round(
+                        height *
+                        ratio);
+            }
+
+            item.Width =
+                Math.Max(
+                    914400L,
+                    width);
+            item.Height =
+                Math.Max(
+                    914400L,
+                    height);
+            item.X =
+                Math.Max(
+                    0L,
+                    (session.Document.WidthEmu -
+                     item.Width) /
+                    2L);
+            item.Y =
+                Math.Max(
+                    0L,
+                    (session.Document.HeightEmu -
+                     item.Height) /
+                    2L);
+        }
+
+        private void SetImageFallbackSize(
+            PresentationImage item)
+        {
+            if (item == null)
+                return;
+
+            item.X = 1828800;
+            item.Y = 1600200;
+            item.Width = 5486400;
+            item.Height = 3657600;
         }
 
         private void DeleteSelectedObject()
@@ -1406,79 +1462,514 @@ namespace PptxViewer
 
         private void CopySelectedObject()
         {
-            copiedTextBox = null;
-            copiedShape = null;
-            copiedImage = null;
+            PresentationSlide slide =
+                GetSelectedSlide();
+            List<EditorSelectionEntry> selection =
+                canvas == null
+                    ? new List<EditorSelectionEntry>()
+                    : canvas.GetSelectedObjects();
 
-            PresentationSlide slide = GetSelectedSlide();
             if (slide == null ||
-                canvas.SelectedObjectCount != 1 ||
-                canvas.SelectedObjectIndex < 0)
+                selection.Count == 0)
             {
                 return;
             }
 
-            int index = canvas.SelectedObjectIndex;
-            if (canvas.SelectedObjectKind == EditorObjectKind.TextBox && index < slide.TextBoxes.Count)
-                copiedTextBox = slide.TextBoxes[index].Clone();
-            else if (canvas.SelectedObjectKind == EditorObjectKind.Shape && index < slide.Shapes.Count)
-                copiedShape = slide.Shapes[index].Clone();
-            else if (canvas.SelectedObjectKind == EditorObjectKind.Image && index < slide.Images.Count)
-                copiedImage = slide.Images[index].Clone();
+            EditorClipboardPackage package =
+                EditorClipboardCodec.CreatePackage(
+                    slide,
+                    selection);
 
+            if (package == null ||
+                !package.HasObjects)
+            {
+                return;
+            }
+
+            copiedObjects = package.Clone();
+            TryWriteSystemClipboard(package);
             UpdateButtons();
         }
 
         private void PasteObject()
         {
-            PresentationSlide slide = GetSelectedSlide();
+            PresentationSlide slide =
+                GetSelectedSlide();
+
             if (slide == null)
                 return;
 
-            if (copiedTextBox == null && copiedShape == null && copiedImage == null)
+            EditorClipboardPackage package;
+            string externalText;
+            byte[] externalImage;
+            int externalImageWidth;
+            int externalImageHeight;
+            bool clipboardAvailable =
+                TryReadSystemClipboard(
+                    out package,
+                    out externalText,
+                    out externalImage,
+                    out externalImageWidth,
+                    out externalImageHeight);
+
+            if (!clipboardAvailable &&
+                copiedObjects != null &&
+                copiedObjects.HasObjects)
+            {
+                package =
+                    copiedObjects.Clone();
+            }
+
+            if (package != null &&
+                package.HasObjects)
+            {
+                CaptureHistory();
+                PasteClipboardPackage(
+                    slide,
+                    package);
+                session.MarkDirty();
+                canvas.Invalidate();
+                LoadSelectedProperties();
+                UpdateStatus();
+                return;
+            }
+
+            if (externalImage != null &&
+                externalImage.Length > 0)
+            {
+                CaptureHistory();
+                PresentationImage item =
+                    session.AddImage(
+                        canvas.SelectedSlideIndex,
+                        externalImage,
+                        "png",
+                        "image/png");
+
+                if (item == null)
+                    return;
+
+                item.Name = "Clipboard image";
+                SetImageDefaultSize(
+                    item,
+                    externalImageWidth,
+                    externalImageHeight);
+
+                int imageIndex =
+                    slide.Images.Count - 1;
+                canvas.Document = session.Document;
+                canvas.SelectObject(
+                    EditorObjectKind.Image,
+                    imageIndex);
+                canvas.Invalidate();
+                LoadSelectedProperties();
+                UpdateStatus();
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(externalText))
+            {
+                CaptureHistory();
+                PresentationTextBox box =
+                    session.AddTextBox(
+                        canvas.SelectedSlideIndex,
+                        externalText);
+
+                if (box == null)
+                    return;
+
+                box.Name = "Clipboard text";
+                int textIndex =
+                    slide.TextBoxes.Count - 1;
+                canvas.Document = session.Document;
+                canvas.SelectObject(
+                    EditorObjectKind.TextBox,
+                    textIndex);
+                canvas.Invalidate();
+                LoadSelectedProperties();
+                UpdateStatus();
+            }
+        }
+
+        private void PasteClipboardPackage(
+            PresentationSlide slide,
+            EditorClipboardPackage source)
+        {
+            if (slide == null ||
+                source == null ||
+                !source.HasObjects)
+            {
+                return;
+            }
+
+            EditorClipboardPackage package =
+                source.Clone();
+            const long preferredOffset = 228600L;
+            long minX = long.MaxValue;
+            long minY = long.MaxValue;
+            long maxRight = long.MinValue;
+            long maxBottom = long.MinValue;
+
+            for (int i = 0;
+                 i < package.Objects.Count;
+                 i++)
+            {
+                EditorClipboardObject item =
+                    package.Objects[i];
+                long x;
+                long y;
+                long width;
+                long height;
+
+                if (item == null ||
+                    !item.TryGetGeometry(
+                        out x,
+                        out y,
+                        out width,
+                        out height))
+                {
+                    continue;
+                }
+
+                minX = Math.Min(minX, x);
+                minY = Math.Min(minY, y);
+                maxRight =
+                    Math.Max(
+                        maxRight,
+                        x + width);
+                maxBottom =
+                    Math.Max(
+                        maxBottom,
+                        y + height);
+            }
+
+            if (minX == long.MaxValue)
                 return;
 
-            CaptureHistory();
-            const long offset = 228600;
+            long groupWidth =
+                Math.Max(
+                    0L,
+                    maxRight - minX);
+            long groupHeight =
+                Math.Max(
+                    0L,
+                    maxBottom - minY);
+            long targetLeft =
+                groupWidth <= session.Document.WidthEmu
+                    ? Math.Max(
+                        0L,
+                        Math.Min(
+                            session.Document.WidthEmu -
+                            groupWidth,
+                            minX + preferredOffset))
+                    : 0L;
+            long targetTop =
+                groupHeight <= session.Document.HeightEmu
+                    ? Math.Max(
+                        0L,
+                        Math.Min(
+                            session.Document.HeightEmu -
+                            groupHeight,
+                            minY + preferredOffset))
+                    : 0L;
+            long dx = targetLeft - minX;
+            long dy = targetTop - minY;
 
-            if (copiedTextBox != null)
+            List<EditorSelectionEntry> pasted =
+                new List<EditorSelectionEntry>();
+
+            for (int i = 0;
+                 i < package.Objects.Count;
+                 i++)
             {
-                PresentationTextBox copy = copiedTextBox.Clone();
-                copy.X += offset;
-                copy.Y += offset;
-                slide.TextBoxes.Add(copy);
-                slide.RegisterObjectOrder(
-                    PresentationLayerKind.TextBox,
-                    slide.TextBoxes.Count - 1);
-                canvas.SelectObject(EditorObjectKind.TextBox, slide.TextBoxes.Count - 1);
-            }
-            else if (copiedShape != null)
-            {
-                PresentationShape copy = copiedShape.Clone();
-                copy.X += offset;
-                copy.Y += offset;
-                slide.Shapes.Add(copy);
-                slide.RegisterObjectOrder(
-                    PresentationLayerKind.Shape,
-                    slide.Shapes.Count - 1);
-                canvas.SelectObject(EditorObjectKind.Shape, slide.Shapes.Count - 1);
-            }
-            else if (copiedImage != null)
-            {
-                PresentationImage copy = copiedImage.Clone();
-                copy.X += offset;
-                copy.Y += offset;
-                slide.Images.Add(copy);
-                slide.RegisterObjectOrder(
-                    PresentationLayerKind.Image,
-                    slide.Images.Count - 1);
-                canvas.SelectObject(EditorObjectKind.Image, slide.Images.Count - 1);
+                EditorClipboardObject item =
+                    package.Objects[i];
+
+                if (item == null)
+                    continue;
+
+                item.Offset(dx, dy);
+                EditorSelectionEntry selection =
+                    new EditorSelectionEntry();
+
+                if (item.Kind == EditorObjectKind.TextBox &&
+                    item.TextBox != null)
+                {
+                    slide.TextBoxes.Add(
+                        item.TextBox.Clone());
+                    selection.Kind =
+                        EditorObjectKind.TextBox;
+                    selection.Index =
+                        slide.TextBoxes.Count - 1;
+                    slide.RegisterObjectOrder(
+                        PresentationLayerKind.TextBox,
+                        selection.Index);
+                }
+                else if (item.Kind == EditorObjectKind.Shape &&
+                         item.Shape != null)
+                {
+                    slide.Shapes.Add(
+                        item.Shape.Clone());
+                    selection.Kind =
+                        EditorObjectKind.Shape;
+                    selection.Index =
+                        slide.Shapes.Count - 1;
+                    slide.RegisterObjectOrder(
+                        PresentationLayerKind.Shape,
+                        selection.Index);
+                }
+                else if (item.Kind == EditorObjectKind.Image &&
+                         item.Image != null)
+                {
+                    slide.Images.Add(
+                        item.Image.Clone());
+                    selection.Kind =
+                        EditorObjectKind.Image;
+                    selection.Index =
+                        slide.Images.Count - 1;
+                    slide.RegisterObjectOrder(
+                        PresentationLayerKind.Image,
+                        selection.Index);
+                }
+                else
+                {
+                    continue;
+                }
+
+                pasted.Add(selection);
             }
 
-            session.MarkDirty();
-            canvas.Invalidate();
-            LoadSelectedProperties();
-            UpdateStatus();
+            canvas.Document = session.Document;
+            canvas.SelectObjects(pasted);
+        }
+
+        private void TryWriteSystemClipboard(
+            EditorClipboardPackage package)
+        {
+            if (package == null ||
+                !package.HasObjects)
+            {
+                return;
+            }
+
+            Bitmap clipboardBitmap = null;
+
+            try
+            {
+                DataObject data =
+                    new DataObject();
+                string encoded =
+                    EditorClipboardCodec.Encode(
+                        package);
+
+                if (!string.IsNullOrEmpty(encoded))
+                {
+                    data.SetData(
+                        EditorClipboardCodec.ClipboardFormat,
+                        false,
+                        encoded);
+                }
+
+                if (package.Objects.Count == 1)
+                {
+                    EditorClipboardObject item =
+                        package.Objects[0];
+
+                    if (item != null &&
+                        item.Kind == EditorObjectKind.TextBox &&
+                        item.TextBox != null)
+                    {
+                        data.SetText(
+                            item.TextBox.Text ??
+                            string.Empty,
+                            TextDataFormat.UnicodeText);
+                    }
+                    else if (item != null &&
+                             item.Kind == EditorObjectKind.Image &&
+                             item.Image != null &&
+                             item.Image.Data != null &&
+                             item.Image.Data.Length > 0)
+                    {
+                        try
+                        {
+                            using (MemoryStream stream =
+                                new MemoryStream(
+                                    item.Image.Data,
+                                    false))
+                            using (Image source =
+                                Image.FromStream(stream))
+                            {
+                                clipboardBitmap =
+                                    new Bitmap(
+                                        Math.Max(1, source.Width),
+                                        Math.Max(1, source.Height));
+
+                                using (Graphics graphics =
+                                    Graphics.FromImage(
+                                        clipboardBitmap))
+                                {
+                                    graphics.DrawImageUnscaled(
+                                        source,
+                                        0,
+                                        0);
+                                }
+
+                                data.SetImage(
+                                    clipboardBitmap);
+                            }
+                        }
+                        catch
+                        {
+                            if (clipboardBitmap != null)
+                            {
+                                clipboardBitmap.Dispose();
+                                clipboardBitmap = null;
+                            }
+                        }
+                    }
+                }
+
+                Clipboard.SetDataObject(
+                    data,
+                    true);
+            }
+            catch
+            {
+            }
+            finally
+            {
+                if (clipboardBitmap != null)
+                    clipboardBitmap.Dispose();
+            }
+        }
+
+        private bool TryReadSystemClipboard(
+            out EditorClipboardPackage package,
+            out string text,
+            out byte[] imageData,
+            out int imageWidth,
+            out int imageHeight)
+        {
+            package = null;
+            text = null;
+            imageData = null;
+            imageWidth = 0;
+            imageHeight = 0;
+
+            try
+            {
+                IDataObject data =
+                    Clipboard.GetDataObject();
+
+                if (data == null)
+                    return true;
+
+                if (data.GetDataPresent(
+                        EditorClipboardCodec.ClipboardFormat))
+                {
+                    object raw =
+                        data.GetData(
+                            EditorClipboardCodec.ClipboardFormat);
+                    string encoded =
+                        raw as string;
+                    EditorClipboardPackage decoded;
+
+                    if (EditorClipboardCodec.TryDecode(
+                            encoded,
+                            out decoded))
+                    {
+                        package = decoded;
+                        return true;
+                    }
+                }
+
+                if (data.GetDataPresent(
+                        DataFormats.Bitmap,
+                        true))
+                {
+                    Image image =
+                        data.GetData(
+                            DataFormats.Bitmap,
+                            true) as Image;
+
+                    if (image != null)
+                    {
+                        imageWidth = image.Width;
+                        imageHeight = image.Height;
+
+                        using (MemoryStream stream =
+                            new MemoryStream())
+                        {
+                            image.Save(
+                                stream,
+                                System.Drawing.Imaging.ImageFormat.Png);
+                            imageData =
+                                stream.ToArray();
+                        }
+
+                        return true;
+                    }
+                }
+
+                if (data.GetDataPresent(
+                        DataFormats.UnicodeText,
+                        true))
+                {
+                    text =
+                        data.GetData(
+                            DataFormats.UnicodeText,
+                            true) as string;
+                    return true;
+                }
+
+                if (data.GetDataPresent(
+                        DataFormats.Text,
+                        true))
+                {
+                    text =
+                        data.GetData(
+                            DataFormats.Text,
+                            true) as string;
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool CanPasteObject()
+        {
+            try
+            {
+                IDataObject data =
+                    Clipboard.GetDataObject();
+
+                if (data != null)
+                {
+                    return
+                        data.GetDataPresent(
+                            EditorClipboardCodec.ClipboardFormat) ||
+                        data.GetDataPresent(
+                            DataFormats.Bitmap,
+                            true) ||
+                        data.GetDataPresent(
+                            DataFormats.UnicodeText,
+                            true) ||
+                        data.GetDataPresent(
+                            DataFormats.Text,
+                            true);
+                }
+
+                return false;
+            }
+            catch
+            {
+                return
+                    copiedObjects != null &&
+                    copiedObjects.HasObjects;
+            }
         }
 
         private PresentationSlide GetSelectedSlide()
@@ -1773,8 +2264,8 @@ namespace PptxViewer
                 hasSelection &&
                 canvas.SelectedObjectCount == 1;
             deleteObjectButton.Enabled = hasSelection;
-            copyButton.Enabled = singleSelection;
-            pasteButton.Enabled = copiedTextBox != null || copiedShape != null || copiedImage != null;
+            copyButton.Enabled = hasSelection;
+            pasteButton.Enabled = CanPasteObject();
 
             PresentationSlide slide =
                 GetSelectedSlide();
@@ -1952,6 +2443,48 @@ namespace PptxViewer
             SetPrimarySelection(
                 kind,
                 index);
+            NotifySelectionChanged();
+        }
+
+        public void SelectObjects(
+            IList<EditorSelectionEntry> objects)
+        {
+            selectedObjects.Clear();
+
+            if (objects != null)
+            {
+                for (int i = 0;
+                     i < objects.Count;
+                     i++)
+                {
+                    EditorSelectionEntry entry =
+                        objects[i];
+
+                    if (entry != null)
+                    {
+                        AddSelectionEntry(
+                            entry.Kind,
+                            entry.Index);
+                    }
+                }
+            }
+
+            if (selectedObjects.Count > 0)
+            {
+                EditorSelectionEntry primary =
+                    selectedObjects[
+                        selectedObjects.Count - 1];
+                SetPrimarySelection(
+                    primary.Kind,
+                    primary.Index);
+            }
+            else
+            {
+                SetPrimarySelection(
+                    EditorObjectKind.None,
+                    -1);
+            }
+
             NotifySelectionChanged();
         }
 

@@ -155,6 +155,10 @@ Advanced Editor는 선택 객체에 대해 **Send Back / Bring Front**를 제공
 
 multi-selection 상태에서는 상단 **Align** 메뉴가 활성화된다. 2개 이상 객체에 대해 left/center/right/top/middle/bottom 정렬을 제공하고, 3개 이상에서는 horizontal/vertical distribute를 추가로 활성화한다. distribute는 양 끝 객체의 center를 고정한 채 중간 객체의 center 간격을 균등하게 재배치한다.
 
+복사/붙여넣기는 단일 객체뿐 아니라 **현재 multi-selection 전체**를 처리한다. 선택 객체는 원본 `ObjectOrder` 순서대로 PowerPointLite 전용 versioned Clipboard payload에 기록되고, 상대 좌표·서식·이미지 bytes·상대 z-order를 유지한 채 현재 슬라이드에 붙여넣는다. 그룹이 슬라이드 경계를 벗어날 때는 객체별로 잘라 맞추지 않고 그룹 bounds에 하나의 translation을 적용해 내부 간격을 보존한다.
+
+Windows system clipboard에도 `PowerPointLite.ObjectSelection.v1` 포맷을 함께 기록하므로 다른 PowerPointLite 창/프로세스에서도 객체 묶음을 붙여넣을 수 있다. 단일 text box는 Unicode text도 함께 내보내고 단일 image는 Bitmap도 함께 내보낸다. 반대로 외부 프로그램에서 복사한 일반 text와 Bitmap image도 각각 새 text box / image 객체로 받아들인다. 전용 payload codec은 이미지 크기와 object/run count에 상한을 두고 structural self-test에서 encode/decode와 relative z-order round-trip을 검증한다.
+
 Animation 자체 테스트는 합성 `p:timing`을 프로젝트가 만든 PPTX에 주입해 click entrance, with-previous emphasis, after-previous exit, delayed motion step과 단계별 render state를 검사한다.
 
 인터넷 문서나 Microsoft/Hancom 템플릿을 fixture로 사용하지 않는다.
@@ -165,7 +169,6 @@ Animation 자체 테스트는 합성 `p:timing`을 프로젝트가 만든 PPTX�
 - Viewer renderer와 interactive canvas의 공통 layout/render primitive 확대
 - chart/SmartArt/media 등 고급 요소는 Viewer fidelity를 보존하면서 단계적 편집 지원
 - table을 일반 object selection과 통합해 drag/resize
-- system clipboard interoperability
 - accessible focus order 강화
 - arbitrary existing PPTX unknown/unsupported part preservation
 - Windows 실제 `BUILD_EXE.cmd` / `RUN_PREMERGE_CHECKS.cmd` 검증
