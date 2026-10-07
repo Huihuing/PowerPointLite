@@ -907,6 +907,7 @@ chartDoc);
             DrawChartSecondaryValueAxes(
                 g,
                 plot,
+                rect,
                 chartDoc,
                 kind,
                 secondaryAxisScales,
@@ -3616,6 +3617,7 @@ chartDoc);
         private static void DrawChartSecondaryValueAxes(
             Graphics g,
             RectangleF plot,
+            RectangleF chartRect,
             XmlDocument chartDoc,
             string kind,
             Dictionary<string, ChartAxisScale>
@@ -3697,6 +3699,54 @@ chartDoc);
                             labelPosition,
                             "none",
                             StringComparison.OrdinalIgnoreCase);
+
+                    XmlNode majorGridlines =
+                        DirectChild(
+                            axis,
+                            "majorGridlines");
+                    XmlNode minorGridlines =
+                        DirectChild(
+                            axis,
+                            "minorGridlines");
+
+                    ChartLineStyle majorGridStyle =
+                        majorGridlines == null
+                            ? null
+                            : ReadChartOverlayLineStyle(
+                                majorGridlines,
+                                theme,
+                                Color.FromArgb(
+                                    225,
+                                    228,
+                                    232),
+                                1f);
+
+                    ChartLineStyle minorGridStyle =
+                        minorGridlines == null
+                            ? null
+                            : ReadChartOverlayLineStyle(
+                                minorGridlines,
+                                theme,
+                                Color.FromArgb(
+                                    238,
+                                    240,
+                                    243),
+                                1f);
+
+                    if (majorGridStyle != null ||
+                        minorGridStyle != null)
+                    {
+                        DrawChartValueGrid(
+                            g,
+                            plot,
+                            scale,
+                            kind,
+                            false,
+                            "none",
+                            majorGridStyle,
+                            minorGridStyle,
+                            null);
+                    }
 
                     List<double> ticks =
                         BuildChartAxisTicks(
@@ -3844,6 +3894,120 @@ chartDoc);
                                         size.Height /
                                         2f);
                                 }
+                            }
+                        }
+                    }
+
+                    XmlNode title =
+                        DirectChild(
+                            axis,
+                            "title");
+
+                    string titleText =
+                        ReadChartTitleText(
+                            title);
+
+                    if (!string.IsNullOrEmpty(
+                            titleText))
+                    {
+                        ChartLabelOptions titleStyle =
+                            new ChartLabelOptions();
+
+                        titleStyle.TextColor =
+                            ReadChartDataLabelTextColor(
+                                title,
+                                theme);
+
+                        ReadChartDataLabelFontStyle(
+                            title,
+                            out titleStyle.FontSize,
+                            out titleStyle.Bold,
+                            out titleStyle.Italic,
+                            out titleStyle.FontFamily);
+
+                        using (Font titleFont =
+                            SafeChartTextFont(
+                                "Arial",
+                                Math.Max(
+                                    7f,
+                                    Math.Min(
+                                        11f,
+                                        chartRect.Height /
+                                        30f)),
+                                FontStyle.Bold,
+                                titleStyle))
+                        using (Brush titleBrush =
+                            new SolidBrush(
+                                titleStyle.TextColor.HasValue
+                                    ? titleStyle.TextColor.Value
+                                    : Color.FromArgb(
+                                        70,
+                                        70,
+                                        70)))
+                        {
+                            if (kind == "bar")
+                            {
+                                float centerY =
+                                    axisPosition == "t"
+                                        ? Math.Max(
+                                            chartRect.Top +
+                                            8f,
+                                            plot.Top -
+                                            20f)
+                                        : Math.Min(
+                                            chartRect.Bottom -
+                                            8f,
+                                            plot.Bottom +
+                                            20f);
+
+                                SizeF titleSize =
+                                    g.MeasureString(
+                                        titleText,
+                                        titleFont);
+
+                                g.DrawString(
+                                    titleText,
+                                    titleFont,
+                                    titleBrush,
+                                    plot.Left +
+                                    (plot.Width -
+                                     titleSize.Width) /
+                                    2f,
+                                    centerY -
+                                    titleSize.Height /
+                                    2f);
+                            }
+                            else
+                            {
+                                bool leftAxis =
+                                    axisPosition == "l";
+
+                                float centerX =
+                                    leftAxis
+                                        ? Math.Max(
+                                            chartRect.Left +
+                                            8f,
+                                            plot.Left -
+                                            24f)
+                                        : Math.Min(
+                                            chartRect.Right -
+                                            8f,
+                                            plot.Right +
+                                            24f);
+
+                                DrawRotatedChartAxisTitle(
+                                    g,
+                                    titleText,
+                                    titleFont,
+                                    titleBrush,
+                                    new PointF(
+                                        centerX,
+                                        plot.Top +
+                                        plot.Height /
+                                        2f),
+                                    leftAxis
+                                        ? -90f
+                                        : 90f);
                             }
                         }
                     }

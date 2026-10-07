@@ -1413,7 +1413,10 @@ namespace PptxViewer
                 "<c:catAx><c:axId val=\"10\"/><c:axPos val=\"b\"/><c:crossAx val=\"20\"/></c:catAx>" +
                 "<c:valAx><c:axId val=\"20\"/><c:axPos val=\"l\"/><c:scaling><c:min val=\"0\"/><c:max val=\"100\"/></c:scaling><c:majorUnit val=\"25\"/><c:crossAx val=\"10\"/></c:valAx>" +
                 "<c:catAx><c:axId val=\"11\"/><c:axPos val=\"t\"/><c:crossAx val=\"30\"/></c:catAx>" +
-                "<c:valAx><c:axId val=\"30\"/><c:axPos val=\"r\"/><c:scaling><c:min val=\"0\"/><c:max val=\"1000\"/></c:scaling><c:majorUnit val=\"250\"/><c:spPr><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"AA2288\"/></a:solidFill></a:ln></c:spPr><c:crossAx val=\"11\"/></c:valAx>" +
+                "<c:valAx><c:axId val=\"30\"/><c:axPos val=\"r\"/><c:scaling><c:min val=\"0\"/><c:max val=\"1000\"/></c:scaling><c:majorUnit val=\"250\"/>" +
+                "<c:majorGridlines><c:spPr><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"2288AA\"/></a:solidFill><a:prstDash val=\"dash\"/></a:ln></c:spPr></c:majorGridlines>" +
+                "<c:title><c:tx><c:rich><a:p><a:r><a:t>Secondary Scale</a:t></a:r></a:p></c:rich></c:tx><c:txPr><a:p><a:pPr><a:defRPr sz=\"900\" b=\"1\"><a:solidFill><a:srgbClr val=\"AA2288\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr></c:title>" +
+                "<c:spPr><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"AA2288\"/></a:solidFill></a:ln></c:spPr><c:crossAx val=\"11\"/></c:valAx>" +
                 "</c:plotArea></c:chart></c:chartSpace>");
 
             List<XmlNode> secondarySeriesNodes =
@@ -1529,6 +1532,11 @@ namespace PptxViewer
                 DrawChartSecondaryValueAxes(
                     secondaryAxisGraphics,
                     secondaryAxisPlot,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        260f,
+                        160f),
                     secondaryAxisDoc,
                     "line",
                     secondaryAxisScales,
@@ -1565,6 +1573,69 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Chart secondary value axis was not rendered on its axPos edge.");
+                }
+
+                bool secondaryGridVisible =
+                    false;
+
+                int middleTickY =
+                    (int)Math.Round(
+                        secondaryAxisPlot.Bottom -
+                        secondaryAxisPlot.Height *
+                        0.5f);
+
+                for (int x = 42;
+                     x < 198 &&
+                     !secondaryGridVisible;
+                     x++)
+                {
+                    Color pixel =
+                        secondaryAxisBitmap.GetPixel(
+                            x,
+                            middleTickY);
+
+                    if (pixel.B > pixel.R + 35 &&
+                        pixel.G > pixel.R + 20 &&
+                        pixel.B > 120)
+                    {
+                        secondaryGridVisible =
+                            true;
+                    }
+                }
+
+                bool secondaryTitleVisible =
+                    false;
+
+                for (int y = 25;
+                     y < 138 &&
+                     !secondaryTitleVisible;
+                     y++)
+                {
+                    for (int x = 226;
+                         x < 258;
+                         x++)
+                    {
+                        Color pixel =
+                            secondaryAxisBitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.R > pixel.G + 35 &&
+                            pixel.B > pixel.G + 20 &&
+                            pixel.R > 120)
+                        {
+                            secondaryTitleVisible =
+                                true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!secondaryGridVisible ||
+                    !secondaryTitleVisible)
+                {
+                    throw new InvalidOperationException(
+                        "Chart secondary value-axis title or explicit gridline was not rendered.");
                 }
             }
 
