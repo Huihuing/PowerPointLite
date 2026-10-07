@@ -309,6 +309,10 @@ namespace PptxViewer
         public long Y { get; set; }
         public long Width { get; set; }
         public long Height { get; set; }
+        public int CropLeft { get; set; }
+        public int CropTop { get; set; }
+        public int CropRight { get; set; }
+        public int CropBottom { get; set; }
 
         public PresentationImage()
         {
@@ -320,6 +324,10 @@ namespace PptxViewer
             Y = 1371600;
             Width = 3657600;
             Height = 2743200;
+            CropLeft = 0;
+            CropTop = 0;
+            CropRight = 0;
+            CropBottom = 0;
         }
 
         public PresentationImage Clone()
@@ -333,6 +341,10 @@ namespace PptxViewer
             copy.Y = Y;
             copy.Width = Width;
             copy.Height = Height;
+            copy.CropLeft = CropLeft;
+            copy.CropTop = CropTop;
+            copy.CropRight = CropRight;
+            copy.CropBottom = CropBottom;
             return copy;
         }
     }

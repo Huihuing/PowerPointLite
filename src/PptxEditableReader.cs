@@ -389,6 +389,40 @@ namespace PptxViewer
                 image.Name = name;
 
             ReadTransform(pictureNode, image);
+
+            XmlNode sourceRectangle =
+                FindFirst(
+                    pictureNode,
+                    "srcRect");
+
+            if (sourceRectangle != null)
+            {
+                image.CropLeft =
+                    PresentationRenderPrimitives.ClampCropValue(
+                        (int)GetLongAttribute(
+                            sourceRectangle,
+                            "l",
+                            0L));
+                image.CropTop =
+                    PresentationRenderPrimitives.ClampCropValue(
+                        (int)GetLongAttribute(
+                            sourceRectangle,
+                            "t",
+                            0L));
+                image.CropRight =
+                    PresentationRenderPrimitives.ClampCropValue(
+                        (int)GetLongAttribute(
+                            sourceRectangle,
+                            "r",
+                            0L));
+                image.CropBottom =
+                    PresentationRenderPrimitives.ClampCropValue(
+                        (int)GetLongAttribute(
+                            sourceRectangle,
+                            "b",
+                            0L));
+            }
+
             return image;
         }
 

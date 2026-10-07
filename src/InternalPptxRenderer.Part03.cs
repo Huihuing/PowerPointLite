@@ -59,32 +59,48 @@ internal static partial class InternalPptxRenderer
                     {
                         ApplyRotation(g, pic, rect);
 
-                        RectangleF source = new RectangleF(
-                            0,
-                            0,
-                            clone.Width,
-                            clone.Height);
+                        XmlNode srcRect =
+                            FindFirst(
+                                pic,
+                                "srcRect");
+                        int cropLeft =
+                            srcRect == null
+                                ? 0
+                                : (int)GetLong(
+                                    srcRect,
+                                    "l",
+                                    0);
+                        int cropTop =
+                            srcRect == null
+                                ? 0
+                                : (int)GetLong(
+                                    srcRect,
+                                    "t",
+                                    0);
+                        int cropRight =
+                            srcRect == null
+                                ? 0
+                                : (int)GetLong(
+                                    srcRect,
+                                    "r",
+                                    0);
+                        int cropBottom =
+                            srcRect == null
+                                ? 0
+                                : (int)GetLong(
+                                    srcRect,
+                                    "b",
+                                    0);
 
-                        XmlNode srcRect = FindFirst(pic, "srcRect");
-
-                        if (srcRect != null)
-                        {
-                            float left = GetLong(srcRect, "l", 0) / 100000f;
-                            float top = GetLong(srcRect, "t", 0) / 100000f;
-                            float right = GetLong(srcRect, "r", 0) / 100000f;
-                            float bottom = GetLong(srcRect, "b", 0) / 100000f;
-
-                            left = Math.Max(0f, Math.Min(0.99f, left));
-                            top = Math.Max(0f, Math.Min(0.99f, top));
-                            right = Math.Max(0f, Math.Min(0.99f, right));
-                            bottom = Math.Max(0f, Math.Min(0.99f, bottom));
-
-                            source = new RectangleF(
-                                clone.Width * left,
-                                clone.Height * top,
-                                Math.Max(1f, clone.Width * (1f - left - right)),
-                                Math.Max(1f, clone.Height * (1f - top - bottom)));
-                        }
+                        RectangleF source =
+                            PresentationRenderPrimitives
+                                .CalculateImageSourceRectangle(
+                                    clone.Width,
+                                    clone.Height,
+                                    cropLeft,
+                                    cropTop,
+                                    cropRight,
+                                    cropBottom);
 
                         XmlNode alphaNode = blip != null ? FindFirst(blip, "alphaModFix") : null;
                         float alpha = 1f;

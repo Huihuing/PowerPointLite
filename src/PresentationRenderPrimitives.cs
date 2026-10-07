@@ -83,6 +83,122 @@ namespace PptxViewer
             return fallback;
         }
 
+        public static int ClampCropValue(
+            int value)
+        {
+            return Math.Max(
+                0,
+                Math.Min(
+                    99999,
+                    value));
+        }
+
+        public static void NormalizeCrop(
+            int left,
+            int top,
+            int right,
+            int bottom,
+            out int normalizedLeft,
+            out int normalizedTop,
+            out int normalizedRight,
+            out int normalizedBottom)
+        {
+            normalizedLeft = ClampCropValue(left);
+            normalizedTop = ClampCropValue(top);
+            normalizedRight = ClampCropValue(right);
+            normalizedBottom = ClampCropValue(bottom);
+
+            NormalizeCropPair(
+                ref normalizedLeft,
+                ref normalizedRight);
+            NormalizeCropPair(
+                ref normalizedTop,
+                ref normalizedBottom);
+        }
+
+        public static RectangleF CalculateImageSourceRectangle(
+            int pixelWidth,
+            int pixelHeight,
+            int cropLeft,
+            int cropTop,
+            int cropRight,
+            int cropBottom)
+        {
+            int safeWidth = Math.Max(1, pixelWidth);
+            int safeHeight = Math.Max(1, pixelHeight);
+            int left;
+            int top;
+            int right;
+            int bottom;
+
+            NormalizeCrop(
+                cropLeft,
+                cropTop,
+                cropRight,
+                cropBottom,
+                out left,
+                out top,
+                out right,
+                out bottom);
+
+            float leftRatio = left / 100000f;
+            float topRatio = top / 100000f;
+            float rightRatio = right / 100000f;
+            float bottomRatio = bottom / 100000f;
+
+            return new RectangleF(
+                safeWidth * leftRatio,
+                safeHeight * topRatio,
+                Math.Max(
+                    1f,
+                    safeWidth *
+                    (1f -
+                     leftRatio -
+                     rightRatio)),
+                Math.Max(
+                    1f,
+                    safeHeight *
+                    (1f -
+                     topRatio -
+                     bottomRatio)));
+        }
+
+        private static void NormalizeCropPair(
+            ref int leading,
+            ref int trailing)
+        {
+            int total = leading + trailing;
+
+            if (total < 100000)
+                return;
+
+            if (total <= 0)
+            {
+                leading = 0;
+                trailing = 0;
+                return;
+            }
+
+            double scale =
+                99999d /
+                total;
+
+            leading =
+                Math.Max(
+                    0,
+                    Math.Min(
+                        99999,
+                        (int)Math.Round(
+                            leading *
+                            scale)));
+
+            trailing =
+                Math.Max(
+                    0,
+                    99999 -
+                    leading);
+        }
+
         public static StringAlignment ToStringAlignment(
             PresentationTextAlignment alignment)
         {

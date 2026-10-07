@@ -4177,7 +4177,24 @@ namespace PptxViewer
                     using (Image source = Image.FromStream(stream))
                     using (Bitmap bitmap = new Bitmap(source))
                     {
-                        graphics.DrawImage(bitmap, Rectangle.Round(rect));
+                        RectangleF sourceRectangle =
+                            PresentationRenderPrimitives
+                                .CalculateImageSourceRectangle(
+                                    bitmap.Width,
+                                    bitmap.Height,
+                                    item.CropLeft,
+                                    item.CropTop,
+                                    item.CropRight,
+                                    item.CropBottom);
+
+                        graphics.DrawImage(
+                            bitmap,
+                            Rectangle.Round(rect),
+                            sourceRectangle.X,
+                            sourceRectangle.Y,
+                            sourceRectangle.Width,
+                            sourceRectangle.Height,
+                            GraphicsUnit.Pixel);
                     }
                 }
                 catch

@@ -428,11 +428,42 @@ namespace PptxViewer
                     ? "Image " + shapeId.ToString()
                     : image.Name);
 
+            int cropLeft;
+            int cropTop;
+            int cropRight;
+            int cropBottom;
+            PresentationRenderPrimitives.NormalizeCrop(
+                image.CropLeft,
+                image.CropTop,
+                image.CropRight,
+                image.CropBottom,
+                out cropLeft,
+                out cropTop,
+                out cropRight,
+                out cropBottom);
+
+            string cropXml =
+                cropLeft == 0 &&
+                cropTop == 0 &&
+                cropRight == 0 &&
+                cropBottom == 0
+                    ? string.Empty
+                    : "<a:srcRect l=\"" +
+                      cropLeft.ToString() +
+                      "\" t=\"" +
+                      cropTop.ToString() +
+                      "\" r=\"" +
+                      cropRight.ToString() +
+                      "\" b=\"" +
+                      cropBottom.ToString() +
+                      "\"/>";
+
             return
                 "<p:pic>" +
                 "<p:nvPicPr><p:cNvPr id=\"" + shapeId.ToString() + "\" name=\"" + name + "\"/>" +
                 "<p:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>" +
                 "<p:blipFill><a:blip r:embed=\"" + EscapeXml(relationshipId) + "\"/>" +
+                cropXml +
                 "<a:stretch><a:fillRect/></a:stretch></p:blipFill>" +
                 "<p:spPr><a:xfrm><a:off x=\"" + x.ToString() + "\" y=\"" + y.ToString() + "\"/>" +
                 "<a:ext cx=\"" + width.ToString() + "\" cy=\"" + height.ToString() + "\"/></a:xfrm>" +
