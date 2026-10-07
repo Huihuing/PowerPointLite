@@ -105,10 +105,62 @@ namespace PptxViewer
             sample.Width = 9448800;
             sample.Height = 1371600;
             sample.FontSizePoints = 24f;
-            sample.Bold = true;
-            sample.Italic = true;
+            sample.Bold = false;
+            sample.Italic = false;
             sample.Alignment = PresentationTextAlignment.Center;
             sample.ColorHex = "5B8CFF";
+
+            int richStart =
+                RichTextSelectionEditor
+                    .GetEditorText(sample)
+                    .IndexOf(
+                        "italic",
+                        StringComparison.Ordinal);
+
+            RichTextFormatChange richBold =
+                new RichTextFormatChange();
+            richBold.Field =
+                RichTextFormatField.Bold;
+            richBold.BooleanValue = true;
+            RichTextSelectionEditor.ApplySelection(
+                sample,
+                richStart,
+                6,
+                richBold);
+
+            RichTextFormatChange richItalic =
+                new RichTextFormatChange();
+            richItalic.Field =
+                RichTextFormatField.Italic;
+            richItalic.BooleanValue = true;
+            RichTextSelectionEditor.ApplySelection(
+                sample,
+                richStart,
+                6,
+                richItalic);
+
+            RichTextFormatChange richUnderline =
+                new RichTextFormatChange();
+            richUnderline.Field =
+                RichTextFormatField.Underline;
+            richUnderline.BooleanValue = true;
+            RichTextSelectionEditor.ApplySelection(
+                sample,
+                richStart,
+                6,
+                richUnderline);
+
+            RichTextFormatChange richColor =
+                new RichTextFormatChange();
+            richColor.Field =
+                RichTextFormatField.Color;
+            richColor.ColorHex =
+                "AA3300";
+            RichTextSelectionEditor.ApplySelection(
+                sample,
+                richStart,
+                6,
+                richColor);
 
             PresentationPackageWriter.Save(document, outputPath);
             ValidatePackage(outputPath, document.Slides.Count, true);
@@ -451,6 +503,88 @@ namespace PptxViewer
                     slide2.GetElementsByTagName("a:tbl").Count != 1)
                 {
                     throw new InvalidOperationException("Generated table XML was not found in slide2.xml.");
+                }
+
+                XmlDocument slide3 =
+                    OpcPackageUtility.ReadXmlPart(
+                        archive,
+                        "ppt/slides/slide3.xml");
+
+                if (slide3 == null)
+                    throw new InvalidOperationException("slide3.xml could not be parsed.");
+
+                bool foundRichSelection = false;
+                XmlNodeList runs =
+                    slide3.GetElementsByTagName("a:r");
+
+                for (int i = 0;
+                     i < runs.Count;
+                     i++)
+                {
+                    XmlNode run = runs[i];
+                    XmlNode textNode =
+                        FindFirstByLocalName(
+                            run,
+                            "t");
+
+                    if (textNode == null ||
+                        textNode.InnerText !=
+                            "italic")
+                    {
+                        continue;
+                    }
+
+                    XmlNode properties =
+                        FindFirstByLocalName(
+                            run,
+                            "rPr");
+
+                    if (properties == null ||
+                        properties.Attributes == null)
+                    {
+                        continue;
+                    }
+
+                    string bold =
+                        properties.Attributes["b"] == null
+                            ? string.Empty
+                            : properties.Attributes["b"].Value;
+                    string italic =
+                        properties.Attributes["i"] == null
+                            ? string.Empty
+                            : properties.Attributes["i"].Value;
+                    string underline =
+                        properties.Attributes["u"] == null
+                            ? string.Empty
+                            : properties.Attributes["u"].Value;
+                    XmlNode color =
+                        FindFirstByLocalName(
+                            properties,
+                            "srgbClr");
+                    string colorValue =
+                        color == null ||
+                        color.Attributes == null ||
+                        color.Attributes["val"] == null
+                            ? string.Empty
+                            : color.Attributes["val"].Value;
+
+                    if (bold == "1" &&
+                        italic == "1" &&
+                        underline == "sng" &&
+                        string.Equals(
+                            colorValue,
+                            "AA3300",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        foundRichSelection = true;
+                        break;
+                    }
+                }
+
+                if (!foundRichSelection)
+                {
+                    throw new InvalidOperationException(
+                        "Selected rich-text run formatting was not persisted to slide3.xml.");
                 }
             }
         }

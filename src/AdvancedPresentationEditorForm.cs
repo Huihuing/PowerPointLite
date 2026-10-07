@@ -52,11 +52,12 @@ namespace PptxViewer
         private readonly AdvancedPresentationCanvas canvas;
         private readonly Label statusLabel;
         private readonly Label objectTypeLabel;
-        private readonly TextBox textEditor;
+        private readonly RichTextBox textEditor;
         private readonly ComboBox fontPicker;
         private readonly NumericUpDown fontSize;
         private readonly CheckBox boldCheck;
         private readonly CheckBox italicCheck;
+        private readonly CheckBox underlineCheck;
         private readonly ComboBox alignmentPicker;
         private readonly TextBox textColorEditor;
         private readonly ComboBox shapeKindPicker;
@@ -480,13 +481,15 @@ namespace PptxViewer
 
             properties.Controls.Add(textLabel);
 
-            textEditor = new TextBox();
+            textEditor = new RichTextBox();
             textEditor.Left = 0;
             textEditor.Top = 92;
             textEditor.Width = 270;
             textEditor.Height = 108;
             textEditor.Multiline = true;
-            textEditor.ScrollBars = ScrollBars.Vertical;
+            textEditor.ScrollBars = RichTextBoxScrollBars.Vertical;
+            textEditor.DetectUrls = false;
+            textEditor.HideSelection = false;
             textEditor.BackColor = ApplicationTheme.Surface;
             textEditor.ForeColor = ApplicationTheme.PrimaryText;
             textEditor.BorderStyle = BorderStyle.FixedSingle;
@@ -515,7 +518,7 @@ namespace PptxViewer
             fontSize = new NumericUpDown();
             fontSize.Left = 0;
             fontSize.Top = 286;
-            fontSize.Width = 82;
+            fontSize.Width = 76;
             fontSize.Minimum = 1;
             fontSize.Maximum = 400;
             fontSize.DecimalPlaces = 1;
@@ -527,19 +530,30 @@ namespace PptxViewer
 
             boldCheck = new CheckBox();
             boldCheck.Text = "Bold";
-            boldCheck.Left = 96;
+            boldCheck.Left = 86;
             boldCheck.Top = 288;
-            boldCheck.Width = 68;
+            boldCheck.Width = 56;
+            boldCheck.ThreeState = true;
             boldCheck.ForeColor = ApplicationTheme.PrimaryText;
             properties.Controls.Add(boldCheck);
 
             italicCheck = new CheckBox();
             italicCheck.Text = "Italic";
-            italicCheck.Left = 172;
+            italicCheck.Left = 144;
             italicCheck.Top = 288;
-            italicCheck.Width = 72;
+            italicCheck.Width = 56;
+            italicCheck.ThreeState = true;
             italicCheck.ForeColor = ApplicationTheme.PrimaryText;
             properties.Controls.Add(italicCheck);
+
+            underlineCheck = new CheckBox();
+            underlineCheck.Text = "U";
+            underlineCheck.Left = 204;
+            underlineCheck.Top = 288;
+            underlineCheck.Width = 48;
+            underlineCheck.ThreeState = true;
+            underlineCheck.ForeColor = ApplicationTheme.PrimaryText;
+            properties.Controls.Add(underlineCheck);
 
             Label alignLabel = MakeLabel("Alignment", 0, 322, 100, 20, false);
             properties.Controls.Add(alignLabel);
@@ -681,10 +695,13 @@ namespace PptxViewer
                         contentLeft;
                     boldCheck.Left =
                         contentLeft +
-                        92;
+                        86;
                     italicCheck.Left =
                         contentLeft +
-                        164;
+                        144;
+                    underlineCheck.Left =
+                        contentLeft +
+                        204;
 
                     alignLabel.Left =
                         contentLeft;
@@ -957,20 +974,67 @@ namespace PptxViewer
             };
             canvas.DeleteRequested += delegate { DeleteSelectedObject(); };
 
-            textEditor.TextChanged += delegate { ApplyProperties(); };
-            fontPicker.SelectedIndexChanged += delegate { ApplyProperties(); };
-            fontSize.ValueChanged += delegate { ApplyProperties(); };
-            boldCheck.CheckedChanged += delegate { ApplyProperties(); };
-            italicCheck.CheckedChanged += delegate { ApplyProperties(); };
-            alignmentPicker.SelectedIndexChanged += delegate { ApplyProperties(); };
-            textColorEditor.TextChanged += delegate { ApplyProperties(); };
-            shapeKindPicker.SelectedIndexChanged += delegate { ApplyProperties(); };
-            fillColorEditor.TextChanged += delegate { ApplyProperties(); };
-            lineColorEditor.TextChanged += delegate { ApplyProperties(); };
+            textEditor.TextChanged += delegate
+            {
+                ApplyTextContent();
+            };
+            textEditor.SelectionChanged += delegate
+            {
+                RefreshTextSelectionControls();
+            };
+            fontPicker.SelectedIndexChanged += delegate
+            {
+                ApplyTextFormatting(
+                    RichTextFormatField.FontFamily);
+            };
+            fontSize.ValueChanged += delegate
+            {
+                ApplyTextFormatting(
+                    RichTextFormatField.FontSize);
+            };
+            boldCheck.CheckStateChanged += delegate
+            {
+                ApplyTextFormatting(
+                    RichTextFormatField.Bold);
+            };
+            italicCheck.CheckStateChanged += delegate
+            {
+                ApplyTextFormatting(
+                    RichTextFormatField.Italic);
+            };
+            underlineCheck.CheckStateChanged += delegate
+            {
+                ApplyTextFormatting(
+                    RichTextFormatField.Underline);
+            };
+            alignmentPicker.SelectedIndexChanged += delegate
+            {
+                ApplyTextAlignment();
+            };
+            textColorEditor.TextChanged += delegate
+            {
+                ApplyTextFormatting(
+                    RichTextFormatField.Color);
+            };
+            shapeKindPicker.SelectedIndexChanged += delegate
+            {
+                ApplyShapeProperties();
+            };
+            fillColorEditor.TextChanged += delegate
+            {
+                ApplyShapeProperties();
+            };
+            lineColorEditor.TextChanged += delegate
+            {
+                ApplyShapeProperties();
+            };
 
             textEditor.Leave += delegate { propertyEditSnapshotActive = false; };
             fontPicker.Leave += delegate { propertyEditSnapshotActive = false; };
             fontSize.Leave += delegate { propertyEditSnapshotActive = false; };
+            boldCheck.Leave += delegate { propertyEditSnapshotActive = false; };
+            italicCheck.Leave += delegate { propertyEditSnapshotActive = false; };
+            underlineCheck.Leave += delegate { propertyEditSnapshotActive = false; };
             textColorEditor.Leave += delegate { propertyEditSnapshotActive = false; };
             shapeKindPicker.Leave += delegate { propertyEditSnapshotActive = false; };
             fillColorEditor.Leave += delegate { propertyEditSnapshotActive = false; };
@@ -2361,6 +2425,7 @@ namespace PptxViewer
                 fontSize.Enabled = textEnabled;
                 boldCheck.Enabled = textEnabled;
                 italicCheck.Enabled = textEnabled;
+                underlineCheck.Enabled = textEnabled;
                 alignmentPicker.Enabled = textEnabled;
                 textColorEditor.Enabled = textEnabled;
 
@@ -2370,17 +2435,18 @@ namespace PptxViewer
 
                 if (text != null)
                 {
-                    textEditor.Text = text.Text ?? string.Empty;
-                    SelectFont(text.FontFamily);
-                    fontSize.Value = (decimal)Math.Max(1f, Math.Min(400f, text.FontSizePoints));
-                    boldCheck.Checked = text.Bold;
-                    italicCheck.Checked = text.Italic;
-                    alignmentPicker.SelectedIndex = (int)text.Alignment;
-                    textColorEditor.Text = "#" + NormalizeHex(text.ColorHex);
+                    LoadTextEditorFromModel(text);
+                    alignmentPicker.SelectedIndex =
+                        (int)text.Alignment;
+                    RefreshTextSelectionControls();
                 }
                 else
                 {
                     textEditor.Text = string.Empty;
+                    fontPicker.SelectedIndex = -1;
+                    boldCheck.CheckState = CheckState.Unchecked;
+                    italicCheck.CheckState = CheckState.Unchecked;
+                    underlineCheck.CheckState = CheckState.Unchecked;
                     textColorEditor.Text = string.Empty;
                 }
 
@@ -2402,55 +2468,587 @@ namespace PptxViewer
             }
         }
 
-        private void ApplyProperties()
+        private void EnsurePropertyHistorySnapshot()
+        {
+            if (propertyEditSnapshotActive)
+                return;
+
+            history.Capture(
+                session.Document);
+            propertyEditSnapshotActive = true;
+        }
+
+        private void ApplyTextContent()
         {
             if (loadingProperties)
                 return;
 
-            PresentationTextBox text = canvas.GetSelectedTextBox();
-            PresentationShape shape = canvas.GetSelectedShape();
-            if (text == null && shape == null)
+            PresentationTextBox text =
+                canvas.GetSelectedTextBox();
+
+            if (text == null)
                 return;
 
-            if (!propertyEditSnapshotActive)
+            string modelText =
+                RichTextSelectionEditor.ToModelText(
+                    textEditor.Text);
+
+            if (string.Equals(
+                    text.Text,
+                    modelText,
+                    StringComparison.Ordinal))
             {
-                history.Capture(session.Document);
-                propertyEditSnapshotActive = true;
+                return;
             }
 
-            if (text != null)
-            {
-                text.Text = textEditor.Text ?? string.Empty;
-                if (fontPicker.SelectedItem != null)
-                    text.FontFamily = fontPicker.SelectedItem.ToString();
-                text.FontSizePoints = (float)fontSize.Value;
-                text.Bold = boldCheck.Checked;
-                text.Italic = italicCheck.Checked;
-                if (alignmentPicker.SelectedIndex >= 0 && alignmentPicker.SelectedIndex <= 2)
-                    text.Alignment = (PresentationTextAlignment)alignmentPicker.SelectedIndex;
+            EnsurePropertyHistorySnapshot();
 
-                string textColor = NormalizeHex(textColorEditor.Text);
-                if (textColor.Length == 6)
-                    text.ColorHex = textColor;
+            // Editing the actual string intentionally drops stale run
+            // boundaries. Formatting-only changes use the selection-aware
+            // path below and therefore preserve rich runs.
+            text.Text = modelText;
+            session.MarkDirty();
+
+            int selectionStart =
+                textEditor.SelectionStart;
+            int selectionLength =
+                textEditor.SelectionLength;
+
+            ApplyTextEditorVisualFormatting(
+                text,
+                selectionStart,
+                selectionLength);
+
+            canvas.Invalidate();
+            UpdateStatus();
+        }
+
+        private void ApplyTextFormatting(
+            RichTextFormatField field)
+        {
+            if (loadingProperties)
+                return;
+
+            PresentationTextBox text =
+                canvas.GetSelectedTextBox();
+
+            if (text == null)
+                return;
+
+            RichTextFormatChange change =
+                new RichTextFormatChange();
+            change.Field = field;
+
+            if (field ==
+                RichTextFormatField.FontFamily)
+            {
+                if (fontPicker.SelectedItem == null)
+                    return;
+
+                change.FontFamily =
+                    fontPicker.SelectedItem.ToString();
+            }
+            else if (field ==
+                     RichTextFormatField.FontSize)
+            {
+                change.FontSizePoints =
+                    (float)fontSize.Value;
+            }
+            else if (field ==
+                     RichTextFormatField.Bold)
+            {
+                if (boldCheck.CheckState ==
+                    CheckState.Indeterminate)
+                {
+                    return;
+                }
+
+                change.BooleanValue =
+                    boldCheck.Checked;
+            }
+            else if (field ==
+                     RichTextFormatField.Italic)
+            {
+                if (italicCheck.CheckState ==
+                    CheckState.Indeterminate)
+                {
+                    return;
+                }
+
+                change.BooleanValue =
+                    italicCheck.Checked;
+            }
+            else if (field ==
+                     RichTextFormatField.Underline)
+            {
+                if (underlineCheck.CheckState ==
+                    CheckState.Indeterminate)
+                {
+                    return;
+                }
+
+                change.BooleanValue =
+                    underlineCheck.Checked;
+            }
+            else if (field ==
+                     RichTextFormatField.Color)
+            {
+                string color =
+                    NormalizeHex(
+                        textColorEditor.Text);
+
+                if (color.Length != 6)
+                    return;
+
+                change.ColorHex = color;
             }
 
-            if (shape != null)
-            {
-                if (shapeKindPicker.SelectedIndex >= 0 && shapeKindPicker.SelectedIndex <= 4)
-                    shape.Kind = (PresentationShapeKind)shapeKindPicker.SelectedIndex;
+            EnsurePropertyHistorySnapshot();
 
-                string fill = NormalizeHex(fillColorEditor.Text);
-                string line = NormalizeHex(lineColorEditor.Text);
-                if (fill.Length == 6)
-                    shape.FillColorHex = fill;
-                if (line.Length == 6)
-                    shape.LineColorHex = line;
+            int start =
+                textEditor.SelectionStart;
+            int length =
+                textEditor.SelectionLength;
+            string editorText =
+                RichTextSelectionEditor.GetEditorText(
+                    text);
+            bool changed = false;
+
+            if (length > 0)
+            {
+                changed =
+                    RichTextSelectionEditor.ApplySelection(
+                        text,
+                        start,
+                        length,
+                        change);
+
+                if (start == 0 &&
+                    length >= editorText.Length)
+                {
+                    RichTextSelectionEditor
+                        .ApplyWholeBoxDefaults(
+                            text,
+                            change);
+                }
             }
+            else
+            {
+                RichTextSelectionEditor
+                    .ApplyWholeBoxDefaults(
+                        text,
+                        change);
+
+                if (text.HasRichText &&
+                    editorText.Length > 0)
+                {
+                    changed =
+                        RichTextSelectionEditor.ApplySelection(
+                            text,
+                            0,
+                            editorText.Length,
+                            change) ||
+                        changed;
+                }
+                else if (field ==
+                             RichTextFormatField.Underline &&
+                         editorText.Length > 0)
+                {
+                    changed =
+                        RichTextSelectionEditor.ApplySelection(
+                            text,
+                            0,
+                            editorText.Length,
+                            change) ||
+                        changed;
+                }
+                else
+                {
+                    changed = true;
+                }
+            }
+
+            if (!changed)
+                return;
+
+            session.MarkDirty();
+
+            ApplyTextEditorVisualFormatting(
+                text,
+                start,
+                length);
+            RefreshTextSelectionControls();
+            canvas.Invalidate();
+            UpdateStatus();
+        }
+
+        private void ApplyTextAlignment()
+        {
+            if (loadingProperties)
+                return;
+
+            PresentationTextBox text =
+                canvas.GetSelectedTextBox();
+
+            if (text == null ||
+                alignmentPicker.SelectedIndex < 0 ||
+                alignmentPicker.SelectedIndex > 2)
+            {
+                return;
+            }
+
+            PresentationTextAlignment alignment =
+                (PresentationTextAlignment)
+                alignmentPicker.SelectedIndex;
+
+            EnsurePropertyHistorySnapshot();
+            RichTextSelectionEditor
+                .ApplyParagraphAlignment(
+                    text,
+                    alignment);
+            session.MarkDirty();
+            canvas.Invalidate();
+            UpdateStatus();
+        }
+
+        private void ApplyShapeProperties()
+        {
+            if (loadingProperties)
+                return;
+
+            PresentationShape shape =
+                canvas.GetSelectedShape();
+
+            if (shape == null)
+                return;
+
+            EnsurePropertyHistorySnapshot();
+
+            if (shapeKindPicker.SelectedIndex >= 0 &&
+                shapeKindPicker.SelectedIndex <= 4)
+            {
+                shape.Kind =
+                    (PresentationShapeKind)
+                    shapeKindPicker.SelectedIndex;
+            }
+
+            string fill =
+                NormalizeHex(
+                    fillColorEditor.Text);
+            string line =
+                NormalizeHex(
+                    lineColorEditor.Text);
+
+            if (fill.Length == 6)
+                shape.FillColorHex = fill;
+
+            if (line.Length == 6)
+                shape.LineColorHex = line;
 
             session.MarkDirty();
             canvas.Invalidate();
             UpdateStatus();
-            UpdateButtons();
+        }
+
+        private void LoadTextEditorFromModel(
+            PresentationTextBox text)
+        {
+            if (text == null)
+            {
+                textEditor.Text =
+                    string.Empty;
+                return;
+            }
+
+            textEditor.Text =
+                RichTextSelectionEditor.GetEditorText(
+                    text);
+            ApplyTextEditorVisualFormatting(
+                text,
+                0,
+                0);
+        }
+
+        private void ApplyTextEditorVisualFormatting(
+            PresentationTextBox text,
+            int selectionStart,
+            int selectionLength)
+        {
+            if (text == null)
+                return;
+
+            bool previousLoading =
+                loadingProperties;
+            loadingProperties = true;
+
+            try
+            {
+                int textLength =
+                    textEditor.TextLength;
+                int safeStart =
+                    Math.Max(
+                        0,
+                        Math.Min(
+                            textLength,
+                            selectionStart));
+                int safeLength =
+                    Math.Max(
+                        0,
+                        Math.Min(
+                            textLength -
+                            safeStart,
+                            selectionLength));
+
+                textEditor.Select(
+                    0,
+                    textLength);
+
+                using (Font defaultFont =
+                    CreateEditorFont(
+                        text.FontFamily,
+                        text.FontSizePoints,
+                        text.Bold,
+                        text.Italic,
+                        false))
+                {
+                    textEditor.SelectionFont =
+                        defaultFont;
+                }
+
+                textEditor.SelectionColor =
+                    ParseEditorColor(
+                        text.ColorHex,
+                        ApplicationTheme.PrimaryText);
+
+                List<RichTextEditorSegment> segments =
+                    RichTextSelectionEditor.GetSegments(
+                        text);
+
+                for (int i = 0;
+                     i < segments.Count;
+                     i++)
+                {
+                    RichTextEditorSegment segment =
+                        segments[i];
+
+                    if (segment == null ||
+                        segment.Run == null ||
+                        segment.Length <= 0 ||
+                        segment.Start >=
+                            textLength)
+                    {
+                        continue;
+                    }
+
+                    int length =
+                        Math.Min(
+                            segment.Length,
+                            textLength -
+                            segment.Start);
+
+                    textEditor.Select(
+                        segment.Start,
+                        length);
+
+                    using (Font runFont =
+                        CreateEditorFont(
+                            string.IsNullOrEmpty(
+                                segment.Run.FontFamily)
+                                ? text.FontFamily
+                                : segment.Run.FontFamily,
+                            segment.Run.FontSizePoints > 0f
+                                ? segment.Run.FontSizePoints
+                                : text.FontSizePoints,
+                            segment.Run.Bold,
+                            segment.Run.Italic,
+                            segment.Run.Underline))
+                    {
+                        textEditor.SelectionFont =
+                            runFont;
+                    }
+
+                    textEditor.SelectionColor =
+                        ParseEditorColor(
+                            string.IsNullOrEmpty(
+                                segment.Run.ColorHex)
+                                ? text.ColorHex
+                                : segment.Run.ColorHex,
+                            ApplicationTheme.PrimaryText);
+                }
+
+                textEditor.Select(
+                    safeStart,
+                    safeLength);
+            }
+            finally
+            {
+                loadingProperties =
+                    previousLoading;
+            }
+        }
+
+        private void RefreshTextSelectionControls()
+        {
+            if (loadingProperties)
+                return;
+
+            PresentationTextBox text =
+                canvas.GetSelectedTextBox();
+
+            if (text == null)
+                return;
+
+            bool previousLoading =
+                loadingProperties;
+            loadingProperties = true;
+
+            try
+            {
+                RichTextSelectionStyle style = null;
+
+                if (textEditor.SelectionLength > 0)
+                {
+                    RichTextSelectionEditor
+                        .TryGetSelectionStyle(
+                            text,
+                            textEditor.SelectionStart,
+                            textEditor.SelectionLength,
+                            out style);
+                }
+
+                if (style == null)
+                {
+                    style =
+                        new RichTextSelectionStyle();
+                    style.FontFamily =
+                        text.FontFamily;
+                    style.FontSizePoints =
+                        text.FontSizePoints;
+                    style.Bold =
+                        text.Bold;
+                    style.Italic =
+                        text.Italic;
+                    style.Underline =
+                        false;
+                    style.ColorHex =
+                        text.ColorHex;
+                }
+
+                if (style.FontFamilyMixed)
+                    fontPicker.SelectedIndex = -1;
+                else
+                    SelectFont(
+                        style.FontFamily);
+
+                fontSize.Value =
+                    (decimal)Math.Max(
+                        1f,
+                        Math.Min(
+                            400f,
+                            style.FontSizePoints));
+
+                boldCheck.CheckState =
+                    style.BoldMixed
+                        ? CheckState.Indeterminate
+                        : style.Bold
+                            ? CheckState.Checked
+                            : CheckState.Unchecked;
+                italicCheck.CheckState =
+                    style.ItalicMixed
+                        ? CheckState.Indeterminate
+                        : style.Italic
+                            ? CheckState.Checked
+                            : CheckState.Unchecked;
+                underlineCheck.CheckState =
+                    style.UnderlineMixed
+                        ? CheckState.Indeterminate
+                        : style.Underline
+                            ? CheckState.Checked
+                            : CheckState.Unchecked;
+
+                textColorEditor.Text =
+                    style.ColorMixed
+                        ? string.Empty
+                        : "#" +
+                          NormalizeHex(
+                              style.ColorHex);
+            }
+            finally
+            {
+                loadingProperties =
+                    previousLoading;
+            }
+        }
+
+        private static Font CreateEditorFont(
+            string family,
+            float size,
+            bool bold,
+            bool italic,
+            bool underline)
+        {
+            FontStyle style =
+                FontStyle.Regular;
+
+            if (bold)
+                style |= FontStyle.Bold;
+            if (italic)
+                style |= FontStyle.Italic;
+            if (underline)
+                style |= FontStyle.Underline;
+
+            float safeSize =
+                Math.Max(
+                    1f,
+                    Math.Min(
+                        400f,
+                        size));
+
+            try
+            {
+                return new Font(
+                    string.IsNullOrEmpty(family)
+                        ? "Arial"
+                        : family,
+                    safeSize,
+                    style,
+                    GraphicsUnit.Point);
+            }
+            catch
+            {
+                return new Font(
+                    SystemFonts.MessageBoxFont.FontFamily,
+                    safeSize,
+                    style,
+                    GraphicsUnit.Point);
+            }
+        }
+
+        private static Color ParseEditorColor(
+            string value,
+            Color fallback)
+        {
+            string candidate =
+                (value ?? string.Empty)
+                .Trim()
+                .TrimStart('#');
+
+            int parsed;
+
+            if (candidate.Length == 6 &&
+                int.TryParse(
+                    candidate,
+                    NumberStyles.HexNumber,
+                    CultureInfo.InvariantCulture,
+                    out parsed))
+            {
+                return Color.FromArgb(
+                    (parsed >> 16) & 0xFF,
+                    (parsed >> 8) & 0xFF,
+                    parsed & 0xFF);
+            }
+
+            return fallback;
         }
 
         private void SelectFont(string name)

@@ -66,7 +66,8 @@ PPTX 시각 표현과 animation 범위는 `docs/PPTX_FIDELITY.md`를 함께 본�
 - text box 추가/삭제
 - text 수정
 - Windows 설치 font family 선택
-- font size / bold / italic
+- font size / bold / italic / underline
+- text selection 단위 font family/size/bold/italic/underline/color 편집
 - left / center / right alignment
 - text color
 - 기본 shape 추가 및 fill/line color
@@ -107,7 +108,9 @@ PresentationDocument
 
 사용자가 기존 plain-text 편집 UI에서 문자열 자체를 바꾸면 이전 run 경계를 새 문자열에 억지로 적용하지 않는다. 이 경우 해당 textbox의 rich run을 비우고 box-level format으로 평문화해 **stale formatting이 다른 글자에 잘못 붙는 문제를 피한다.**
 
-현재 property panel에서 전체 font family/size/bold/italic을 바꾸면 rich text가 있을 때 모든 run에 해당 속성을 적용하되 underline/baseline/color/bullet/paragraph spacing은 유지한다.
+오른쪽 text editor는 `RichTextBox`를 사용한다. 문자열 자체를 입력해서 바꾸는 경우에는 이전 run 경계를 버리고 box-level format으로 평문화하지만, 문자열을 선택한 뒤 font family/size/bold/italic/underline/color를 바꾸는 경우에는 선택과 겹치는 run만 경계에서 분할해 서식을 적용한다. 선택 밖 run은 그대로 유지하고, 서식이 다시 같아진 인접 run은 자동 병합한다. 선택 영역에 서로 다른 값이 섞여 있으면 Bold/Italic/Underline은 indeterminate 상태로, font family와 color는 혼합 상태로 표시한다. 선택 없이 서식을 바꾸는 기존 동작은 전체 text box에 적용된다.
+
+문단 alignment 변경은 box-level 값과 rich paragraph alignment를 함께 갱신한다. baseline, bullet, paragraph spacing 등 현재 UI에서 직접 노출하지 않는 속성은 run/paragraph에 계속 보존한다.
 
 모델은 UI와 PPTX XML을 직접 결합하지 않는다. Editor는 모델을 수정하고 Writer가 모델을 OOXML로 직렬화한다.
 
@@ -169,7 +172,6 @@ Animation 자체 테스트는 합성 `p:timing`을 프로젝트가 만든 PPTX�
 
 ## 현재 남은 Editor 작업
 
-- rich text를 선택 영역 단위로 직접 편집하는 UI
 - Viewer renderer와 interactive canvas의 공통 layout/render primitive 확대
 - chart/SmartArt/media 등 고급 요소는 Viewer fidelity를 보존하면서 단계적 편집 지원
 - accessible focus order 강화
