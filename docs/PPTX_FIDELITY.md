@@ -155,6 +155,9 @@ Microsoft PowerPoint (설치된 경우)
   - valAx tickLblPos=high: column/area 오른쪽, bar 위쪽 숫자 레이블 배치
   - valAx numFmt의 기본 소수/천단위/퍼센트 표시
   - line chart series 선 굵기/prstDash 및 circle/square/diamond/triangle/x/plus marker
+  - series trendline 중 linear 타입과 spPr/ln 색상·굵기·dash, forward/backward 기본 연장 렌더링
+  - series errBars 중 fixedVal/percentage + plus/minus/both 기본 렌더링 (line/column/bar, area·scatter Y 방향)
+  - 지원하지 않는 trendline/error-bar 타입은 기존 series 렌더를 보존하고 안전하게 무시
   - bar/column grouping: clustered / stacked / percentStacked
   - gapWidth / overlap 기반 bar thickness·series overlap 근사
   - pie/doughnut firstSliceAng
@@ -170,6 +173,7 @@ Microsoft PowerPoint (설치된 경우)
   - hierarchy parent-child 및 assistant connector를 직각 elbow routing으로 근사
   - process 같은 행은 node edge 연결, 행 전환 및 verticalProcess는 직각 elbow routing으로 근사
   - hierarchy/process/verticalProcess elbow의 전체 V-H-V 경로를 장애물과 대조하고, 중앙/분할 수평 channel이 막히면 H-V-H side-channel로 전환
+  - 복잡 hierarchy에서는 장애물 top/bottom/left/right 인접 channel까지 후보로 확장하고, 모든 clear route 중 최단 거리 + 중앙 근접 점수로 deterministic 경로 선택
   - hierarchy assistant connector도 같은 full-route 검사기를 사용해 중앙 세로 channel이 막히면 다른 side-channel로 우회
   - process multi-row 배치는 행별 실제 노드 수 기준 중앙 정렬 및 안정적인 row spacing 적용
   - 좁은 process 영역에서는 가용 폭 기준으로 열 수를 자동 축소해 node가 좌우 경계를 벗어나지 않도록 배치
