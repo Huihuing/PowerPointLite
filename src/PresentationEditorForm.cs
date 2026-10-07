@@ -251,6 +251,50 @@ namespace PptxViewer
             canvas.BackColor = ApplicationTheme.Canvas;
             canvasHost.Controls.Add(canvas);
 
+            Action layoutEditorColumns =
+                delegate
+                {
+                    int width =
+                        Math.Max(
+                            1,
+                            ClientSize.Width);
+
+                    slidePanel.Width =
+                        Math.Max(
+                            176,
+                            Math.Min(
+                                220,
+                                width /
+                                5));
+
+                    propertyPanel.Width =
+                        Math.Max(
+                            286,
+                            Math.Min(
+                                300,
+                                width /
+                                4));
+
+                    int canvasPadding =
+                        width < 1100
+                            ? 14
+                            : 24;
+
+                    canvasHost.Padding =
+                        new Padding(
+                            canvasPadding);
+
+                    slidePanel.Invalidate();
+                    propertyPanel.Invalidate();
+                };
+
+            Resize += delegate
+            {
+                layoutEditorColumns();
+            };
+
+            layoutEditorColumns();
+
             slideList.SelectedIndexChanged += delegate
             {
                 canvas.SelectedSlideIndex = slideList.SelectedIndex;
