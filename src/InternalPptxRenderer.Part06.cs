@@ -185,6 +185,12 @@ internal static partial class InternalPptxRenderer
 
                 data.Name =
                     ReadChartSeriesName(ser);
+
+                ReadChartSeriesAxisBinding(
+                    ser,
+                    chartDoc,
+                    data);
+
                 ReadChartCategories(
                     ser,
                     data.Categories);
@@ -4545,6 +4551,206 @@ chartDoc);
             return palette[
                 Math.Abs(index) %
                 palette.Length];
+        }
+
+        private static void ReadChartSeriesAxisBinding(
+            XmlNode series,
+            XmlDocument chartDoc,
+            ChartSeriesData data)
+        {
+            if (series == null ||
+                data == null)
+            {
+                return;
+            }
+
+            XmlNode chartGroup =
+                series.ParentNode;
+
+            if (chartGroup == null)
+                return;
+
+            data.ChartKind =
+                ReadChartGroupKind(
+                    chartGroup);
+
+            for (int i = 0;
+                 i < chartGroup.ChildNodes.Count;
+                 i++)
+            {
+                XmlNode child =
+                    chartGroup.ChildNodes[i];
+
+                if (child == null ||
+                    child.NodeType !=
+                        XmlNodeType.Element ||
+                    child.LocalName !=
+                        "axId")
+                {
+                    continue;
+                }
+
+                string axisId =
+                    GetAttr(
+                        child,
+                        "val");
+
+                if (string.IsNullOrEmpty(
+                        axisId))
+                {
+                    continue;
+                }
+
+                XmlNode axis =
+                    FindChartAxisById(
+                        chartDoc,
+                        axisId);
+
+                if (axis == null)
+                    continue;
+
+                if (axis.LocalName ==
+                    "valAx")
+                {
+                    data.ValueAxisId =
+                        axisId;
+                }
+                else if (axis.LocalName ==
+                         "catAx" ||
+                         axis.LocalName ==
+                         "dateAx" ||
+                         axis.LocalName ==
+                         "serAx")
+                {
+                    data.CategoryAxisId =
+                        axisId;
+                }
+            }
+        }
+
+        private static string ReadChartGroupKind(
+            XmlNode chartGroup)
+        {
+            if (chartGroup == null)
+                return string.Empty;
+
+            if (chartGroup.LocalName ==
+                "lineChart")
+            {
+                return "line";
+            }
+
+            if (chartGroup.LocalName ==
+                "areaChart")
+            {
+                return "line";
+            }
+
+            if (chartGroup.LocalName ==
+                "barChart")
+            {
+                XmlNode barDirection =
+                    DirectChild(
+                        chartGroup,
+                        "barDir");
+
+                return barDirection != null &&
+                    GetAttr(
+                        barDirection,
+                        "val") == "bar"
+                        ? "bar"
+                        : "column";
+            }
+
+            if (chartGroup.LocalName ==
+                    "scatterChart" ||
+                chartGroup.LocalName ==
+                    "bubbleChart")
+            {
+                return "scatter";
+            }
+
+            if (chartGroup.LocalName ==
+                    "pieChart" ||
+                chartGroup.LocalName ==
+                    "doughnutChart")
+            {
+                return "pie";
+            }
+
+            return string.Empty;
+        }
+
+        private static XmlNode FindChartAxisById(
+            XmlDocument chartDoc,
+            string axisId)
+        {
+            if (chartDoc == null ||
+                string.IsNullOrEmpty(
+                    axisId))
+            {
+                return null;
+            }
+
+            string[] names =
+                new string[]
+                {
+                    "catAx",
+                    "dateAx",
+                    "valAx",
+                    "serAx"
+                };
+
+            for (int n = 0;
+                 n < names.Length;
+                 n++)
+            {
+                List<XmlNode> axes =
+                    FindAll(
+                        chartDoc,
+                        names[n]);
+
+                for (int i = 0;
+                     i < axes.Count;
+                     i++)
+                {
+                    XmlNode id =
+                        DirectChild(
+                            axes[i],
+                            "axId");
+
+                    if (id != null &&
+                        string.Equals(
+                            GetAttr(
+                                id,
+                                "val"),
+                            axisId,
+                            StringComparison.Ordinal))
+                    {
+                        return axes[i];
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private static string ReadChartAxisId(
+            XmlNode axis)
+        {
+            XmlNode id =
+                axis == null
+                    ? null
+                    : DirectChild(
+                        axis,
+                        "axId");
+
+            return id == null
+                ? string.Empty
+                : GetAttr(
+                    id,
+                    "val") ??
+                  string.Empty;
         }
 
         private static void ReadChartSeriesVisualStyle(
