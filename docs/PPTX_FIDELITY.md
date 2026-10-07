@@ -154,9 +154,14 @@ Microsoft PowerPoint (설치된 경우)
   - valAx tickLblPos=none 값 축 숫자 레이블 숨김 (gridline 유지)
   - valAx tickLblPos=high: column/area 오른쪽, bar 위쪽 숫자 레이블 배치
   - valAx numFmt의 기본 소수/천단위/퍼센트 표시
+  - 같은 chart kind 내부의 복수 chart-group axId를 series별 category/value axis binding으로 해석
+  - primary/secondary valAx를 분리해 series별 scale을 계산하고 secondary axPos edge에 별도 axis/tick label 렌더링
   - line chart series 선 굵기/prstDash 및 circle/square/diamond/triangle/x/plus marker
-  - series trendline 중 linear 타입과 spPr/ln 색상·굵기·dash, forward/backward 기본 연장 렌더링
-  - series errBars 중 fixedVal/percentage + plus/minus/both 기본 렌더링 (line/column/bar, area·scatter Y 방향)
+  - series trendline의 linear / poly(order 2~6) / movingAvg(period) 타입과 spPr/ln 색상·굵기·dash 기본 렌더링
+  - linear/poly trendline의 forward/backward 기본 연장, poly는 정규화 좌표 최소제곱 fitting, movingAvg는 period 구간 평균 연결
+  - series errBars의 fixedVal / percentage / cust를 지원하고 plus/minus/both 방향 기본 렌더링
+  - custom errBars의 c:plus/c:minus numLit 또는 numRef>numCache point별 값을 분리해 비대칭 오차폭 반영
+  - error bar는 line/column/bar와 area·scatter Y 방향에서 공통 렌더링
   - 지원하지 않는 trendline/error-bar 타입은 기존 series 렌더를 보존하고 안전하게 무시
   - bar/column grouping: clustered / stacked / percentStacked
   - gapWidth / overlap 기반 bar thickness·series overlap 근사
@@ -175,6 +180,8 @@ Microsoft PowerPoint (설치된 경우)
   - hierarchy/process/verticalProcess elbow의 전체 V-H-V 경로를 장애물과 대조하고, 중앙/분할 수평 channel이 막히면 H-V-H side-channel로 전환
   - 복잡 hierarchy에서는 장애물 top/bottom/left/right 인접 channel까지 후보로 확장하고, 모든 clear route 중 최단 거리 + 중앙 근접 점수로 deterministic 경로 선택
   - hierarchy assistant connector도 같은 full-route 검사기를 사용해 중앙 세로 channel이 막히면 다른 side-channel로 우회
+  - 같은 SmartArt에서 먼저 확정된 elbow connector route와 다음 후보의 내부 교차 수를 계산하고 큰 penalty를 부여해 가능한 경우 connector crossing을 줄임
+  - 같은 방향 trunk 공유는 hierarchy 의도 가능성을 고려해 crossing penalty 대상에서 제외
   - process multi-row 배치는 행별 실제 노드 수 기준 중앙 정렬 및 안정적인 row spacing 적용
   - 좁은 process 영역에서는 가용 폭 기준으로 열 수를 자동 축소해 node가 좌우 경계를 벗어나지 않도록 배치
   - verticalProcess는 높이 cap 이후 전체 node stack을 영역 중앙에 재배치
@@ -256,6 +263,7 @@ Internal renderer는 Microsoft PowerPoint의 렌더링 엔진을 복제한 것�
 
 - SmartArt 고유 layout algorithm의 정밀 spacing, 다중 assistant 배치 우선순위 및 공식 connector routing semantics 전체
 - chart의 모든 axis/style/data-label/3D 조합
+- mixed-kind combo chart(line+column 등)의 완전한 독립 axis-group 렌더링 및 secondary axis title/gridline parity
 - theme effect style 참조 전체 및 복합 shadow/effect 조합
 - feComposite arithmetic의 filter-region 전체 k4 확장, 임의 입력 순서/복합 chain 및 feColorMatrix가 다른 primitive와 연결된 복잡한 SVG filter chain, 복잡한 mask luminance/gradient 등 고급 SVG 기능
 - SVG use subtree의 복잡한 CSS cascade/selector, viewport가 있는 symbol의 자식별 확장, root filter/clip/mask 조합 전체
