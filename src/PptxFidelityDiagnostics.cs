@@ -4872,6 +4872,91 @@ namespace PptxViewer
                     "SmartArt complex hierarchy routing depended on obstacle insertion order.");
             }
 
+            Dictionary<string, RectangleF>
+                crossingAwarePositions =
+                    new Dictionary<string, RectangleF>(
+                        StringComparer.Ordinal);
+
+            crossingAwarePositions[
+                "crossSource"] =
+                new RectangleF(
+                    20f,
+                    20f,
+                    40f,
+                    40f);
+            crossingAwarePositions[
+                "crossTarget"] =
+                new RectangleF(
+                    220f,
+                    140f,
+                    40f,
+                    40f);
+
+            List<PointF[]> existingConnectorRoutes =
+                new List<PointF[]>();
+            existingConnectorRoutes.Add(
+                new PointF[]
+                {
+                    new PointF(
+                        140f,
+                        60f),
+                    new PointF(
+                        140f,
+                        120f)
+                });
+
+            PointF[] unconstrainedCrossRoute =
+                BuildSmartArtElbowRoute(
+                    new PointF(
+                        60f,
+                        40f),
+                    new PointF(
+                        220f,
+                        140f),
+                    crossingAwarePositions,
+                    "crossSource",
+                    "crossTarget",
+                    false);
+
+            PointF[] crossingAwareRoute =
+                BuildSmartArtElbowRoute(
+                    new PointF(
+                        60f,
+                        40f),
+                    new PointF(
+                        220f,
+                        140f),
+                    crossingAwarePositions,
+                    "crossSource",
+                    "crossTarget",
+                    false,
+                    existingConnectorRoutes);
+
+            double unconstrainedCrossPenalty =
+                CalculateSmartArtRouteCrossingPenalty(
+                    unconstrainedCrossRoute,
+                    existingConnectorRoutes);
+
+            double crossingAwarePenalty =
+                CalculateSmartArtRouteCrossingPenalty(
+                    crossingAwareRoute,
+                    existingConnectorRoutes);
+
+            if (unconstrainedCrossRoute == null ||
+                crossingAwareRoute == null ||
+                unconstrainedCrossRoute.Length != 4 ||
+                crossingAwareRoute.Length != 4 ||
+                unconstrainedCrossPenalty <= 0.0 ||
+                crossingAwarePenalty > 0.001 ||
+                Math.Abs(
+                    unconstrainedCrossRoute[1].Y -
+                    crossingAwareRoute[1].Y) <
+                    1f)
+            {
+                throw new InvalidOperationException(
+                    "SmartArt connector crossing penalty did not choose a clear alternate channel.");
+            }
+
             Dictionary<string, SmartNode> hierarchyNodeMap =
                 new Dictionary<string, SmartNode>(
                     StringComparer.Ordinal);
