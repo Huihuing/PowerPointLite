@@ -2640,11 +2640,9 @@ chartDoc);
                 new ChartLabelOptions();
 
             XmlNode legend =
-                chartDoc == null
-                    ? null
-                    : FindFirst(
-                        chartDoc,
-                        "legend");
+                ReadChartTopLevelElement(
+                    chartDoc,
+                    "legend");
 
             if (legend == null)
                 return result;
@@ -2668,11 +2666,9 @@ chartDoc);
             XmlDocument chartDoc)
         {
             XmlNode legend =
-                chartDoc == null
-                    ? null
-                    : FindFirst(
-                        chartDoc,
-                        "legend");
+                ReadChartTopLevelElement(
+                    chartDoc,
+                    "legend");
 
             if (legend == null)
                 return string.Empty;
@@ -6161,11 +6157,9 @@ chartDoc);
         private static string ReadChartTitle(XmlDocument chartDoc)
         {
             XmlNode title =
-                chartDoc == null
-                    ? null
-                    : FindFirst(
-                        chartDoc,
-                        "title");
+                ReadChartTopLevelElement(
+                    chartDoc,
+                    "title");
 
             return ReadChartTitleText(
                 title);
