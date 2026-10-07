@@ -108,20 +108,82 @@ internal sealed class PresenterViewForm : Form
             top.Controls.Add(start);
 
             timerLabel = new Label();
-            timerLabel.AutoSize = true;
+            timerLabel.AutoSize = false;
+            timerLabel.Width = 190;
+            timerLabel.Height = 32;
             timerLabel.ForeColor = Color.FromArgb(126, 214, 160);
             timerLabel.Font = new Font("Segoe UI", 12f, FontStyle.Bold);
-            timerLabel.Left = 410;
-            timerLabel.Top = 14;
+            timerLabel.TextAlign = ContentAlignment.MiddleRight;
+            timerLabel.Anchor =
+                AnchorStyles.Top |
+                AnchorStyles.Right;
+            timerLabel.Top = 12;
             top.Controls.Add(timerLabel);
 
             slideLabel = new Label();
-            slideLabel.AutoSize = true;
+            slideLabel.AutoSize = false;
+            slideLabel.Width = 104;
+            slideLabel.Height = 32;
             slideLabel.ForeColor = ApplicationTheme.PrimaryText;
             slideLabel.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
-            slideLabel.Left = 560;
-            slideLabel.Top = 15;
+            slideLabel.TextAlign = ContentAlignment.MiddleRight;
+            slideLabel.Anchor =
+                AnchorStyles.Top |
+                AnchorStyles.Right;
+            slideLabel.Top = 12;
             top.Controls.Add(slideLabel);
+
+            Action layoutTopBar =
+                delegate
+                {
+                    int gap = 8;
+                    int x = 12;
+
+                    prev.Left = x;
+                    x +=
+                        prev.Width +
+                        gap;
+
+                    next.Left = x;
+                    x +=
+                        next.Width +
+                        gap;
+
+                    go.Left = x;
+                    x +=
+                        go.Width +
+                        gap;
+
+                    start.Left = x;
+
+                    slideLabel.Left =
+                        Math.Max(
+                            start.Right + 20,
+                            top.ClientSize.Width -
+                            slideLabel.Width -
+                            14);
+
+                    timerLabel.Left =
+                        Math.Max(
+                            start.Right + 12,
+                            slideLabel.Left -
+                            timerLabel.Width -
+                            12);
+
+                    bool enoughStatusRoom =
+                        timerLabel.Left >
+                        start.Right + 8;
+
+                    timerLabel.Visible =
+                        enoughStatusRoom;
+                };
+
+            top.Resize += delegate
+            {
+                layoutTopBar();
+            };
+
+            layoutTopBar();
 
             currentPicture = new PictureBox();
             currentPicture.Dock = DockStyle.Fill;
