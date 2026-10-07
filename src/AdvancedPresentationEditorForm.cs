@@ -4561,14 +4561,15 @@ namespace PptxViewer
                                     item.CropRight,
                                     item.CropBottom);
 
-                        graphics.DrawImage(
+                        PresentationRenderPrimitives.DrawImage(
+                            graphics,
                             bitmap,
-                            Rectangle.Round(rect),
-                            sourceRectangle.X,
-                            sourceRectangle.Y,
-                            sourceRectangle.Width,
-                            sourceRectangle.Height,
-                            GraphicsUnit.Pixel);
+                            rect,
+                            sourceRectangle,
+                            item.RotationUnits,
+                            item.FlipHorizontal,
+                            item.FlipVertical,
+                            item.Opacity);
                     }
                 }
                 catch

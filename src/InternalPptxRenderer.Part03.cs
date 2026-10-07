@@ -53,96 +53,106 @@ internal static partial class InternalPptxRenderer
                 using (Image img = Image.FromStream(imageStream))
                 using (Bitmap clone = new Bitmap(img))
                 {
-                    GraphicsState state = g.Save();
+                    XmlNode srcRect =
+                        FindFirst(
+                            pic,
+                            "srcRect");
+                    int cropLeft =
+                        srcRect == null
+                            ? 0
+                            : (int)GetLong(
+                                srcRect,
+                                "l",
+                                0);
+                    int cropTop =
+                        srcRect == null
+                            ? 0
+                            : (int)GetLong(
+                                srcRect,
+                                "t",
+                                0);
+                    int cropRight =
+                        srcRect == null
+                            ? 0
+                            : (int)GetLong(
+                                srcRect,
+                                "r",
+                                0);
+                    int cropBottom =
+                        srcRect == null
+                            ? 0
+                            : (int)GetLong(
+                                srcRect,
+                                "b",
+                                0);
 
-                    try
-                    {
-                        ApplyRotation(g, pic, rect);
+                    RectangleF source =
+                        PresentationRenderPrimitives
+                            .CalculateImageSourceRectangle(
+                                clone.Width,
+                                clone.Height,
+                                cropLeft,
+                                cropTop,
+                                cropRight,
+                                cropBottom);
 
-                        XmlNode srcRect =
-                            FindFirst(
-                                pic,
-                                "srcRect");
-                        int cropLeft =
-                            srcRect == null
-                                ? 0
-                                : (int)GetLong(
-                                    srcRect,
-                                    "l",
-                                    0);
-                        int cropTop =
-                            srcRect == null
-                                ? 0
-                                : (int)GetLong(
-                                    srcRect,
-                                    "t",
-                                    0);
-                        int cropRight =
-                            srcRect == null
-                                ? 0
-                                : (int)GetLong(
-                                    srcRect,
-                                    "r",
-                                    0);
-                        int cropBottom =
-                            srcRect == null
-                                ? 0
-                                : (int)GetLong(
-                                    srcRect,
-                                    "b",
-                                    0);
+                    XmlNode transform =
+                        FindFirst(
+                            pic,
+                            "xfrm");
+                    int rotationUnits =
+                        PresentationRenderPrimitives
+                            .NormalizeRotationUnits(
+                                GetLong(
+                                    transform,
+                                    "rot",
+                                    0));
+                    string flipHRaw =
+                        GetAttr(
+                            transform,
+                            "flipH");
+                    string flipVRaw =
+                        GetAttr(
+                            transform,
+                            "flipV");
+                    bool flipHorizontal =
+                        flipHRaw == "1" ||
+                        string.Equals(
+                            flipHRaw,
+                            "true",
+                            StringComparison.OrdinalIgnoreCase);
+                    bool flipVertical =
+                        flipVRaw == "1" ||
+                        string.Equals(
+                            flipVRaw,
+                            "true",
+                            StringComparison.OrdinalIgnoreCase);
 
-                        RectangleF source =
-                            PresentationRenderPrimitives
-                                .CalculateImageSourceRectangle(
-                                    clone.Width,
-                                    clone.Height,
-                                    cropLeft,
-                                    cropTop,
-                                    cropRight,
-                                    cropBottom);
+                    XmlNode alphaNode =
+                        blip == null
+                            ? null
+                            : FindFirst(
+                                blip,
+                                "alphaModFix");
+                    int opacity =
+                        alphaNode == null
+                            ? 100000
+                            : PresentationRenderPrimitives
+                                .ClampOpacity(
+                                    (int)GetLong(
+                                        alphaNode,
+                                        "amt",
+                                        100000));
 
-                        XmlNode alphaNode = blip != null ? FindFirst(blip, "alphaModFix") : null;
-                        float alpha = 1f;
-
-                        if (alphaNode != null)
-                        {
-                            long amt = GetLong(alphaNode, "amt", 100000);
-                            alpha = Math.Max(0f, Math.Min(1f, amt / 100000f));
-                        }
-
-                        if (alpha < 0.999f)
-                        {
-                            ColorMatrix matrix = new ColorMatrix();
-                            matrix.Matrix33 = alpha;
-
-                            using (ImageAttributes attrs = new ImageAttributes())
-                            {
-                                attrs.SetColorMatrix(matrix, ColorMatrixFlag.Default, ColorAdjustType.Bitmap);
-                                g.DrawImage(
-                                    clone,
-                                    Rectangle.Round(rect),
-                                    source.X, source.Y, source.Width, source.Height,
-                                    GraphicsUnit.Pixel,
-                                    attrs);
-                            }
-                        }
-                        else
-                        {
-                            g.DrawImage(
-                                clone,
-                                Rectangle.Round(rect),
-                                source.X,
-                                source.Y,
-                                source.Width,
-                                source.Height,
-                                GraphicsUnit.Pixel);
-                        }
-                    }
-                    finally
-                    {
-                        g.Restore(state);
-                    }
+                    PresentationRenderPrimitives.DrawImage(
+                        g,
+                        clone,
+                        rect,
+                        source,
+                        rotationUnits,
+                        flipHorizontal,
+                        flipVertical,
+                        opacity);
                 }
             }
             catch

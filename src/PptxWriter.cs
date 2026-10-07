@@ -458,14 +458,43 @@ namespace PptxViewer
                       cropBottom.ToString() +
                       "\"/>";
 
+            int rotationUnits =
+                PresentationRenderPrimitives
+                    .NormalizeRotationUnits(
+                        image.RotationUnits);
+            int opacity =
+                PresentationRenderPrimitives
+                    .ClampOpacity(
+                        image.Opacity);
+            string transformAttributes =
+                (rotationUnits == 0
+                    ? string.Empty
+                    : " rot=\"" +
+                      rotationUnits.ToString() +
+                      "\"") +
+                (image.FlipHorizontal
+                    ? " flipH=\"1\""
+                    : string.Empty) +
+                (image.FlipVertical
+                    ? " flipV=\"1\""
+                    : string.Empty);
+            string alphaXml =
+                opacity >= 100000
+                    ? string.Empty
+                    : "<a:alphaModFix amt=\"" +
+                      opacity.ToString() +
+                      "\"/>";
+
             return
                 "<p:pic>" +
                 "<p:nvPicPr><p:cNvPr id=\"" + shapeId.ToString() + "\" name=\"" + name + "\"/>" +
                 "<p:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>" +
-                "<p:blipFill><a:blip r:embed=\"" + EscapeXml(relationshipId) + "\"/>" +
+                "<p:blipFill><a:blip r:embed=\"" + EscapeXml(relationshipId) + "\">" +
+                alphaXml +
+                "</a:blip>" +
                 cropXml +
                 "<a:stretch><a:fillRect/></a:stretch></p:blipFill>" +
-                "<p:spPr><a:xfrm><a:off x=\"" + x.ToString() + "\" y=\"" + y.ToString() + "\"/>" +
+                "<p:spPr><a:xfrm" + transformAttributes + "><a:off x=\"" + x.ToString() + "\" y=\"" + y.ToString() + "\"/>" +
                 "<a:ext cx=\"" + width.ToString() + "\" cy=\"" + height.ToString() + "\"/></a:xfrm>" +
                 "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr>" +
                 "</p:pic>";
