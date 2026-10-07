@@ -3069,6 +3069,140 @@ namespace PptxViewer
                 }
             }
 
+            XmlDocument innerTargetChart =
+                new XmlDocument();
+
+            innerTargetChart.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
+                "<c:chart><c:plotArea><c:layout><c:manualLayout>" +
+                "<c:layoutTarget val=\"inner\"/>" +
+                "<c:xMode val=\"edge\"/><c:yMode val=\"edge\"/>" +
+                "<c:wMode val=\"factor\"/><c:hMode val=\"factor\"/>" +
+                "<c:x val=\"0.10\"/><c:y val=\"0.10\"/>" +
+                "<c:w val=\"0.60\"/><c:h val=\"0.60\"/>" +
+                "</c:manualLayout></c:layout>" +
+                "<c:catAx/><c:valAx/>" +
+                "</c:plotArea></c:chart></c:chartSpace>");
+
+            XmlDocument outerTargetChart =
+                new XmlDocument();
+
+            outerTargetChart.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
+                "<c:chart><c:plotArea><c:layout><c:manualLayout>" +
+                "<c:layoutTarget val=\"outer\"/>" +
+                "<c:xMode val=\"edge\"/><c:yMode val=\"edge\"/>" +
+                "<c:wMode val=\"factor\"/><c:hMode val=\"factor\"/>" +
+                "<c:x val=\"0.10\"/><c:y val=\"0.10\"/>" +
+                "<c:w val=\"0.60\"/><c:h val=\"0.60\"/>" +
+                "</c:manualLayout></c:layout>" +
+                "<c:catAx/><c:valAx/>" +
+                "</c:plotArea></c:chart></c:chartSpace>");
+
+            using (Bitmap targetLayoutBitmap =
+                new Bitmap(
+                    360,
+                    240,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics targetLayoutGraphics =
+                Graphics.FromImage(
+                    targetLayoutBitmap))
+            {
+                RectangleF innerTargetPlot;
+                RectangleF outerTargetPlot;
+
+                PrepareChartSurface(
+                    targetLayoutGraphics,
+                    new RectangleF(
+                        10f,
+                        10f,
+                        320f,
+                        200f),
+                    innerTargetChart,
+                    theme,
+                    out innerTargetPlot);
+
+                PrepareChartSurface(
+                    targetLayoutGraphics,
+                    new RectangleF(
+                        10f,
+                        10f,
+                        320f,
+                        200f),
+                    outerTargetChart,
+                    theme,
+                    out outerTargetPlot);
+
+                if (Math.Abs(
+                        innerTargetPlot.Left -
+                        42f) > 1.0f ||
+                    Math.Abs(
+                        innerTargetPlot.Top -
+                        30f) > 1.0f ||
+                    Math.Abs(
+                        innerTargetPlot.Width -
+                        192f) > 1.0f ||
+                    Math.Abs(
+                        innerTargetPlot.Height -
+                        120f) > 1.0f)
+                {
+                    throw new InvalidOperationException(
+                        "Chart inner layoutTarget was not applied to the plotting rectangle.");
+                }
+
+                if (outerTargetPlot.Left <=
+                        innerTargetPlot.Left + 4f ||
+                    outerTargetPlot.Right >=
+                        innerTargetPlot.Right - 4f ||
+                    outerTargetPlot.Bottom >=
+                        innerTargetPlot.Bottom - 4f)
+                {
+                    throw new InvalidOperationException(
+                        "Chart outer layoutTarget did not preserve axis-label insets.");
+                }
+            }
+
+            XmlDocument nestedManualLayoutChart =
+                new XmlDocument();
+
+            nestedManualLayoutChart.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
+                "<c:chart><c:plotArea>" +
+                "<c:barChart><c:dLbls><c:dLbl><c:idx val=\"0\"/><c:layout><c:manualLayout>" +
+                "<c:x val=\"0.90\"/><c:y val=\"0.90\"/>" +
+                "</c:manualLayout></c:layout></c:dLbl></c:dLbls></c:barChart>" +
+                "</c:plotArea></c:chart></c:chartSpace>");
+
+            using (Bitmap nestedLayoutBitmap =
+                new Bitmap(
+                    360,
+                    240,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics nestedLayoutGraphics =
+                Graphics.FromImage(
+                    nestedLayoutBitmap))
+            {
+                RectangleF nestedPlot;
+
+                PrepareChartSurface(
+                    nestedLayoutGraphics,
+                    new RectangleF(
+                        10f,
+                        10f,
+                        320f,
+                        200f),
+                    nestedManualLayoutChart,
+                    theme,
+                    out nestedPlot);
+
+                if (nestedPlot.Left > 60f ||
+                    nestedPlot.Top > 45f)
+                {
+                    throw new InvalidOperationException(
+                        "Nested data-label manual layout leaked into plotArea layout scope.");
+                }
+            }
+
             XmlDocument elementLayoutChart =
                 new XmlDocument();
 
