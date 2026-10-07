@@ -1094,6 +1094,7 @@ namespace PptxViewer
                         120f,
                         80f),
                     50.0,
+                    0,
                     overlaySeries.ErrorBars,
                     Color.Black);
 
@@ -1130,6 +1131,274 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Chart fixed-value error bar was not rendered.");
+                }
+            }
+
+            XmlDocument polynomialTrendDoc =
+                new XmlDocument();
+
+            polynomialTrendDoc.LoadXml(
+                "<c:ser xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<c:trendline><c:trendlineType val=\"poly\"/><c:order val=\"2\"/>" +
+                "<c:spPr><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"3366CC\"/></a:solidFill></a:ln></c:spPr></c:trendline>" +
+                "</c:ser>");
+
+            ChartSeriesData polynomialSeries =
+                new ChartSeriesData();
+
+            ReadChartSeriesVisualStyle(
+                polynomialTrendDoc.DocumentElement,
+                polynomialSeries,
+                theme);
+
+            if (polynomialSeries.Trendline == null ||
+                polynomialSeries.Trendline.Type != "poly" ||
+                polynomialSeries.Trendline.Order != 2)
+            {
+                throw new InvalidOperationException(
+                    "Polynomial chart trendline order was not parsed.");
+            }
+
+            List<PointF> polynomialInput =
+                new List<PointF>();
+            polynomialInput.Add(
+                new PointF(
+                    20f,
+                    120f));
+            polynomialInput.Add(
+                new PointF(
+                    60f,
+                    80f));
+            polynomialInput.Add(
+                new PointF(
+                    100f,
+                    60f));
+            polynomialInput.Add(
+                new PointF(
+                    140f,
+                    80f));
+            polynomialInput.Add(
+                new PointF(
+                    180f,
+                    120f));
+
+            List<PointF> polynomialResult =
+                BuildChartPolynomialTrendlinePoints(
+                    new RectangleF(
+                        20f,
+                        20f,
+                        160f,
+                        120f),
+                    polynomialInput,
+                    polynomialSeries.Trendline);
+
+            float polynomialCenterY =
+                float.MaxValue;
+
+            if (polynomialResult != null)
+            {
+                float nearestDistance =
+                    float.MaxValue;
+
+                for (int i = 0;
+                     i < polynomialResult.Count;
+                     i++)
+                {
+                    float distance =
+                        Math.Abs(
+                            polynomialResult[i].X -
+                            100f);
+
+                    if (distance <
+                        nearestDistance)
+                    {
+                        nearestDistance =
+                            distance;
+                        polynomialCenterY =
+                            polynomialResult[i].Y;
+                    }
+                }
+            }
+
+            if (polynomialResult == null ||
+                polynomialResult.Count < 20 ||
+                Math.Abs(
+                    polynomialCenterY -
+                    60f) > 5f)
+            {
+                throw new InvalidOperationException(
+                    "Polynomial chart trendline fitting was not stable.");
+            }
+
+            XmlDocument movingAverageTrendDoc =
+                new XmlDocument();
+
+            movingAverageTrendDoc.LoadXml(
+                "<c:ser xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
+                "<c:trendline><c:trendlineType val=\"movingAvg\"/><c:period val=\"3\"/></c:trendline>" +
+                "</c:ser>");
+
+            ChartSeriesData movingAverageSeries =
+                new ChartSeriesData();
+
+            ReadChartSeriesVisualStyle(
+                movingAverageTrendDoc.DocumentElement,
+                movingAverageSeries,
+                theme);
+
+            List<PointF> movingAverageInput =
+                new List<PointF>();
+            movingAverageInput.Add(
+                new PointF(
+                    20f,
+                    120f));
+            movingAverageInput.Add(
+                new PointF(
+                    60f,
+                    90f));
+            movingAverageInput.Add(
+                new PointF(
+                    100f,
+                    60f));
+            movingAverageInput.Add(
+                new PointF(
+                    140f,
+                    30f));
+
+            List<PointF> movingAverageResult =
+                BuildChartMovingAverageTrendlinePoints(
+                    movingAverageInput,
+                    movingAverageSeries.Trendline);
+
+            if (movingAverageSeries.Trendline == null ||
+                movingAverageSeries.Trendline.Period != 3 ||
+                movingAverageResult == null ||
+                movingAverageResult.Count != 2 ||
+                Math.Abs(
+                    movingAverageResult[0].Y -
+                    90f) > 0.01f ||
+                Math.Abs(
+                    movingAverageResult[1].Y -
+                    60f) > 0.01f)
+            {
+                throw new InvalidOperationException(
+                    "Moving-average chart trendline period or values were not applied.");
+            }
+
+            XmlDocument customErrorBarDoc =
+                new XmlDocument();
+
+            customErrorBarDoc.LoadXml(
+                "<c:ser xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<c:errBars><c:errDir val=\"y\"/><c:errBarType val=\"both\"/><c:errValType val=\"cust\"/>" +
+                "<c:plus><c:numLit><c:pt idx=\"0\"><c:v>10</c:v></c:pt><c:pt idx=\"1\"><c:v>20</c:v></c:pt></c:numLit></c:plus>" +
+                "<c:minus><c:numLit><c:pt idx=\"0\"><c:v>5</c:v></c:pt><c:pt idx=\"1\"><c:v>15</c:v></c:pt></c:numLit></c:minus>" +
+                "<c:spPr><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"8844CC\"/></a:solidFill></a:ln></c:spPr>" +
+                "</c:errBars></c:ser>");
+
+            ChartSeriesData customErrorSeries =
+                new ChartSeriesData();
+
+            ReadChartSeriesVisualStyle(
+                customErrorBarDoc.DocumentElement,
+                customErrorSeries,
+                theme);
+
+            double customPlus;
+            double customMinus;
+
+            ResolveChartErrorMagnitudes(
+                50.0,
+                1,
+                customErrorSeries.ErrorBars,
+                out customPlus,
+                out customMinus);
+
+            if (customErrorSeries.ErrorBars == null ||
+                customErrorSeries.ErrorBars.ValueType != "cust" ||
+                customErrorSeries.ErrorBars.PlusValues.Count != 2 ||
+                customErrorSeries.ErrorBars.MinusValues.Count != 2 ||
+                Math.Abs(
+                    customPlus -
+                    20.0) > 0.0001 ||
+                Math.Abs(
+                    customMinus -
+                    15.0) > 0.0001)
+            {
+                throw new InvalidOperationException(
+                    "Custom chart error-bar plus/minus caches were not parsed by point.");
+            }
+
+            using (Bitmap customErrorBitmap =
+                new Bitmap(
+                    240,
+                    160,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics customErrorGraphics =
+                Graphics.FromImage(
+                    customErrorBitmap))
+            {
+                customErrorGraphics.Clear(
+                    Color.White);
+
+                ChartAxisScale customErrorScale =
+                    new ChartAxisScale();
+                customErrorScale.Minimum =
+                    0.0;
+                customErrorScale.Maximum =
+                    100.0;
+
+                RectangleF customErrorPlot =
+                    new RectangleF(
+                        20f,
+                        20f,
+                        200f,
+                        120f);
+
+                DrawChartErrorBar(
+                    customErrorGraphics,
+                    customErrorPlot,
+                    customErrorScale,
+                    "line",
+                    new PointF(
+                        120f,
+                        80f),
+                    50.0,
+                    1,
+                    customErrorSeries.ErrorBars,
+                    Color.Black);
+
+                Color customPlusPixel =
+                    customErrorBitmap.GetPixel(
+                        120,
+                        56);
+
+                Color customMinusPixel =
+                    customErrorBitmap.GetPixel(
+                        120,
+                        98);
+
+                bool plusVisible =
+                    customPlusPixel.B >
+                        customPlusPixel.G +
+                        60 &&
+                    customPlusPixel.R >
+                        customPlusPixel.G +
+                        35;
+
+                bool minusVisible =
+                    customMinusPixel.B >
+                        customMinusPixel.G +
+                        60 &&
+                    customMinusPixel.R >
+                        customMinusPixel.G +
+                        35;
+
+                if (!plusVisible ||
+                    !minusVisible)
+                {
+                    throw new InvalidOperationException(
+                        "Custom chart error-bar asymmetric endpoints were not rendered.");
                 }
             }
 
