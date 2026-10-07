@@ -12507,6 +12507,8 @@ namespace PptxViewer
                 ReadChartLabelOptions(
                     chartDoc,
                     theme);
+            labels.LayoutReferenceRect =
+                rect;
 
             if (HasAnyChartSeriesDataLabel(
                     labels,
@@ -13003,6 +13005,8 @@ namespace PptxViewer
                 ReadChartLabelOptions(
                     chartDoc,
                     theme);
+            labels.LayoutReferenceRect =
+                rect;
 
             using (Font labelFont =
                 SafeFont(
