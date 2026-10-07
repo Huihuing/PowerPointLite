@@ -139,6 +139,22 @@ namespace PptxViewer
             return table;
         }
 
+        public PresentationChart AddChart(
+            int slideIndex,
+            byte[] xmlData)
+        {
+            PresentationSlide slide =
+                GetSlide(slideIndex);
+
+            if (slide == null)
+                return null;
+
+            PresentationChart chart =
+                slide.AddChart(xmlData);
+            MarkDirty();
+            return chart;
+        }
+
         public bool RemoveTextBox(int slideIndex, int index)
         {
             PresentationSlide slide = GetSlide(slideIndex);
@@ -172,6 +188,19 @@ namespace PptxViewer
             bool removed = slide != null && slide.RemoveTable(index);
             if (removed)
                 MarkDirty();
+            return removed;
+        }
+
+        public bool RemoveChart(int slideIndex, int index)
+        {
+            PresentationSlide slide = GetSlide(slideIndex);
+            bool removed =
+                slide != null &&
+                slide.RemoveChart(index);
+
+            if (removed)
+                MarkDirty();
+
             return removed;
         }
 

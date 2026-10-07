@@ -14,7 +14,8 @@ namespace PptxViewer
         TextBox,
         Shape,
         Image,
-        Table
+        Table,
+        Chart
     }
 
     internal enum EditorAlignmentCommand
@@ -1198,7 +1199,8 @@ namespace PptxViewer
                     (selectedSlide.TextBoxes.Count > 0 ||
                      selectedSlide.Shapes.Count > 0 ||
                      selectedSlide.Images.Count > 0 ||
-                     selectedSlide.Tables.Count > 0);
+                     selectedSlide.Tables.Count > 0 ||
+                     selectedSlide.Charts.Count > 0);
 
                 cutMenuItem.Enabled = hasSelection;
                 copyMenuItem.Enabled = hasSelection;
@@ -1885,6 +1887,8 @@ namespace PptxViewer
                 new List<int>();
             List<int> tableIndexes =
                 new List<int>();
+            List<int> chartIndexes =
+                new List<int>();
 
             for (int i = 0;
                  i < selected.Count;
@@ -1917,12 +1921,19 @@ namespace PptxViewer
                     tableIndexes.Add(
                         entry.Index);
                 }
+                else if (entry.Kind ==
+                         EditorObjectKind.Chart)
+                {
+                    chartIndexes.Add(
+                        entry.Index);
+                }
             }
 
             textIndexes.Sort();
             shapeIndexes.Sort();
             imageIndexes.Sort();
             tableIndexes.Sort();
+            chartIndexes.Sort();
 
             CaptureHistory();
             bool removed = false;
@@ -1975,6 +1986,18 @@ namespace PptxViewer
                     removed;
             }
 
+            for (int i =
+                     chartIndexes.Count - 1;
+                 i >= 0;
+                 i--)
+            {
+                removed =
+                    session.RemoveChart(
+                        slideIndex,
+                        chartIndexes[i]) ||
+                    removed;
+            }
+
             if (!removed)
                 return;
 
@@ -2020,6 +2043,14 @@ namespace PptxViewer
             {
                 kind =
                     PresentationLayerKind.Table;
+                return true;
+            }
+
+            if (canvas.SelectedObjectKind ==
+                EditorObjectKind.Chart)
+            {
+                kind =
+                    PresentationLayerKind.Chart;
                 return true;
             }
 
@@ -2785,6 +2816,8 @@ namespace PptxViewer
                 PresentationShape shape = canvas.GetSelectedShape();
                 PresentationImage image = canvas.GetSelectedImage();
                 PresentationTable table = canvas.GetSelectedTable();
+                PresentationChart chart =
+                    canvas.GetSelectedChart();
 
                 bool textEnabled = text != null;
                 bool shapeEnabled = shape != null;
@@ -2802,7 +2835,9 @@ namespace PptxViewer
                                     ? "Image"
                                     : table != null
                                         ? "Table"
-                                        : "No object selected";
+                                        : chart != null
+                                            ? "Chart"
+                                            : "No object selected";
 
                 textEditor.Enabled = textEnabled;
                 fontPicker.Enabled = textEnabled;
@@ -4226,6 +4261,12 @@ namespace PptxViewer
                         kind =
                             EditorObjectKind.Table;
                     }
+                    else if (layer.Kind ==
+                             PresentationLayerKind.Chart)
+                    {
+                        kind =
+                            EditorObjectKind.Chart;
+                    }
 
                     if (kind != EditorObjectKind.None)
                     {
@@ -4470,6 +4511,26 @@ namespace PptxViewer
             return slide.Tables[SelectedObjectIndex];
         }
 
+        public PresentationChart GetSelectedChart()
+        {
+            PresentationSlide slide =
+                GetSlide();
+
+            if (slide == null ||
+                selectedObjects.Count != 1 ||
+                SelectedObjectKind !=
+                    EditorObjectKind.Chart ||
+                SelectedObjectIndex < 0 ||
+                SelectedObjectIndex >=
+                    slide.Charts.Count)
+            {
+                return null;
+            }
+
+            return slide.Charts[
+                SelectedObjectIndex];
+        }
+
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
@@ -4542,6 +4603,16 @@ namespace PptxViewer
                     DrawTable(
                         e.Graphics,
                         slide.Tables[entry.Index],
+                        entry.Index);
+                }
+                else if (entry.Kind ==
+                             PresentationLayerKind.Chart &&
+                         entry.Index >= 0 &&
+                         entry.Index < slide.Charts.Count)
+                {
+                    DrawChart(
+                        e.Graphics,
+                        slide.Charts[entry.Index],
                         entry.Index);
                 }
             }
@@ -5034,6 +5105,87 @@ namespace PptxViewer
             DrawSelectionIfNeeded(
                 graphics,
                 EditorObjectKind.Table,
+                index,
+                rect);
+        }
+
+        private void DrawChart(
+            Graphics graphics,
+            PresentationChart chart,
+            int index)
+        {
+            RectangleF rect =
+                ToRectangle(
+                    chart.X,
+                    chart.Y,
+                    chart.Width,
+                    chart.Height);
+
+            bool rendered =
+                InternalPptxRenderer
+                    .TryDrawEditableChart(
+                        graphics,
+                        chart.XmlData,
+                        rect);
+
+            if (!rendered)
+            {
+                using (Brush background =
+                    new SolidBrush(
+                        Color.FromArgb(
+                            245,
+                            246,
+                            248)))
+                using (Pen border =
+                    new Pen(
+                        Color.FromArgb(
+                            185,
+                            190,
+                            198),
+                        1f))
+                using (Brush textBrush =
+                    new SolidBrush(
+                        Color.FromArgb(
+                            64,
+                            68,
+                            76)))
+                using (StringFormat format =
+                    new StringFormat())
+                {
+                    graphics.FillRectangle(
+                        background,
+                        rect);
+                    graphics.DrawRectangle(
+                        border,
+                        rect.X,
+                        rect.Y,
+                        rect.Width,
+                        rect.Height);
+                    format.Alignment =
+                        StringAlignment.Center;
+                    format.LineAlignment =
+                        StringAlignment.Center;
+
+                    using (Font font =
+                        PresentationRenderPrimitives
+                            .SafeFont(
+                                "Arial",
+                                12f,
+                                FontStyle.Bold))
+                    {
+                        graphics.DrawString(
+                            "Chart",
+                            font,
+                            textBrush,
+                            rect,
+                            format);
+                    }
+                }
+            }
+
+            DrawSelectionIfNeeded(
+                graphics,
+                EditorObjectKind.Chart,
                 index,
                 rect);
         }
@@ -5770,6 +5922,21 @@ namespace PptxViewer
                     candidateKind =
                         EditorObjectKind.Table;
                 }
+                else if (entry.Kind ==
+                             PresentationLayerKind.Chart &&
+                         entry.Index >= 0 &&
+                         entry.Index < slide.Charts.Count)
+                {
+                    PresentationChart item =
+                        slide.Charts[entry.Index];
+                    candidate = ToRectangle(
+                        item.X,
+                        item.Y,
+                        item.Width,
+                        item.Height);
+                    candidateKind =
+                        EditorObjectKind.Chart;
+                }
 
                 if (candidateKind !=
                         EditorObjectKind.None &&
@@ -5881,6 +6048,18 @@ namespace PptxViewer
                 return true;
             }
 
+            if (kind == EditorObjectKind.Chart &&
+                index < slide.Charts.Count)
+            {
+                PresentationChart item =
+                    slide.Charts[index];
+                x = item.X;
+                y = item.Y;
+                width = item.Width;
+                height = item.Height;
+                return true;
+            }
+
             return false;
         }
 
@@ -5957,6 +6136,18 @@ namespace PptxViewer
             {
                 PresentationTable item =
                     slide.Tables[index];
+                item.X = x;
+                item.Y = y;
+                item.Width = width;
+                item.Height = height;
+                return;
+            }
+
+            if (kind == EditorObjectKind.Chart &&
+                index < slide.Charts.Count)
+            {
+                PresentationChart item =
+                    slide.Charts[index];
                 item.X = x;
                 item.Y = y;
                 item.Width = width;

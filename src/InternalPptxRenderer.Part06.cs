@@ -151,6 +151,55 @@ internal static partial class InternalPptxRenderer
             }
         }
 
+        internal static bool TryDrawEditableChart(
+            Graphics graphics,
+            byte[] chartXml,
+            RectangleF rect)
+        {
+            if (graphics == null ||
+                chartXml == null ||
+                chartXml.Length == 0 ||
+                rect.Width <= 0f ||
+                rect.Height <= 0f)
+            {
+                return false;
+            }
+
+            try
+            {
+                XmlDocument chartDocument =
+                    new XmlDocument();
+                chartDocument.PreserveWhitespace =
+                    true;
+
+                using (MemoryStream stream =
+                    new MemoryStream(
+                        chartXml,
+                        false))
+                {
+                    chartDocument.Load(stream);
+                }
+
+                if (chartDocument.DocumentElement == null ||
+                    chartDocument.DocumentElement.LocalName !=
+                        "chartSpace")
+                {
+                    return false;
+                }
+
+                DrawChart(
+                    graphics,
+                    chartDocument,
+                    rect,
+                    new Dictionary<string, Color>());
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private static void DrawChart(
             Graphics g,
             XmlDocument chartDoc,
