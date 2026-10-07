@@ -153,6 +153,8 @@ Advanced Editor는 선택 객체에 대해 **Send Back / Bring Front**를 제공
 
 또한 **Ctrl+클릭 multi-selection**을 지원한다. 여러 text box/shape/image를 함께 선택하면 각 객체 선택선과 전체 group bounds가 표시되고, 마우스 drag 또는 방향키로 상대 간격을 유지한 채 동시에 이동할 수 있다. 그룹이 slide 경계에 닿으면 전체 그룹 기준으로 이동량을 제한하며, Delete는 선택된 객체를 종류별 역순으로 제거해 index 변화에도 안전하게 동작한다. 다중 선택 중에는 개별 속성 편집·복사·z-order 버튼을 잠가 잘못된 단일-object 동작을 방지한다.
 
+multi-selection 상태에서는 상단 **Align** 메뉴가 활성화된다. 2개 이상 객체에 대해 left/center/right/top/middle/bottom 정렬을 제공하고, 3개 이상에서는 horizontal/vertical distribute를 추가로 활성화한다. distribute는 양 끝 객체의 center를 고정한 채 중간 객체의 center 간격을 균등하게 재배치한다.
+
 Animation 자체 테스트는 합성 `p:timing`을 프로젝트가 만든 PPTX에 주입해 click entrance, with-previous emphasis, after-previous exit, delayed motion step과 단계별 render state를 검사한다.
 
 인터넷 문서나 Microsoft/Hancom 템플릿을 fixture로 사용하지 않는다.

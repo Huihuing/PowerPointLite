@@ -16,6 +16,18 @@ namespace PptxViewer
         Image
     }
 
+    internal enum EditorAlignmentCommand
+    {
+        Left,
+        Center,
+        Right,
+        Top,
+        Middle,
+        Bottom,
+        DistributeHorizontal,
+        DistributeVertical
+    }
+
     internal sealed class EditorSelectionEntry
     {
         public EditorObjectKind Kind { get; set; }
@@ -56,6 +68,7 @@ namespace PptxViewer
         private readonly Button pasteButton;
         private readonly Button sendBackButton;
         private readonly Button bringFrontButton;
+        private readonly Button alignButton;
 
         private bool loadingProperties;
         private bool propertyEditSnapshotActive;
@@ -120,7 +133,8 @@ namespace PptxViewer
                             306,
                             609,
                             754,
-                            948
+                            948,
+                            1030
                         };
 
                     for (int i = 0;
@@ -153,6 +167,7 @@ namespace PptxViewer
             pasteButton = MakeButton("Paste", 684, 64);
             sendBackButton = MakeButton("Send Back", 760, 84);
             bringFrontButton = MakeButton("Bring Front", 850, 92);
+            alignButton = MakeButton("Align", 954, 70);
 
             saveButton.Tag = "Primary";
             ApplicationTheme.ApplyButton(
@@ -173,6 +188,91 @@ namespace PptxViewer
             mainToolbar.Controls.Add(pasteButton);
             mainToolbar.Controls.Add(sendBackButton);
             mainToolbar.Controls.Add(bringFrontButton);
+            mainToolbar.Controls.Add(alignButton);
+
+            ContextMenuStrip alignMenu =
+                new ContextMenuStrip();
+            ToolStripMenuItem alignLeft =
+                new ToolStripMenuItem("Align left");
+            ToolStripMenuItem alignCenter =
+                new ToolStripMenuItem("Align center");
+            ToolStripMenuItem alignRight =
+                new ToolStripMenuItem("Align right");
+            ToolStripMenuItem alignTop =
+                new ToolStripMenuItem("Align top");
+            ToolStripMenuItem alignMiddle =
+                new ToolStripMenuItem("Align middle");
+            ToolStripMenuItem alignBottom =
+                new ToolStripMenuItem("Align bottom");
+            ToolStripMenuItem distributeHorizontal =
+                new ToolStripMenuItem("Distribute horizontally");
+            ToolStripMenuItem distributeVertical =
+                new ToolStripMenuItem("Distribute vertically");
+
+            alignMenu.Items.Add(alignLeft);
+            alignMenu.Items.Add(alignCenter);
+            alignMenu.Items.Add(alignRight);
+            alignMenu.Items.Add(new ToolStripSeparator());
+            alignMenu.Items.Add(alignTop);
+            alignMenu.Items.Add(alignMiddle);
+            alignMenu.Items.Add(alignBottom);
+            alignMenu.Items.Add(new ToolStripSeparator());
+            alignMenu.Items.Add(distributeHorizontal);
+            alignMenu.Items.Add(distributeVertical);
+            ApplicationTheme.ApplyContextMenu(
+                alignMenu);
+
+            alignLeft.Click += delegate
+            {
+                AlignSelectedObjects(
+                    EditorAlignmentCommand.Left);
+            };
+            alignCenter.Click += delegate
+            {
+                AlignSelectedObjects(
+                    EditorAlignmentCommand.Center);
+            };
+            alignRight.Click += delegate
+            {
+                AlignSelectedObjects(
+                    EditorAlignmentCommand.Right);
+            };
+            alignTop.Click += delegate
+            {
+                AlignSelectedObjects(
+                    EditorAlignmentCommand.Top);
+            };
+            alignMiddle.Click += delegate
+            {
+                AlignSelectedObjects(
+                    EditorAlignmentCommand.Middle);
+            };
+            alignBottom.Click += delegate
+            {
+                AlignSelectedObjects(
+                    EditorAlignmentCommand.Bottom);
+            };
+            distributeHorizontal.Click += delegate
+            {
+                AlignSelectedObjects(
+                    EditorAlignmentCommand.DistributeHorizontal);
+            };
+            distributeVertical.Click += delegate
+            {
+                AlignSelectedObjects(
+                    EditorAlignmentCommand.DistributeVertical);
+            };
+
+            alignMenu.Opening += delegate
+            {
+                bool canDistribute =
+                    canvas != null &&
+                    canvas.SelectedObjectCount >= 3;
+                distributeHorizontal.Enabled =
+                    canDistribute;
+                distributeVertical.Enabled =
+                    canDistribute;
+            };
 
             Label quickShapeLabel =
                 MakeLabel(
@@ -210,14 +310,14 @@ namespace PptxViewer
                     int desiredSelectorWidth = 148;
                     int selectorRight =
                         Math.Max(
-                            bringFrontButton.Right +
+                            alignButton.Right +
                             gap,
                             mainToolbar.ClientSize.Width -
                             10);
 
                     int availableSelectorWidth =
                         selectorRight -
-                        bringFrontButton.Right -
+                        alignButton.Right -
                         gap;
 
                     if (availableSelectorWidth <
@@ -274,6 +374,14 @@ namespace PptxViewer
             pasteButton.Click += delegate { PasteObject(); };
             sendBackButton.Click += delegate { MoveSelectedObjectLayer(false); };
             bringFrontButton.Click += delegate { MoveSelectedObjectLayer(true); };
+            alignButton.Click += delegate
+            {
+                alignMenu.Show(
+                    alignButton,
+                    new Point(
+                        0,
+                        alignButton.Height));
+            };
 
             Panel slideToolbar = new Panel();
             slideToolbar.Dock = DockStyle.Top;
@@ -1264,6 +1372,38 @@ namespace PptxViewer
             UpdateStatus();
         }
 
+        private void AlignSelectedObjects(
+            EditorAlignmentCommand command)
+        {
+            if (canvas == null ||
+                canvas.SelectedObjectCount < 2)
+            {
+                return;
+            }
+
+            if ((command ==
+                    EditorAlignmentCommand.DistributeHorizontal ||
+                 command ==
+                    EditorAlignmentCommand.DistributeVertical) &&
+                canvas.SelectedObjectCount < 3)
+            {
+                return;
+            }
+
+            CaptureHistory();
+
+            if (!canvas.AlignSelection(
+                    command))
+            {
+                return;
+            }
+
+            propertyEditSnapshotActive = false;
+            session.MarkDirty();
+            canvas.Invalidate();
+            UpdateStatus();
+        }
+
         private void CopySelectedObject()
         {
             copiedTextBox = null;
@@ -1656,6 +1796,9 @@ namespace PptxViewer
                 slide.CanMoveObjectToFront(
                     layerKind,
                     canvas.SelectedObjectIndex);
+            alignButton.Enabled =
+                canvas != null &&
+                canvas.SelectedObjectCount >= 2;
         }
 
         private void OnEditorClosing(object sender, FormClosingEventArgs e)
@@ -2435,6 +2578,338 @@ namespace PptxViewer
             }
         }
 
+
+
+        public bool AlignSelection(
+            EditorAlignmentCommand command)
+        {
+            if (selectedObjects.Count < 2 ||
+                Document == null)
+            {
+                return false;
+            }
+
+            List<SelectionGeometrySnapshot> items =
+                new List<SelectionGeometrySnapshot>();
+
+            for (int i = 0;
+                 i < selectedObjects.Count;
+                 i++)
+            {
+                EditorSelectionEntry entry =
+                    selectedObjects[i];
+                long x;
+                long y;
+                long width;
+                long height;
+
+                if (!GetObjectGeometry(
+                        entry.Kind,
+                        entry.Index,
+                        out x,
+                        out y,
+                        out width,
+                        out height))
+                {
+                    continue;
+                }
+
+                SelectionGeometrySnapshot item =
+                    new SelectionGeometrySnapshot();
+                item.Kind = entry.Kind;
+                item.Index = entry.Index;
+                item.X = x;
+                item.Y = y;
+                item.Width = width;
+                item.Height = height;
+                items.Add(item);
+            }
+
+            if (items.Count < 2)
+                return false;
+
+            if ((command ==
+                    EditorAlignmentCommand.DistributeHorizontal ||
+                 command ==
+                    EditorAlignmentCommand.DistributeVertical) &&
+                items.Count < 3)
+            {
+                return false;
+            }
+
+            long minX =
+                long.MaxValue;
+            long minY =
+                long.MaxValue;
+            long maxRight =
+                long.MinValue;
+            long maxBottom =
+                long.MinValue;
+
+            for (int i = 0;
+                 i < items.Count;
+                 i++)
+            {
+                SelectionGeometrySnapshot item =
+                    items[i];
+
+                minX =
+                    Math.Min(
+                        minX,
+                        item.X);
+                minY =
+                    Math.Min(
+                        minY,
+                        item.Y);
+                maxRight =
+                    Math.Max(
+                        maxRight,
+                        item.X +
+                        item.Width);
+                maxBottom =
+                    Math.Max(
+                        maxBottom,
+                        item.Y +
+                        item.Height);
+            }
+
+            if (command ==
+                EditorAlignmentCommand.DistributeHorizontal)
+            {
+                items.Sort(
+                    delegate(
+                        SelectionGeometrySnapshot left,
+                        SelectionGeometrySnapshot right)
+                    {
+                        long leftCenter =
+                            left.X +
+                            left.Width /
+                            2L;
+                        long rightCenter =
+                            right.X +
+                            right.Width /
+                            2L;
+                        return leftCenter.CompareTo(
+                            rightCenter);
+                    });
+
+                long firstCenter =
+                    items[0].X +
+                    items[0].Width /
+                    2L;
+                long lastCenter =
+                    items[items.Count - 1].X +
+                    items[items.Count - 1].Width /
+                    2L;
+                double step =
+                    (lastCenter -
+                     firstCenter) /
+                    (double)(
+                        items.Count - 1);
+
+                for (int i = 1;
+                     i < items.Count - 1;
+                     i++)
+                {
+                    SelectionGeometrySnapshot item =
+                        items[i];
+                    long center =
+                        (long)Math.Round(
+                            firstCenter +
+                            step *
+                            i);
+                    long x =
+                        center -
+                        item.Width /
+                        2L;
+
+                    x =
+                        Math.Max(
+                            0L,
+                            Math.Min(
+                                Math.Max(
+                                    0L,
+                                    Document.WidthEmu -
+                                    item.Width),
+                                x));
+
+                    SetObjectGeometry(
+                        item.Kind,
+                        item.Index,
+                        x,
+                        item.Y,
+                        item.Width,
+                        item.Height);
+                }
+
+                return true;
+            }
+
+            if (command ==
+                EditorAlignmentCommand.DistributeVertical)
+            {
+                items.Sort(
+                    delegate(
+                        SelectionGeometrySnapshot top,
+                        SelectionGeometrySnapshot bottom)
+                    {
+                        long topCenter =
+                            top.Y +
+                            top.Height /
+                            2L;
+                        long bottomCenter =
+                            bottom.Y +
+                            bottom.Height /
+                            2L;
+                        return topCenter.CompareTo(
+                            bottomCenter);
+                    });
+
+                long firstCenter =
+                    items[0].Y +
+                    items[0].Height /
+                    2L;
+                long lastCenter =
+                    items[items.Count - 1].Y +
+                    items[items.Count - 1].Height /
+                    2L;
+                double step =
+                    (lastCenter -
+                     firstCenter) /
+                    (double)(
+                        items.Count - 1);
+
+                for (int i = 1;
+                     i < items.Count - 1;
+                     i++)
+                {
+                    SelectionGeometrySnapshot item =
+                        items[i];
+                    long center =
+                        (long)Math.Round(
+                            firstCenter +
+                            step *
+                            i);
+                    long y =
+                        center -
+                        item.Height /
+                        2L;
+
+                    y =
+                        Math.Max(
+                            0L,
+                            Math.Min(
+                                Math.Max(
+                                    0L,
+                                    Document.HeightEmu -
+                                    item.Height),
+                                y));
+
+                    SetObjectGeometry(
+                        item.Kind,
+                        item.Index,
+                        item.X,
+                        y,
+                        item.Width,
+                        item.Height);
+                }
+
+                return true;
+            }
+
+            long centerX =
+                minX +
+                (maxRight -
+                 minX) /
+                2L;
+            long centerY =
+                minY +
+                (maxBottom -
+                 minY) /
+                2L;
+
+            for (int i = 0;
+                 i < items.Count;
+                 i++)
+            {
+                SelectionGeometrySnapshot item =
+                    items[i];
+                long x =
+                    item.X;
+                long y =
+                    item.Y;
+
+                if (command ==
+                    EditorAlignmentCommand.Left)
+                {
+                    x = minX;
+                }
+                else if (command ==
+                         EditorAlignmentCommand.Center)
+                {
+                    x =
+                        centerX -
+                        item.Width /
+                        2L;
+                }
+                else if (command ==
+                         EditorAlignmentCommand.Right)
+                {
+                    x =
+                        maxRight -
+                        item.Width;
+                }
+                else if (command ==
+                         EditorAlignmentCommand.Top)
+                {
+                    y = minY;
+                }
+                else if (command ==
+                         EditorAlignmentCommand.Middle)
+                {
+                    y =
+                        centerY -
+                        item.Height /
+                        2L;
+                }
+                else if (command ==
+                         EditorAlignmentCommand.Bottom)
+                {
+                    y =
+                        maxBottom -
+                        item.Height;
+                }
+
+                x =
+                    Math.Max(
+                        0L,
+                        Math.Min(
+                            Math.Max(
+                                0L,
+                                Document.WidthEmu -
+                                item.Width),
+                            x));
+                y =
+                    Math.Max(
+                        0L,
+                        Math.Min(
+                            Math.Max(
+                                0L,
+                                Document.HeightEmu -
+                                item.Height),
+                            y));
+
+                SetObjectGeometry(
+                    item.Kind,
+                    item.Index,
+                    x,
+                    y,
+                    item.Width,
+                    item.Height);
+            }
+
+            return true;
+        }
 
         private void DrawMultiSelectionBounds(
             Graphics graphics)
