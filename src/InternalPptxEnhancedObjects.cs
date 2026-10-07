@@ -12209,33 +12209,33 @@ namespace PptxViewer
                             chartRect.Height;
             }
 
-            float width =
+            float resolvedWidth =
                 right -
                 left;
 
-            float height =
+            float resolvedHeight =
                 bottom -
                 top;
 
-            if (width <= 0f ||
-                height <= 0f)
+            if (resolvedWidth <= 0f ||
+                resolvedHeight <= 0f)
             {
                 return automaticRect;
             }
 
-            width =
+            resolvedWidth =
                 Math.Max(
                     12f,
                     Math.Min(
                         chartRect.Width,
-                        width));
+                        resolvedWidth));
 
-            height =
+            resolvedHeight =
                 Math.Max(
                     12f,
                     Math.Min(
                         chartRect.Height,
-                        height));
+                        resolvedHeight));
 
             if (left <
                 chartRect.Left)
@@ -12251,20 +12251,20 @@ namespace PptxViewer
                     chartRect.Top;
             }
 
-            if (left + width >
+            if (left + resolvedWidth >
                 chartRect.Right)
             {
                 left =
                     chartRect.Right -
-                    width;
+                    resolvedWidth;
             }
 
-            if (top + height >
+            if (top + resolvedHeight >
                 chartRect.Bottom)
             {
                 top =
                     chartRect.Bottom -
-                    height;
+                    resolvedHeight;
             }
 
             left =
@@ -12280,8 +12280,8 @@ namespace PptxViewer
             return new RectangleF(
                 left,
                 top,
-                width,
-                height);
+                resolvedWidth,
+                resolvedHeight);
         }
 
         private static bool IsChartManualLayoutRangeValid(
