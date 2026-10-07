@@ -493,7 +493,10 @@ internal static partial class InternalPptxRenderer
                     series,
                     palette,
                     kind,
-                    legendPosition);
+                    legendPosition,
+                    ReadChartLegendTextStyle(
+                        chartDoc,
+                        theme));
                 return;
             }
 
@@ -1165,7 +1168,10 @@ internal static partial class InternalPptxRenderer
                 series,
                 palette,
                 kind,
-                legendPosition);
+                legendPosition,
+                ReadChartLegendTextStyle(
+                    chartDoc,
+                    theme));
         }
 
         private static ChartBarOptions ReadChartBarOptions(
@@ -2457,6 +2463,38 @@ internal static partial class InternalPptxRenderer
                     ? ", "
                     : options.Separator,
                 parts.ToArray());
+        }
+
+        private static ChartLabelOptions ReadChartLegendTextStyle(
+            XmlDocument chartDoc,
+            Dictionary<string, Color> theme)
+        {
+            ChartLabelOptions result =
+                new ChartLabelOptions();
+
+            XmlNode legend =
+                chartDoc == null
+                    ? null
+                    : FindFirst(
+                        chartDoc,
+                        "legend");
+
+            if (legend == null)
+                return result;
+
+            result.TextColor =
+                ReadChartDataLabelTextColor(
+                    legend,
+                    theme);
+
+            ReadChartDataLabelFontStyle(
+                legend,
+                out result.FontSize,
+                out result.Bold,
+                out result.Italic,
+                out result.FontFamily);
+
+            return result;
         }
 
         private static string ReadChartLegendPosition(
@@ -5823,7 +5861,8 @@ internal static partial class InternalPptxRenderer
             List<ChartSeriesData> series,
             Color[] palette,
             string kind,
-            string position)
+            string position,
+            ChartLabelOptions textStyle = null)
         {
             if (string.IsNullOrEmpty(position) ||
                 series == null ||
@@ -5885,20 +5924,26 @@ internal static partial class InternalPptxRenderer
             if (labels.Count == 0)
                 return;
 
-            using (Font font = SafeFont(
-                "Arial",
-                Math.Max(
-                    7f,
-                    Math.Min(
-                        11f,
-                        rect.Height /
-                        28f))))
+            using (Font font =
+                SafeChartTextFont(
+                    "Arial",
+                    Math.Max(
+                        7f,
+                        Math.Min(
+                            11f,
+                            rect.Height /
+                            28f)),
+                    FontStyle.Regular,
+                    textStyle))
             using (Brush text =
                 new SolidBrush(
-                    Color.FromArgb(
-                        60,
-                        60,
-                        60)))
+                    textStyle != null &&
+                    textStyle.TextColor.HasValue
+                        ? textStyle.TextColor.Value
+                        : Color.FromArgb(
+                            60,
+                            60,
+                            60)))
             {
                 if (position == "t" ||
                     position == "b")
