@@ -50,6 +50,7 @@ Microsoft Office의 Ribbon 색상, 공식 아이콘, 앱 로고를 복제하지 
 - Presenter View 상단 action/status 영역과 Advanced Editor quick-shape 선택기는 창 폭에 따라 재배치하고, 공간이 부족하면 보조 상태/선택기를 숨겨 주요 action과 겹치지 않게 한다.
 - Basic/Advanced Editor는 창 폭에 따라 Slides pane을 176~220px(Advanced 184~220px), Properties pane을 286~300px 범위로 조정하고, 좁은 폭에서는 canvas padding도 줄여 편집 영역을 우선 확보한다.
 - Advanced Editor Properties 내부는 14px content padding을 실제 좌표에 반영하고, full-width 필드와 Alignment/Text color·Fill/Line 2열 필드를 panel client width에 맞춰 재계산한다. 세로 공간이 부족하면 panel 내부 스크롤로 접근성을 유지한다.
+- Properties는 제목 → 현재 선택 객체 summary → Text/Shape section header → field 순으로 시각적 계층을 두고, section header는 accent를 제한적으로 사용한다.
 - Viewer 상단 toolbar는 고정 폭 임계값 대신 현재 UI 글꼴로 측정한 전체 command 폭을 기준으로 compact mode를 결정한다.
 - compact mode에서는 Presenter/TOC/100%/Print 같은 중복 action을 View 메뉴로 접고, zoom은 실제 남는 폭에 맞춰 축소하거나 숨긴다.
 - toolbar button 높이와 간격도 현재 글꼴 높이를 기준으로 보정해 Windows 125%/150% scaling과 언어 변경에서 텍스트가 치우치지 않게 한다.
@@ -76,6 +77,8 @@ content canvas
 - Flat button
 - border 최소화
 - hover/pressed 상태 명확화
+- command bar는 저장/실행 같은 primary action, 삭제 같은 destructive action을 색상 role로 약하게 구분하되 과도한 강조를 피한다.
+- 서로 다른 command group 사이에는 얇은 divider와 충분한 간격을 사용해 긴 버튼 행을 하나의 덩어리처럼 보이지 않게 한다.
 - 텍스트만으로 의미가 분명하면 불필요한 아이콘을 넣지 않는다.
 - 아이콘을 넣을 경우 자체 제작 SVG 또는 재배포 가능한 오픈 라이선스 아이콘만 사용한다.
 

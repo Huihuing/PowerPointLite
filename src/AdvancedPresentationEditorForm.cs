@@ -74,6 +74,52 @@ namespace PptxViewer
             mainToolbar.Height = 48;
             mainToolbar.Padding = new Padding(8, 8, 8, 8);
             mainToolbar.BackColor = ApplicationTheme.Toolbar;
+            mainToolbar.Paint += delegate(object sender, PaintEventArgs e)
+            {
+                using (Pen divider =
+                    new Pen(
+                        ApplicationTheme.Divider))
+                {
+                    int bottom =
+                        Math.Max(
+                            0,
+                            mainToolbar.ClientSize.Height -
+                            1);
+
+                    e.Graphics.DrawLine(
+                        divider,
+                        0,
+                        bottom,
+                        Math.Max(
+                            0,
+                            mainToolbar.ClientSize.Width -
+                            1),
+                        bottom);
+
+                    int[] separators =
+                        new int[]
+                        {
+                            161,
+                            306,
+                            609
+                        };
+
+                    for (int i = 0;
+                         i < separators.Length;
+                         i++)
+                    {
+                        e.Graphics.DrawLine(
+                            divider,
+                            separators[i],
+                            12,
+                            separators[i],
+                            Math.Max(
+                                12,
+                                mainToolbar.ClientSize.Height -
+                                12));
+                    }
+                }
+            };
             Controls.Add(mainToolbar);
 
             Button saveButton = MakeButton("Save", 8, 66);
@@ -87,6 +133,13 @@ namespace PptxViewer
             copyButton = MakeButton("Copy", 614, 64);
             pasteButton = MakeButton("Paste", 684, 64);
 
+            saveButton.Tag = "Primary";
+            ApplicationTheme.ApplyButton(
+                saveButton);
+            deleteObjectButton.Tag = "Danger";
+            ApplicationTheme.ApplyButton(
+                deleteObjectButton);
+
             mainToolbar.Controls.Add(saveButton);
             mainToolbar.Controls.Add(saveAsButton);
             mainToolbar.Controls.Add(undoButton);
@@ -97,6 +150,21 @@ namespace PptxViewer
             mainToolbar.Controls.Add(deleteObjectButton);
             mainToolbar.Controls.Add(copyButton);
             mainToolbar.Controls.Add(pasteButton);
+
+            Label quickShapeLabel =
+                MakeLabel(
+                    "Shape type",
+                    0,
+                    0,
+                    68,
+                    28,
+                    false);
+            quickShapeLabel.ForeColor =
+                ApplicationTheme.SecondaryText;
+            quickShapeLabel.TextAlign =
+                ContentAlignment.MiddleRight;
+            mainToolbar.Controls.Add(
+                quickShapeLabel);
 
             ComboBox quickShapeKind = new ComboBox();
             quickShapeKind.Top = 10;
@@ -113,6 +181,8 @@ namespace PptxViewer
                 delegate
                 {
                     int gap = 12;
+                    int labelGap = 8;
+                    int selectorLabelWidth = 68;
                     int minimumSelectorWidth = 104;
                     int desiredSelectorWidth = 148;
                     int selectorRight =
@@ -128,20 +198,35 @@ namespace PptxViewer
                         gap;
 
                     if (availableSelectorWidth <
-                        minimumSelectorWidth)
+                        minimumSelectorWidth +
+                        selectorLabelWidth +
+                        labelGap)
                     {
+                        quickShapeLabel.Visible = false;
                         quickShapeKind.Visible = false;
                         return;
                     }
 
+                    quickShapeLabel.Visible = true;
                     quickShapeKind.Visible = true;
                     quickShapeKind.Width =
                         Math.Min(
                             desiredSelectorWidth,
-                            availableSelectorWidth);
+                            availableSelectorWidth -
+                            selectorLabelWidth -
+                            labelGap);
                     quickShapeKind.Left =
                         selectorRight -
                         quickShapeKind.Width;
+                    quickShapeLabel.Left =
+                        quickShapeKind.Left -
+                        labelGap -
+                        selectorLabelWidth;
+                    quickShapeLabel.Top = 10;
+                    quickShapeLabel.Width =
+                        selectorLabelWidth;
+                    quickShapeLabel.Height =
+                        quickShapeKind.Height;
                 };
 
             mainToolbar.Resize += delegate
@@ -238,18 +323,28 @@ namespace PptxViewer
             Controls.Add(properties);
 
             Label title = MakeLabel("Object properties", 0, 0, 260, 26, true);
+            title.Font =
+                new Font(
+                    Font.FontFamily,
+                    11f,
+                    FontStyle.Bold);
             properties.Controls.Add(title);
 
-            objectTypeLabel = MakeLabel("No object selected", 0, 28, 260, 24, false);
+            objectTypeLabel = MakeLabel("No object selected", 0, 30, 260, 28, false);
             objectTypeLabel.ForeColor = ApplicationTheme.SecondaryText;
+            objectTypeLabel.BackColor = ApplicationTheme.Surface;
+            objectTypeLabel.Padding = new Padding(8, 0, 8, 0);
+            objectTypeLabel.TextAlign = ContentAlignment.MiddleLeft;
             properties.Controls.Add(objectTypeLabel);
 
-            Label textLabel = MakeLabel("Text", 0, 60, 260, 20, false);
+            Label textLabel = MakeLabel("Text", 0, 68, 260, 20, true);
+            textLabel.ForeColor = ApplicationTheme.Accent;
+
             properties.Controls.Add(textLabel);
 
             textEditor = new TextBox();
             textEditor.Left = 0;
-            textEditor.Top = 82;
+            textEditor.Top = 92;
             textEditor.Width = 270;
             textEditor.Height = 108;
             textEditor.Multiline = true;
@@ -259,12 +354,12 @@ namespace PptxViewer
             textEditor.BorderStyle = BorderStyle.FixedSingle;
             properties.Controls.Add(textEditor);
 
-            Label fontLabel = MakeLabel("Font", 0, 200, 260, 20, false);
+            Label fontLabel = MakeLabel("Font", 0, 210, 260, 20, false);
             properties.Controls.Add(fontLabel);
 
             fontPicker = new ComboBox();
             fontPicker.Left = 0;
-            fontPicker.Top = 222;
+            fontPicker.Top = 232;
             fontPicker.Width = 270;
             fontPicker.DropDownStyle = ComboBoxStyle.DropDownList;
             fontPicker.FlatStyle = FlatStyle.Flat;
@@ -276,12 +371,12 @@ namespace PptxViewer
             for (int i = 0; i < fonts.Count; i++)
                 fontPicker.Items.Add(fonts[i]);
 
-            Label sizeLabel = MakeLabel("Size", 0, 254, 70, 20, false);
+            Label sizeLabel = MakeLabel("Size", 0, 264, 70, 20, false);
             properties.Controls.Add(sizeLabel);
 
             fontSize = new NumericUpDown();
             fontSize.Left = 0;
-            fontSize.Top = 276;
+            fontSize.Top = 286;
             fontSize.Width = 82;
             fontSize.Minimum = 1;
             fontSize.Maximum = 400;
@@ -295,7 +390,7 @@ namespace PptxViewer
             boldCheck = new CheckBox();
             boldCheck.Text = "Bold";
             boldCheck.Left = 96;
-            boldCheck.Top = 278;
+            boldCheck.Top = 288;
             boldCheck.Width = 68;
             boldCheck.ForeColor = ApplicationTheme.PrimaryText;
             properties.Controls.Add(boldCheck);
@@ -303,17 +398,17 @@ namespace PptxViewer
             italicCheck = new CheckBox();
             italicCheck.Text = "Italic";
             italicCheck.Left = 172;
-            italicCheck.Top = 278;
+            italicCheck.Top = 288;
             italicCheck.Width = 72;
             italicCheck.ForeColor = ApplicationTheme.PrimaryText;
             properties.Controls.Add(italicCheck);
 
-            Label alignLabel = MakeLabel("Alignment", 0, 312, 100, 20, false);
+            Label alignLabel = MakeLabel("Alignment", 0, 322, 100, 20, false);
             properties.Controls.Add(alignLabel);
 
             alignmentPicker = new ComboBox();
             alignmentPicker.Left = 0;
-            alignmentPicker.Top = 334;
+            alignmentPicker.Top = 344;
             alignmentPicker.Width = 126;
             alignmentPicker.DropDownStyle = ComboBoxStyle.DropDownList;
             alignmentPicker.FlatStyle = FlatStyle.Flat;
@@ -324,12 +419,12 @@ namespace PptxViewer
             alignmentPicker.Items.Add("Right");
             properties.Controls.Add(alignmentPicker);
 
-            Label textColorLabel = MakeLabel("Text color", 142, 312, 100, 20, false);
+            Label textColorLabel = MakeLabel("Text color", 142, 322, 100, 20, false);
             properties.Controls.Add(textColorLabel);
 
             textColorEditor = new TextBox();
             textColorEditor.Left = 142;
-            textColorEditor.Top = 334;
+            textColorEditor.Top = 344;
             textColorEditor.Width = 128;
             textColorEditor.MaxLength = 7;
             textColorEditor.BackColor = ApplicationTheme.Surface;
@@ -337,12 +432,13 @@ namespace PptxViewer
             textColorEditor.BorderStyle = BorderStyle.FixedSingle;
             properties.Controls.Add(textColorEditor);
 
-            Label shapeLabel = MakeLabel("Shape", 0, 378, 100, 20, false);
+            Label shapeLabel = MakeLabel("Shape", 0, 390, 100, 20, true);
+            shapeLabel.ForeColor = ApplicationTheme.Accent;
             properties.Controls.Add(shapeLabel);
 
             shapeKindPicker = new ComboBox();
             shapeKindPicker.Left = 0;
-            shapeKindPicker.Top = 400;
+            shapeKindPicker.Top = 414;
             shapeKindPicker.Width = 270;
             shapeKindPicker.DropDownStyle = ComboBoxStyle.DropDownList;
             shapeKindPicker.FlatStyle = FlatStyle.Flat;
@@ -351,11 +447,11 @@ namespace PptxViewer
             AddShapeKindItems(shapeKindPicker);
             properties.Controls.Add(shapeKindPicker);
 
-            Label fillLabel = MakeLabel("Fill", 0, 434, 80, 20, false);
+            Label fillLabel = MakeLabel("Fill", 0, 448, 80, 20, false);
             properties.Controls.Add(fillLabel);
             fillColorEditor = new TextBox();
             fillColorEditor.Left = 0;
-            fillColorEditor.Top = 456;
+            fillColorEditor.Top = 470;
             fillColorEditor.Width = 126;
             fillColorEditor.MaxLength = 7;
             fillColorEditor.BackColor = ApplicationTheme.Surface;
@@ -363,11 +459,11 @@ namespace PptxViewer
             fillColorEditor.BorderStyle = BorderStyle.FixedSingle;
             properties.Controls.Add(fillColorEditor);
 
-            Label lineLabel = MakeLabel("Line", 142, 434, 80, 20, false);
+            Label lineLabel = MakeLabel("Line", 142, 448, 80, 20, false);
             properties.Controls.Add(lineLabel);
             lineColorEditor = new TextBox();
             lineColorEditor.Left = 142;
-            lineColorEditor.Top = 456;
+            lineColorEditor.Top = 470;
             lineColorEditor.Width = 128;
             lineColorEditor.MaxLength = 7;
             lineColorEditor.BackColor = ApplicationTheme.Surface;
@@ -378,7 +474,7 @@ namespace PptxViewer
             Label hint = MakeLabel(
                 "Drag objects to move. Drag the lower-right handle to resize. Arrow keys nudge the selected object.",
                 0,
-                500,
+                516,
                 270,
                 80,
                 false);

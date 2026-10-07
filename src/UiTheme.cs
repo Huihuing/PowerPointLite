@@ -72,6 +72,9 @@ namespace PptxViewer
         public static readonly Color AccentSoft = Color.FromArgb(48, 68, 107);
         public static readonly Color AccentSoftHover = Color.FromArgb(60, 84, 132);
         public static readonly Color AccentSoftPressed = Color.FromArgb(43, 61, 96);
+        public static readonly Color DangerSoft = Color.FromArgb(72, 43, 49);
+        public static readonly Color DangerSoftHover = Color.FromArgb(91, 50, 58);
+        public static readonly Color DangerSoftPressed = Color.FromArgb(61, 36, 42);
 
         private static readonly ToolStripProfessionalRenderer MenuRenderer =
             new ToolStripProfessionalRenderer(
@@ -102,11 +105,24 @@ namespace PptxViewer
             else if (string.Equals(
                          role,
                          "F5 Show",
+                         StringComparison.Ordinal) ||
+                     string.Equals(
+                         role,
+                         "Primary",
                          StringComparison.Ordinal))
             {
                 baseColor = AccentSoft;
                 hoverColor = AccentSoftHover;
                 pressedColor = AccentSoftPressed;
+            }
+            else if (string.Equals(
+                         role,
+                         "Danger",
+                         StringComparison.Ordinal))
+            {
+                baseColor = DangerSoft;
+                hoverColor = DangerSoftHover;
+                pressedColor = DangerSoftPressed;
             }
 
             button.FlatStyle = FlatStyle.Flat;
