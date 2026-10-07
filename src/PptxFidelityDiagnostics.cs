@@ -3773,6 +3773,46 @@ namespace PptxViewer
                     "SmartArt process rows were not centered or spaced correctly.");
             }
 
+            RectangleF narrowProcessRect =
+                new RectangleF(
+                    0f,
+                    0f,
+                    180f,
+                    300f);
+
+            Dictionary<string, RectangleF> narrowProcessPositions =
+                BuildProcessSmartArtPositions(
+                    processLayoutNodes,
+                    narrowProcessRect);
+
+            for (int processIndex = 0;
+                 processIndex < processLayoutNodes.Count;
+                 processIndex++)
+            {
+                RectangleF narrowBox =
+                    narrowProcessPositions[
+                        processLayoutNodes[
+                            processIndex].Id];
+
+                if (narrowBox.Left <
+                        narrowProcessRect.Left - 0.5f ||
+                    narrowBox.Right >
+                        narrowProcessRect.Right + 0.5f)
+                {
+                    throw new InvalidOperationException(
+                        "SmartArt process layout overflowed a narrow container.");
+                }
+            }
+
+            if (narrowProcessPositions[
+                    "processLayout3"].Top <=
+                narrowProcessPositions[
+                    "processLayout0"].Bottom)
+            {
+                throw new InvalidOperationException(
+                    "SmartArt process layout did not reduce columns for a narrow container.");
+            }
+
             SmartNode verticalLayoutNode0 =
                 new SmartNode();
             verticalLayoutNode0.Id =
