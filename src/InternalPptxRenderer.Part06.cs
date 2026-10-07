@@ -5966,13 +5966,107 @@ chartDoc);
             if (g == null ||
                 points == null ||
                 points.Count < 2 ||
-                options == null ||
-                !string.Equals(
+                options == null)
+            {
+                return;
+            }
+
+            List<PointF> trendPoints =
+                null;
+
+            if (string.Equals(
                     options.Type,
                     "linear",
                     StringComparison.OrdinalIgnoreCase))
             {
+                trendPoints =
+                    BuildChartLinearTrendlinePoints(
+                        plot,
+                        points,
+                        options);
+            }
+            else if (string.Equals(
+                         options.Type,
+                         "poly",
+                         StringComparison.OrdinalIgnoreCase))
+            {
+                trendPoints =
+                    BuildChartPolynomialTrendlinePoints(
+                        plot,
+                        points,
+                        options);
+            }
+            else if (string.Equals(
+                         options.Type,
+                         "movingAvg",
+                         StringComparison.OrdinalIgnoreCase))
+            {
+                trendPoints =
+                    BuildChartMovingAverageTrendlinePoints(
+                        points,
+                        options);
+            }
+
+            if (trendPoints == null ||
+                trendPoints.Count < 2)
+            {
                 return;
+            }
+
+            ChartLineStyle style =
+                options.LineStyle ??
+                new ChartLineStyle();
+
+            if (options.LineStyle == null)
+            {
+                style.Color =
+                    fallbackColor;
+                style.Width = 1.5f;
+                style.DashStyle =
+                    DashStyle.Dash;
+            }
+
+            GraphicsState state =
+                g.Save();
+
+            try
+            {
+                g.SetClip(
+                    plot,
+                    CombineMode.Intersect);
+
+                using (Pen pen =
+                    new Pen(
+                        style.Color,
+                        Math.Max(
+                            1f,
+                            style.Width)))
+                {
+                    pen.DashStyle =
+                        style.DashStyle;
+
+                    g.DrawLines(
+                        pen,
+                        trendPoints.ToArray());
+                }
+            }
+            finally
+            {
+                g.Restore(
+                    state);
+            }
+        }
+
+        private static List<PointF> BuildChartLinearTrendlinePoints(
+            RectangleF plot,
+            IList<PointF> points,
+            ChartTrendlineOptions options)
+        {
+            if (points == null ||
+                points.Count < 2 ||
+                options == null)
+            {
+                return null;
             }
 
             double sumX = 0.0;
@@ -6023,7 +6117,7 @@ chartDoc);
                     denominator) <
                 0.000001)
             {
-                return;
+                return null;
             }
 
             double slope =
@@ -6040,12 +6134,12 @@ chartDoc);
                 count;
 
             float averageStep =
-                points.Count <= 1
-                    ? 0f
-                    : (maxX -
-                       minX) /
-                      (points.Count -
-                       1f);
+                (maxX -
+                 minX) /
+                Math.Max(
+                    1f,
+                    points.Count -
+                    1f);
 
             float startX =
                 minX -
@@ -6071,65 +6165,492 @@ chartDoc);
                     endX);
 
             if (endX <= startX)
-                return;
+                return null;
 
-            float startY =
-                (float)(
-                    intercept +
-                    slope *
-                    startX);
+            List<PointF> result =
+                new List<PointF>();
 
-            float endY =
-                (float)(
-                    intercept +
-                    slope *
-                    endX);
+            result.Add(
+                new PointF(
+                    startX,
+                    (float)(
+                        intercept +
+                        slope *
+                        startX)));
+            result.Add(
+                new PointF(
+                    endX,
+                    (float)(
+                        intercept +
+                        slope *
+                        endX)));
 
-            ChartLineStyle style =
-                options.LineStyle ??
-                new ChartLineStyle();
+            return result;
+        }
 
-            if (options.LineStyle == null)
+        private static List<PointF> BuildChartMovingAverageTrendlinePoints(
+            IList<PointF> points,
+            ChartTrendlineOptions options)
+        {
+            if (points == null ||
+                options == null)
             {
-                style.Color =
-                    fallbackColor;
-                style.Width = 1.5f;
-                style.DashStyle =
-                    DashStyle.Dash;
+                return null;
             }
 
-            GraphicsState state =
-                g.Save();
+            int period =
+                Math.Max(
+                    2,
+                    options.Period);
 
-            try
+            if (period >
+                points.Count)
             {
-                g.SetClip(
-                    plot,
-                    CombineMode.Intersect);
+                return null;
+            }
 
-                using (Pen pen =
-                    new Pen(
-                        style.Color,
-                        Math.Max(
-                            1f,
-                            style.Width)))
+            List<PointF> result =
+                new List<PointF>();
+
+            for (int i =
+                     period -
+                     1;
+                 i < points.Count;
+                 i++)
+            {
+                double sumY = 0.0;
+
+                for (int j =
+                         i -
+                         period +
+                         1;
+                     j <= i;
+                     j++)
                 {
-                    pen.DashStyle =
-                        style.DashStyle;
+                    sumY +=
+                        points[j].Y;
+                }
 
-                    g.DrawLine(
-                        pen,
-                        startX,
-                        startY,
-                        endX,
-                        endY);
+                result.Add(
+                    new PointF(
+                        points[i].X,
+                        (float)(
+                            sumY /
+                            period)));
+            }
+
+            return result;
+        }
+
+        private static List<PointF> BuildChartPolynomialTrendlinePoints(
+            RectangleF plot,
+            IList<PointF> points,
+            ChartTrendlineOptions options)
+        {
+            if (points == null ||
+                options == null ||
+                points.Count < 3)
+            {
+                return null;
+            }
+
+            int order =
+                Math.Max(
+                    2,
+                    Math.Min(
+                        6,
+                        options.Order));
+
+            order =
+                Math.Min(
+                    order,
+                    points.Count -
+                    1);
+
+            if (order < 2)
+                return null;
+
+            float minX =
+                float.MaxValue;
+            float maxX =
+                float.MinValue;
+
+            for (int i = 0;
+                 i < points.Count;
+                 i++)
+            {
+                minX =
+                    Math.Min(
+                        minX,
+                        points[i].X);
+                maxX =
+                    Math.Max(
+                        maxX,
+                        points[i].X);
+            }
+
+            double center =
+                (minX +
+                 maxX) /
+                2.0;
+
+            double halfSpan =
+                Math.Max(
+                    0.000001,
+                    (maxX -
+                     minX) /
+                    2.0);
+
+            int size =
+                order +
+                1;
+
+            double[,] matrix =
+                new double[
+                    size,
+                    size];
+            double[] rhs =
+                new double[
+                    size];
+
+            for (int i = 0;
+                 i < points.Count;
+                 i++)
+            {
+                double t =
+                    (points[i].X -
+                     center) /
+                    halfSpan;
+
+                double[] powers =
+                    new double[
+                        order *
+                        2 +
+                        1];
+
+                powers[0] = 1.0;
+
+                for (int p = 1;
+                     p < powers.Length;
+                     p++)
+                {
+                    powers[p] =
+                        powers[p - 1] *
+                        t;
+                }
+
+                for (int row = 0;
+                     row < size;
+                     row++)
+                {
+                    rhs[row] +=
+                        points[i].Y *
+                        powers[row];
+
+                    for (int col = 0;
+                         col < size;
+                         col++)
+                    {
+                        matrix[
+                            row,
+                            col] +=
+                            powers[
+                                row +
+                                col];
+                    }
                 }
             }
-            finally
+
+            double[] coefficients;
+
+            if (!SolveChartLinearSystem(
+                    matrix,
+                    rhs,
+                    out coefficients))
             {
-                g.Restore(
-                    state);
+                return null;
             }
+
+            float averageStep =
+                (maxX -
+                 minX) /
+                Math.Max(
+                    1f,
+                    points.Count -
+                    1f);
+
+            float startX =
+                minX -
+                (float)Math.Max(
+                    0.0,
+                    options.Backward) *
+                averageStep;
+
+            float endX =
+                maxX +
+                (float)Math.Max(
+                    0.0,
+                    options.Forward) *
+                averageStep;
+
+            startX =
+                Math.Max(
+                    plot.Left,
+                    startX);
+            endX =
+                Math.Min(
+                    plot.Right,
+                    endX);
+
+            if (endX <= startX)
+                return null;
+
+            int sampleCount =
+                Math.Max(
+                    24,
+                    Math.Min(
+                        96,
+                        (int)Math.Ceiling(
+                            (endX -
+                             startX) /
+                            3f)));
+
+            List<PointF> result =
+                new List<PointF>();
+
+            for (int i = 0;
+                 i < sampleCount;
+                 i++)
+            {
+                float x =
+                    sampleCount <= 1
+                        ? startX
+                        : startX +
+                          (endX -
+                           startX) *
+                          i /
+                          (sampleCount -
+                           1f);
+
+                double t =
+                    (x -
+                     center) /
+                    halfSpan;
+
+                double y = 0.0;
+                double power = 1.0;
+
+                for (int p = 0;
+                     p < coefficients.Length;
+                     p++)
+                {
+                    y +=
+                        coefficients[p] *
+                        power;
+                    power *=
+                        t;
+                }
+
+                if (double.IsNaN(y) ||
+                    double.IsInfinity(y))
+                {
+                    return null;
+                }
+
+                result.Add(
+                    new PointF(
+                        x,
+                        (float)y));
+            }
+
+            return result;
+        }
+
+        private static bool SolveChartLinearSystem(
+            double[,] matrix,
+            double[] rhs,
+            out double[] result)
+        {
+            result = null;
+
+            if (matrix == null ||
+                rhs == null)
+            {
+                return false;
+            }
+
+            int size =
+                rhs.Length;
+
+            if (size <= 0 ||
+                matrix.GetLength(0) !=
+                    size ||
+                matrix.GetLength(1) !=
+                    size)
+            {
+                return false;
+            }
+
+            double[,] augmented =
+                new double[
+                    size,
+                    size +
+                    1];
+
+            for (int row = 0;
+                 row < size;
+                 row++)
+            {
+                for (int col = 0;
+                     col < size;
+                     col++)
+                {
+                    augmented[
+                        row,
+                        col] =
+                        matrix[
+                            row,
+                            col];
+                }
+
+                augmented[
+                    row,
+                    size] =
+                    rhs[row];
+            }
+
+            for (int col = 0;
+                 col < size;
+                 col++)
+            {
+                int pivotRow =
+                    col;
+                double pivotMagnitude =
+                    Math.Abs(
+                        augmented[
+                            col,
+                            col]);
+
+                for (int row =
+                         col +
+                         1;
+                     row < size;
+                     row++)
+                {
+                    double magnitude =
+                        Math.Abs(
+                            augmented[
+                                row,
+                                col]);
+
+                    if (magnitude >
+                        pivotMagnitude)
+                    {
+                        pivotMagnitude =
+                            magnitude;
+                        pivotRow =
+                            row;
+                    }
+                }
+
+                if (pivotMagnitude <
+                    0.0000000001)
+                {
+                    return false;
+                }
+
+                if (pivotRow != col)
+                {
+                    for (int swapCol =
+                             col;
+                         swapCol <= size;
+                         swapCol++)
+                    {
+                        double temp =
+                            augmented[
+                                col,
+                                swapCol];
+
+                        augmented[
+                            col,
+                            swapCol] =
+                            augmented[
+                                pivotRow,
+                                swapCol];
+
+                        augmented[
+                            pivotRow,
+                            swapCol] =
+                            temp;
+                    }
+                }
+
+                double pivot =
+                    augmented[
+                        col,
+                        col];
+
+                for (int normalizeCol =
+                         col;
+                     normalizeCol <= size;
+                     normalizeCol++)
+                {
+                    augmented[
+                        col,
+                        normalizeCol] /=
+                        pivot;
+                }
+
+                for (int row = 0;
+                     row < size;
+                     row++)
+                {
+                    if (row == col)
+                        continue;
+
+                    double factor =
+                        augmented[
+                            row,
+                            col];
+
+                    if (Math.Abs(
+                            factor) <
+                        0.0000000001)
+                    {
+                        continue;
+                    }
+
+                    for (int eliminateCol =
+                             col;
+                         eliminateCol <= size;
+                         eliminateCol++)
+                    {
+                        augmented[
+                            row,
+                            eliminateCol] -=
+                            factor *
+                            augmented[
+                                col,
+                                eliminateCol];
+                    }
+                }
+            }
+
+            result =
+                new double[
+                    size];
+
+            for (int i = 0;
+                 i < size;
+                 i++)
+            {
+                result[i] =
+                    augmented[
+                        i,
+                        size];
+            }
+
+            return true;
         }
 
         private static double ResolveChartErrorMagnitude(
