@@ -197,6 +197,9 @@ namespace PptxViewer
             public bool MarkerEnabled = true;
             public ChartTrendlineOptions Trendline;
             public ChartErrorBarOptions ErrorBars;
+            public string ChartKind;
+            public string CategoryAxisId;
+            public string ValueAxisId;
             public readonly List<string> Categories = new List<string>();
             public readonly List<double> Values = new List<double>();
             public readonly List<Color?> PointColors = new List<Color?>();
