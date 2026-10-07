@@ -705,6 +705,41 @@ namespace PptxViewer
                     "Chart category-axis crossesAt value was not parsed.");
             }
 
+            XmlDocument hiddenAxisChart =
+                new XmlDocument();
+
+            hiddenAxisChart.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
+                "<c:chart><c:plotArea>" +
+                "<c:catAx><c:delete val=\"1\"/><c:axPos val=\"t\"/><c:tickLblPos val=\"nextTo\"/><c:majorTickMark val=\"out\"/></c:catAx>" +
+                "<c:valAx><c:delete val=\"1\"/><c:axPos val=\"r\"/><c:tickLblPos val=\"nextTo\"/><c:majorTickMark val=\"cross\"/><c:minorTickMark val=\"in\"/></c:valAx>" +
+                "</c:plotArea></c:chart></c:chartSpace>");
+
+            if (!ReadChartAxisDeleted(
+                    hiddenAxisChart,
+                    "catAx") ||
+                !ReadChartAxisDeleted(
+                    hiddenAxisChart,
+                    "valAx") ||
+                ReadChartAxisPosition(
+                    hiddenAxisChart,
+                    "catAx") != "t" ||
+                ReadChartAxisPosition(
+                    hiddenAxisChart,
+                    "valAx") != "r" ||
+                ResolveChartAxisTickLabelPosition(
+                    hiddenAxisChart,
+                    "catAx",
+                    "column") != "high" ||
+                ResolveChartAxisTickLabelPosition(
+                    hiddenAxisChart,
+                    "valAx",
+                    "column") != "high")
+            {
+                throw new InvalidOperationException(
+                    "Chart axis delete/axPos settings were not parsed correctly.");
+            }
+
             using (Bitmap tickBitmap =
                 new Bitmap(
                     240,
@@ -841,6 +876,55 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Chart major/minor axis tick marks were not rendered in the requested direction.");
+                }
+
+                tickGraphics.Clear(
+                    Color.White);
+
+                DrawChartAxisTickMarks(
+                    tickGraphics,
+                    tickPlot,
+                    scale,
+                    4,
+                    "column",
+                    0f,
+                    80f,
+                    hiddenAxisChart,
+                    tickCategoryStyle,
+                    tickValueStyle);
+
+                bool hiddenAxisTickVisible =
+                    false;
+
+                for (int y = 0;
+                     y < tickBitmap.Height &&
+                     !hiddenAxisTickVisible;
+                     y++)
+                {
+                    for (int x = 0;
+                         x < tickBitmap.Width;
+                         x++)
+                    {
+                        Color pixel =
+                            tickBitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.R < 245 ||
+                            pixel.G < 245 ||
+                            pixel.B < 245)
+                        {
+                            hiddenAxisTickVisible =
+                                true;
+                            break;
+                        }
+                    }
+                }
+
+                if (hiddenAxisTickVisible)
+                {
+                    throw new InvalidOperationException(
+                        "Deleted chart axes still rendered tick marks.");
                 }
             }
 
