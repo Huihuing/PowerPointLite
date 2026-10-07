@@ -752,7 +752,7 @@ namespace PptxViewer
             {
                 propertyEditSnapshotActive = false;
                 LoadSelectedProperties();
-                UpdateButtons();
+                UpdateStatus();
             };
             canvas.TransformStarting += delegate { CaptureHistory(); };
             canvas.ObjectChanged += delegate
