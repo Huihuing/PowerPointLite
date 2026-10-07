@@ -4244,6 +4244,66 @@ namespace PptxViewer
                     throw new InvalidOperationException(
                         "SmartArt hierarchy elbow connector routing was not rendered.");
                 }
+
+                Dictionary<string, RectangleF>
+                    assistantObstaclePositions =
+                        new Dictionary<string, RectangleF>(
+                            StringComparer.Ordinal);
+
+                assistantObstaclePositions[
+                    "assistantSource"] =
+                    new RectangleF(
+                        20f,
+                        30f,
+                        80f,
+                        40f);
+                assistantObstaclePositions[
+                    "assistantTarget"] =
+                    new RectangleF(
+                        220f,
+                        130f,
+                        80f,
+                        40f);
+                assistantObstaclePositions[
+                    "assistantBlocker"] =
+                    new RectangleF(
+                        145f,
+                        70f,
+                        30f,
+                        60f);
+
+                PointF[] assistantObstacleRoute =
+                    BuildSmartArtElbowRoute(
+                        new PointF(
+                            100f,
+                            50f),
+                        new PointF(
+                            220f,
+                            150f),
+                        assistantObstaclePositions,
+                        "assistantSource",
+                        "assistantTarget",
+                        true);
+
+                if (assistantObstacleRoute == null ||
+                    assistantObstacleRoute.Length != 4 ||
+                    Math.Abs(
+                        assistantObstacleRoute[1].Y -
+                        50f) > 0.5f ||
+                    Math.Abs(
+                        assistantObstacleRoute[2].Y -
+                        150f) > 0.5f ||
+                    Math.Abs(
+                        assistantObstacleRoute[1].X -
+                        assistantObstacleRoute[2].X) > 0.5f ||
+                    (assistantObstacleRoute[1].X >
+                         142f &&
+                     assistantObstacleRoute[1].X <
+                         178f))
+                {
+                    throw new InvalidOperationException(
+                        "SmartArt assistant connector did not avoid a blocked vertical channel.");
+                }
             }
 
             SmartNode processLayoutNode0 =
