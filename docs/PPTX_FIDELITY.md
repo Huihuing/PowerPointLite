@@ -126,6 +126,7 @@ Microsoft PowerPoint (설치된 경우)
   - chart-level dLbls와 series-level dLbls를 별도 scope로 해석
   - legendPos 좌/우/상/하/우상단 배치 및 plot 영역 조정
   - legend txPr의 solidFill·sz·b/i·latin typeface 텍스트 스타일 기본 반영
+  - legendEntry/idx/delete 기반 개별 legend 항목 숨김 반영
   - chart title txPr의 solidFill·sz·b/i·latin typeface 텍스트 스타일 기본 반영
   - catAx/valAx title txPr의 solidFill·sz·b/i·latin typeface 축 제목 스타일 기본 반영
   - 파이/도넛 category 범례 및 percent 레이블
