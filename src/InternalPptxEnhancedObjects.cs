@@ -11701,8 +11701,75 @@ namespace PptxViewer
             if (manualLayout == null)
                 return;
 
-            RectangleF automaticPlot =
-                plot;
+            plot =
+                ResolveChartManualLayoutRectangle(
+                    manualLayout,
+                    chartRect,
+                    plot);
+        }
+
+        private static bool TryResolveChartElementManualLayout(
+            XmlDocument chartDoc,
+            string elementName,
+            RectangleF chartRect,
+            RectangleF automaticRect,
+            out RectangleF resolvedRect)
+        {
+            resolvedRect =
+                automaticRect;
+
+            if (chartDoc == null ||
+                string.IsNullOrEmpty(
+                    elementName))
+            {
+                return false;
+            }
+
+            XmlNode chart =
+                FindFirst(
+                    chartDoc,
+                    "chart");
+
+            XmlNode element =
+                chart == null
+                    ? null
+                    : DirectChild(
+                        chart,
+                        elementName);
+
+            XmlNode layout =
+                element == null
+                    ? null
+                    : DirectChild(
+                        element,
+                        "layout");
+
+            XmlNode manualLayout =
+                layout == null
+                    ? null
+                    : DirectChild(
+                        layout,
+                        "manualLayout");
+
+            if (manualLayout == null)
+                return false;
+
+            resolvedRect =
+                ResolveChartManualLayoutRectangle(
+                    manualLayout,
+                    chartRect,
+                    automaticRect);
+
+            return true;
+        }
+
+        private static RectangleF ResolveChartManualLayoutRectangle(
+            XmlNode manualLayout,
+            RectangleF chartRect,
+            RectangleF automaticRect)
+        {
+            if (manualLayout == null)
+                return automaticRect;
 
             double x =
                 ReadChartManualLayoutNumber(
@@ -11745,10 +11812,10 @@ namespace PptxViewer
                     "hMode");
 
             float left =
-                automaticPlot.Left;
+                automaticRect.Left;
 
             float top =
-                automaticPlot.Top;
+                automaticRect.Top;
 
             if (!double.IsNaN(x))
             {
@@ -11757,7 +11824,7 @@ namespace PptxViewer
                         ? chartRect.Left +
                             (float)x *
                             chartRect.Width
-                        : automaticPlot.Left +
+                        : automaticRect.Left +
                             (float)x *
                             chartRect.Width;
             }
@@ -11769,18 +11836,18 @@ namespace PptxViewer
                         ? chartRect.Top +
                             (float)y *
                             chartRect.Height
-                        : automaticPlot.Top +
+                        : automaticRect.Top +
                             (float)y *
                             chartRect.Height;
             }
 
             float right =
                 left +
-                automaticPlot.Width;
+                automaticRect.Width;
 
             float bottom =
                 top +
-                automaticPlot.Height;
+                automaticRect.Height;
 
             if (!double.IsNaN(width))
             {
@@ -11846,12 +11913,11 @@ namespace PptxViewer
                         maxBottom,
                         bottom));
 
-            plot =
-                new RectangleF(
-                    left,
-                    top,
-                    right - left,
-                    bottom - top);
+            return new RectangleF(
+                left,
+                top,
+                right - left,
+                bottom - top);
         }
 
         private static double ReadChartManualLayoutNumber(
