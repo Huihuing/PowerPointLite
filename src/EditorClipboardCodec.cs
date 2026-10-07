@@ -158,14 +158,15 @@ namespace PptxViewer
     internal static class EditorClipboardCodec
     {
         public const string ClipboardFormat =
-            "PowerPointLite.ObjectSelection.v2";
+            "PowerPointLite.ObjectSelection.v3";
         public const string LegacyClipboardFormat =
+            "PowerPointLite.ObjectSelection.v2";
+        public const string LegacyClipboardFormatV1 =
             "PowerPointLite.ObjectSelection.v1";
 
         private const string Magic =
             "PPLT_OBJECTS";
-        private const int Version = 2;
-        private const int LegacyVersion = 1;
+        private const int Version = 3;
         private const int MaxObjects = 512;
         private const int MaxParagraphs = 4096;
         private const int MaxRuns = 16384;
@@ -299,8 +300,8 @@ namespace PptxViewer
                     int version =
                         reader.ReadInt32();
 
-                    if (version != Version &&
-                        version != LegacyVersion)
+                    if (version < 1 ||
+                        version > Version)
                     {
                         return false;
                     }
@@ -715,6 +716,10 @@ namespace PptxViewer
             writer.Write(image.CropTop);
             writer.Write(image.CropRight);
             writer.Write(image.CropBottom);
+            writer.Write(image.RotationUnits);
+            writer.Write(image.FlipHorizontal);
+            writer.Write(image.FlipVertical);
+            writer.Write(image.Opacity);
 
             byte[] data =
                 image.Data ??
@@ -758,6 +763,22 @@ namespace PptxViewer
                 image.CropBottom =
                     PresentationRenderPrimitives.ClampCropValue(
                         reader.ReadInt32());
+            }
+
+            if (version >= 3)
+            {
+                image.RotationUnits =
+                    PresentationRenderPrimitives
+                        .NormalizeRotationUnits(
+                            reader.ReadInt32());
+                image.FlipHorizontal =
+                    reader.ReadBoolean();
+                image.FlipVertical =
+                    reader.ReadBoolean();
+                image.Opacity =
+                    PresentationRenderPrimitives
+                        .ClampOpacity(
+                            reader.ReadInt32());
             }
 
             int length =
@@ -945,6 +966,10 @@ namespace PptxViewer
             image.CropTop = 7000;
             image.CropRight = 19000;
             image.CropBottom = 5000;
+            image.RotationUnits = 2700000;
+            image.FlipHorizontal = true;
+            image.FlipVertical = false;
+            image.Opacity = 64000;
 
             PresentationTextBox text =
                 slide.AddTextBox(
@@ -1035,6 +1060,10 @@ namespace PptxViewer
                 decoded.Objects[1].Image.CropTop != 7000 ||
                 decoded.Objects[1].Image.CropRight != 19000 ||
                 decoded.Objects[1].Image.CropBottom != 5000 ||
+                decoded.Objects[1].Image.RotationUnits != 2700000 ||
+                !decoded.Objects[1].Image.FlipHorizontal ||
+                decoded.Objects[1].Image.FlipVertical ||
+                decoded.Objects[1].Image.Opacity != 64000 ||
                 decoded.Objects[2].TextBox == null ||
                 decoded.Objects[2].TextBox.Text !=
                     "Clipboard text" ||

@@ -68,6 +68,11 @@ namespace PptxViewer
         private readonly NumericUpDown imageCropRight;
         private readonly NumericUpDown imageCropBottom;
         private readonly Button resetImageCropButton;
+        private readonly NumericUpDown imageRotation;
+        private readonly NumericUpDown imageTransparency;
+        private readonly CheckBox imageFlipHorizontal;
+        private readonly CheckBox imageFlipVertical;
+        private readonly Button resetImageTransformButton;
         private readonly Button undoButton;
         private readonly Button redoButton;
         private readonly Button deleteObjectButton;
@@ -745,10 +750,103 @@ namespace PptxViewer
             properties.Controls.Add(
                 resetImageCropButton);
 
+            Label transformLabel =
+                MakeLabel(
+                    "Image transform",
+                    0,
+                    700,
+                    140,
+                    20,
+                    true);
+            transformLabel.ForeColor =
+                ApplicationTheme.Accent;
+            properties.Controls.Add(
+                transformLabel);
+
+            Label rotationLabel =
+                MakeLabel(
+                    "Rotation (°)",
+                    0,
+                    726,
+                    100,
+                    20,
+                    false);
+            Label transparencyLabel =
+                MakeLabel(
+                    "Transparency (%)",
+                    142,
+                    726,
+                    120,
+                    20,
+                    false);
+            properties.Controls.Add(
+                rotationLabel);
+            properties.Controls.Add(
+                transparencyLabel);
+
+            imageRotation =
+                CreateCropEditor(
+                    0,
+                    748,
+                    126);
+            imageRotation.Maximum = 360M;
+            imageRotation.DecimalPlaces = 2;
+            imageRotation.Increment = 1M;
+
+            imageTransparency =
+                CreateCropEditor(
+                    142,
+                    748,
+                    128);
+            imageTransparency.Maximum = 100M;
+            imageTransparency.DecimalPlaces = 2;
+            imageTransparency.Increment = 1M;
+
+            properties.Controls.Add(
+                imageRotation);
+            properties.Controls.Add(
+                imageTransparency);
+
+            imageFlipHorizontal =
+                new CheckBox();
+            imageFlipHorizontal.Text =
+                "Flip horizontal";
+            imageFlipHorizontal.Left = 0;
+            imageFlipHorizontal.Top = 786;
+            imageFlipHorizontal.Width = 126;
+            imageFlipHorizontal.ForeColor =
+                ApplicationTheme.PrimaryText;
+            properties.Controls.Add(
+                imageFlipHorizontal);
+
+            imageFlipVertical =
+                new CheckBox();
+            imageFlipVertical.Text =
+                "Flip vertical";
+            imageFlipVertical.Left = 142;
+            imageFlipVertical.Top = 786;
+            imageFlipVertical.Width = 128;
+            imageFlipVertical.ForeColor =
+                ApplicationTheme.PrimaryText;
+            properties.Controls.Add(
+                imageFlipVertical);
+
+            resetImageTransformButton =
+                MakeButton(
+                    "Reset transform",
+                    0,
+                    270);
+            resetImageTransformButton.Top = 816;
+            resetImageTransformButton.Height = 30;
+            resetImageTransformButton.Tag =
+                "Secondary";
+            properties.Controls.Add(
+                resetImageTransformButton);
+
             Label hint = MakeLabel(
                 "Drag objects to move. Drag the lower-right handle to resize. Arrow keys nudge. Ctrl+Shift+Up/Down changes layer order.",
                 0,
-                700,
+                860,
                 270,
                 80,
                 false);
@@ -919,6 +1017,43 @@ namespace PptxViewer
                     resetImageCropButton.Left =
                         contentLeft;
                     resetImageCropButton.Width =
+                        contentWidth;
+
+                    transformLabel.Left =
+                        contentLeft;
+                    transformLabel.Width =
+                        contentWidth;
+
+                    rotationLabel.Left =
+                        contentLeft;
+                    rotationLabel.Width =
+                        halfWidth;
+                    imageRotation.Left =
+                        contentLeft;
+                    imageRotation.Width =
+                        halfWidth;
+
+                    transparencyLabel.Left =
+                        rightColumnLeft;
+                    transparencyLabel.Width =
+                        halfWidth;
+                    imageTransparency.Left =
+                        rightColumnLeft;
+                    imageTransparency.Width =
+                        halfWidth;
+
+                    imageFlipHorizontal.Left =
+                        contentLeft;
+                    imageFlipHorizontal.Width =
+                        halfWidth;
+                    imageFlipVertical.Left =
+                        rightColumnLeft;
+                    imageFlipVertical.Width =
+                        halfWidth;
+
+                    resetImageTransformButton.Left =
+                        contentLeft;
+                    resetImageTransformButton.Width =
                         contentWidth;
 
                     hint.Left =
@@ -1215,6 +1350,26 @@ namespace PptxViewer
             resetImageCropButton.Click += delegate
             {
                 ResetImageCrop();
+            };
+            imageRotation.ValueChanged += delegate
+            {
+                ApplyImageTransformProperties();
+            };
+            imageTransparency.ValueChanged += delegate
+            {
+                ApplyImageTransformProperties();
+            };
+            imageFlipHorizontal.CheckedChanged += delegate
+            {
+                ApplyImageTransformProperties();
+            };
+            imageFlipVertical.CheckedChanged += delegate
+            {
+                ApplyImageTransformProperties();
+            };
+            resetImageTransformButton.Click += delegate
+            {
+                ResetImageTransform();
             };
 
             textEditor.Leave += delegate { propertyEditSnapshotActive = false; };
@@ -2426,7 +2581,10 @@ namespace PptxViewer
                         : data.GetDataPresent(
                             EditorClipboardCodec.LegacyClipboardFormat)
                             ? EditorClipboardCodec.LegacyClipboardFormat
-                            : null;
+                            : data.GetDataPresent(
+                                EditorClipboardCodec.LegacyClipboardFormatV1)
+                                ? EditorClipboardCodec.LegacyClipboardFormatV1
+                                : null;
 
                 if (!string.IsNullOrEmpty(
                         customFormat))
@@ -2518,6 +2676,8 @@ namespace PptxViewer
                             EditorClipboardCodec.ClipboardFormat) ||
                         data.GetDataPresent(
                             EditorClipboardCodec.LegacyClipboardFormat) ||
+                        data.GetDataPresent(
+                            EditorClipboardCodec.LegacyClipboardFormatV1) ||
                         data.GetDataPresent(
                             DataFormats.Bitmap,
                             true) ||
@@ -2662,6 +2822,11 @@ namespace PptxViewer
                 imageCropRight.Enabled = imageEnabled;
                 imageCropBottom.Enabled = imageEnabled;
                 resetImageCropButton.Enabled = imageEnabled;
+                imageRotation.Enabled = imageEnabled;
+                imageTransparency.Enabled = imageEnabled;
+                imageFlipHorizontal.Enabled = imageEnabled;
+                imageFlipVertical.Enabled = imageEnabled;
+                resetImageTransformButton.Enabled = imageEnabled;
 
                 if (text != null)
                 {
@@ -2706,6 +2871,16 @@ namespace PptxViewer
                     imageCropBottom.Value =
                         CropValueToPercent(
                             image.CropBottom);
+                    imageRotation.Value =
+                        RotationUnitsToDegrees(
+                            image.RotationUnits);
+                    imageTransparency.Value =
+                        OpacityToTransparencyPercent(
+                            image.Opacity);
+                    imageFlipHorizontal.Checked =
+                        image.FlipHorizontal;
+                    imageFlipVertical.Checked =
+                        image.FlipVertical;
                 }
                 else
                 {
@@ -2713,6 +2888,10 @@ namespace PptxViewer
                     imageCropTop.Value = 0M;
                     imageCropRight.Value = 0M;
                     imageCropBottom.Value = 0M;
+                    imageRotation.Value = 0M;
+                    imageTransparency.Value = 0M;
+                    imageFlipHorizontal.Checked = false;
+                    imageFlipVertical.Checked = false;
                 }
             }
             finally
@@ -2997,6 +3176,142 @@ namespace PptxViewer
             session.MarkDirty();
             canvas.Invalidate();
             UpdateStatus();
+        }
+
+        private void ApplyImageTransformProperties()
+        {
+            if (loadingProperties)
+                return;
+
+            PresentationImage image =
+                canvas.GetSelectedImage();
+
+            if (image == null)
+                return;
+
+            int rotationUnits =
+                DegreesToRotationUnits(
+                    imageRotation.Value);
+            int opacity =
+                TransparencyPercentToOpacity(
+                    imageTransparency.Value);
+            bool flipHorizontal =
+                imageFlipHorizontal.Checked;
+            bool flipVertical =
+                imageFlipVertical.Checked;
+
+            if (image.RotationUnits == rotationUnits &&
+                image.Opacity == opacity &&
+                image.FlipHorizontal == flipHorizontal &&
+                image.FlipVertical == flipVertical)
+            {
+                return;
+            }
+
+            EnsurePropertyHistorySnapshot();
+
+            image.RotationUnits = rotationUnits;
+            image.Opacity = opacity;
+            image.FlipHorizontal = flipHorizontal;
+            image.FlipVertical = flipVertical;
+
+            session.MarkDirty();
+            canvas.Invalidate();
+            UpdateStatus();
+        }
+
+        private void ResetImageTransform()
+        {
+            PresentationImage image =
+                canvas.GetSelectedImage();
+
+            if (image == null)
+                return;
+
+            if (image.RotationUnits == 0 &&
+                image.Opacity == 100000 &&
+                !image.FlipHorizontal &&
+                !image.FlipVertical)
+            {
+                return;
+            }
+
+            EnsurePropertyHistorySnapshot();
+
+            image.RotationUnits = 0;
+            image.Opacity = 100000;
+            image.FlipHorizontal = false;
+            image.FlipVertical = false;
+
+            bool previousLoading =
+                loadingProperties;
+            loadingProperties = true;
+
+            try
+            {
+                imageRotation.Value = 0M;
+                imageTransparency.Value = 0M;
+                imageFlipHorizontal.Checked = false;
+                imageFlipVertical.Checked = false;
+            }
+            finally
+            {
+                loadingProperties =
+                    previousLoading;
+            }
+
+            session.MarkDirty();
+            canvas.Invalidate();
+            UpdateStatus();
+        }
+
+        private static decimal RotationUnitsToDegrees(
+            int rotationUnits)
+        {
+            return
+                PresentationRenderPrimitives
+                    .NormalizeRotationUnits(
+                        rotationUnits) /
+                60000M;
+        }
+
+        private static int DegreesToRotationUnits(
+            decimal degrees)
+        {
+            return PresentationRenderPrimitives
+                .NormalizeRotationUnits(
+                    (long)Math.Round(
+                        (double)(
+                            degrees *
+                            60000M)));
+        }
+
+        private static decimal OpacityToTransparencyPercent(
+            int opacity)
+        {
+            return
+                (100000 -
+                 PresentationRenderPrimitives
+                    .ClampOpacity(opacity)) /
+                1000M;
+        }
+
+        private static int TransparencyPercentToOpacity(
+            decimal transparency)
+        {
+            int value =
+                100000 -
+                (int)Math.Round(
+                    (double)(
+                        Math.Max(
+                            0M,
+                            Math.Min(
+                                100M,
+                                transparency)) *
+                        1000M));
+
+            return PresentationRenderPrimitives
+                .ClampOpacity(value);
         }
 
         private void ApplyImageCropProperties()
