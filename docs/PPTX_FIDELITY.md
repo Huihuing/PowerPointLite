@@ -138,6 +138,9 @@ Microsoft PowerPoint (설치된 경우)
   - chart title txPr의 solidFill·sz·b/i·latin typeface 텍스트 스타일 기본 반영
   - catAx/valAx title txPr의 solidFill·sz·b/i·latin typeface 축 제목 스타일 기본 반영
   - 파이/도넛 category 범례 및 percent 레이블
+  - scatter/bubble의 series·value·point override data label 기본 렌더링
+  - bubble data label의 showBubbleSize 및 point별 showBubbleSize override 반영
+  - bubble chart도 series legend를 공통 legend renderer로 표시
   - c:ser/c:spPr series 색상 및 c:dPt point 색상 우선 반영
   - chartSpace / plotArea spPr solidFill 배경색 기본 반영
   - valAx/catAx 축 제목 기본 렌더

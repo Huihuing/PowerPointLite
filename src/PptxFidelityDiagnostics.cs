@@ -1864,6 +1864,67 @@ namespace PptxViewer
                     formattedLabel);
             }
 
+            XmlDocument bubbleLabelDoc =
+                new XmlDocument();
+
+            bubbleLabelDoc.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
+                "<c:chart><c:plotArea><c:bubbleChart>" +
+                "<c:dLbls><c:showBubbleSize val=\"1\"/></c:dLbls>" +
+                "</c:bubbleChart></c:plotArea></c:chart></c:chartSpace>");
+
+            ChartLabelOptions bubbleLabels =
+                ReadChartLabelOptions(
+                    bubbleLabelDoc);
+
+            ChartSeriesData bubbleLabelSeries =
+                new ChartSeriesData();
+            bubbleLabelSeries.Values.Add(
+                3.2);
+            bubbleLabelSeries.BubbleSizes.Add(
+                49.0);
+
+            string bubbleSizeLabel =
+                BuildChartDataLabel(
+                    bubbleLabels,
+                    bubbleLabelSeries,
+                    0,
+                    false);
+
+            if (!bubbleLabels.ShowBubbleSize ||
+                bubbleSizeLabel != "49")
+            {
+                throw new InvalidOperationException(
+                    "Bubble chart showBubbleSize data label was not applied.");
+            }
+
+            XmlDocument bubblePointOverrideDoc =
+                new XmlDocument();
+
+            bubblePointOverrideDoc.LoadXml(
+                "<c:ser xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
+                "<c:dLbls><c:dLbl><c:idx val=\"0\"/>" +
+                "<c:showBubbleSize val=\"0\"/><c:showVal val=\"1\"/>" +
+                "</c:dLbl></c:dLbls></c:ser>");
+
+            ReadChartSeriesLabelOverrides(
+                bubblePointOverrideDoc.DocumentElement,
+                bubbleLabelSeries,
+                theme);
+
+            ChartLabelOptions bubblePointLabels =
+                ResolveChartPointLabelOptions(
+                    bubbleLabels,
+                    bubbleLabelSeries,
+                    0);
+
+            if (bubblePointLabels.ShowBubbleSize ||
+                !bubblePointLabels.ShowValue)
+            {
+                throw new InvalidOperationException(
+                    "Bubble chart point dLbl showBubbleSize override was not applied.");
+            }
+
             using (Bitmap dataLabelBitmap =
                 new Bitmap(
                     220,
