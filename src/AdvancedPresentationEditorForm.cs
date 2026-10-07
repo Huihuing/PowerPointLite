@@ -2472,6 +2472,19 @@ namespace PptxViewer
                         PresentationLayerKind.Table,
                         selection.Index);
                 }
+                else if (item.Kind == EditorObjectKind.Chart &&
+                         item.Chart != null)
+                {
+                    slide.Charts.Add(
+                        item.Chart.Clone());
+                    selection.Kind =
+                        EditorObjectKind.Chart;
+                    selection.Index =
+                        slide.Charts.Count - 1;
+                    slide.RegisterObjectOrder(
+                        PresentationLayerKind.Chart,
+                        selection.Index);
+                }
                 else
                 {
                     continue;
@@ -2613,9 +2626,12 @@ namespace PptxViewer
                             EditorClipboardCodec.LegacyClipboardFormat)
                             ? EditorClipboardCodec.LegacyClipboardFormat
                             : data.GetDataPresent(
-                                EditorClipboardCodec.LegacyClipboardFormatV1)
-                                ? EditorClipboardCodec.LegacyClipboardFormatV1
-                                : null;
+                                EditorClipboardCodec.LegacyClipboardFormatV2)
+                                ? EditorClipboardCodec.LegacyClipboardFormatV2
+                                : data.GetDataPresent(
+                                    EditorClipboardCodec.LegacyClipboardFormatV1)
+                                    ? EditorClipboardCodec.LegacyClipboardFormatV1
+                                    : null;
 
                 if (!string.IsNullOrEmpty(
                         customFormat))
@@ -2707,6 +2723,8 @@ namespace PptxViewer
                             EditorClipboardCodec.ClipboardFormat) ||
                         data.GetDataPresent(
                             EditorClipboardCodec.LegacyClipboardFormat) ||
+                        data.GetDataPresent(
+                            EditorClipboardCodec.LegacyClipboardFormatV2) ||
                         data.GetDataPresent(
                             EditorClipboardCodec.LegacyClipboardFormatV1) ||
                         data.GetDataPresent(
