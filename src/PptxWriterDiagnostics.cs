@@ -50,6 +50,10 @@ namespace PptxViewer
             generatedImage.Y = 4343400;
             generatedImage.Width = 2286000;
             generatedImage.Height = 1371600;
+            generatedImage.CropLeft = 12000;
+            generatedImage.CropTop = 8000;
+            generatedImage.CropRight = 18000;
+            generatedImage.CropBottom = 6000;
 
             if (!second.MoveObjectToFront(
                     PresentationLayerKind.Shape,
@@ -223,6 +227,15 @@ namespace PptxViewer
                 throw new InvalidOperationException("Editable reader did not preserve the generated image.");
             }
 
+            if (second.Images[0].CropLeft != 12000 ||
+                second.Images[0].CropTop != 8000 ||
+                second.Images[0].CropRight != 18000 ||
+                second.Images[0].CropBottom != 6000)
+            {
+                throw new InvalidOperationException(
+                    "Editable reader did not preserve image crop values.");
+            }
+
             second.SynchronizeObjectOrder();
 
             if (second.ObjectOrder.Count < 5 ||
@@ -290,6 +303,15 @@ namespace PptxViewer
                     verify.Images[0].Data.Length == 0)
                 {
                     throw new InvalidOperationException("Image round-trip verification failed.");
+                }
+
+                if (verify.Images[0].CropLeft != 12000 ||
+                    verify.Images[0].CropTop != 8000 ||
+                    verify.Images[0].CropRight != 18000 ||
+                    verify.Images[0].CropBottom != 6000)
+                {
+                    throw new InvalidOperationException(
+                        "Image crop was not preserved after read-edit-write.");
                 }
 
                 verify.SynchronizeObjectOrder();
@@ -511,6 +533,57 @@ namespace PptxViewer
                     slide2.GetElementsByTagName("a:tbl").Count != 1)
                 {
                     throw new InvalidOperationException("Generated table XML was not found in slide2.xml.");
+                }
+
+                XmlNodeList sourceRectangles =
+                    slide2.GetElementsByTagName(
+                        "a:srcRect");
+                bool foundImageCrop = false;
+
+                for (int i = 0;
+                     i < sourceRectangles.Count;
+                     i++)
+                {
+                    XmlNode crop =
+                        sourceRectangles[i];
+
+                    if (crop == null ||
+                        crop.Attributes == null)
+                    {
+                        continue;
+                    }
+
+                    string left =
+                        crop.Attributes["l"] == null
+                            ? string.Empty
+                            : crop.Attributes["l"].Value;
+                    string top =
+                        crop.Attributes["t"] == null
+                            ? string.Empty
+                            : crop.Attributes["t"].Value;
+                    string right =
+                        crop.Attributes["r"] == null
+                            ? string.Empty
+                            : crop.Attributes["r"].Value;
+                    string bottom =
+                        crop.Attributes["b"] == null
+                            ? string.Empty
+                            : crop.Attributes["b"].Value;
+
+                    if (left == "12000" &&
+                        top == "8000" &&
+                        right == "18000" &&
+                        bottom == "6000")
+                    {
+                        foundImageCrop = true;
+                        break;
+                    }
+                }
+
+                if (!foundImageCrop)
+                {
+                    throw new InvalidOperationException(
+                        "Generated image crop XML was not found in slide2.xml.");
                 }
 
                 XmlDocument slide3 =

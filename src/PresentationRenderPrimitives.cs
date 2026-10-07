@@ -978,6 +978,25 @@ namespace PptxViewer
                     "Shared render color parsing failed.");
             }
 
+            RectangleF cropped =
+                PresentationRenderPrimitives
+                    .CalculateImageSourceRectangle(
+                        1000,
+                        500,
+                        10000,
+                        20000,
+                        30000,
+                        10000);
+
+            if (Math.Abs(cropped.X - 100f) > 0.01f ||
+                Math.Abs(cropped.Y - 100f) > 0.01f ||
+                Math.Abs(cropped.Width - 600f) > 0.01f ||
+                Math.Abs(cropped.Height - 350f) > 0.01f)
+            {
+                throw new InvalidOperationException(
+                    "Shared image crop calculation failed.");
+            }
+
             RectangleF bounds =
                 new RectangleF(
                     10f,

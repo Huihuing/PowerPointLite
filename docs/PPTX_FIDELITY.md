@@ -39,6 +39,8 @@ Microsoft PowerPoint (설치된 경우)
   - tab alignment left / center / right / decimal 기본 근사
   - 간단 RTL paragraph 배치
 - raster image 및 crop / rotate / flip / alpha
+  - crop `a:srcRect`는 Viewer 렌더뿐 아니라 editable model/Writer/Editor Canvas에서도 보존·공유 계산
+  - Advanced Editor Properties에서 4방향 crop percent 직접 편집
 - grayscale / bi-level / brightness / contrast 그림 효과의 GDI+ 근사
 - DrawingML picture blur의 downsample/upscale 기반 기본 근사
 - Office 2010 `a14:sharpenSoften`의 3×3 sharpen/soften 기본 근사

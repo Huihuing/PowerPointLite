@@ -158,11 +158,14 @@ namespace PptxViewer
     internal static class EditorClipboardCodec
     {
         public const string ClipboardFormat =
+            "PowerPointLite.ObjectSelection.v2";
+        public const string LegacyClipboardFormat =
             "PowerPointLite.ObjectSelection.v1";
 
         private const string Magic =
             "PPLT_OBJECTS";
-        private const int Version = 1;
+        private const int Version = 2;
+        private const int LegacyVersion = 1;
         private const int MaxObjects = 512;
         private const int MaxParagraphs = 4096;
         private const int MaxRuns = 16384;
@@ -296,8 +299,11 @@ namespace PptxViewer
                     int version =
                         reader.ReadInt32();
 
-                    if (version != Version)
+                    if (version != Version &&
+                        version != LegacyVersion)
+                    {
                         return false;
+                    }
 
                     int count =
                         ReadCount(
@@ -315,7 +321,9 @@ namespace PptxViewer
                          i++)
                     {
                         EditorClipboardObject item =
-                            ReadObject(reader);
+                            ReadObject(
+                                reader,
+                                version);
 
                         if (item == null)
                             return false;
@@ -455,7 +463,8 @@ namespace PptxViewer
         }
 
         private static EditorClipboardObject ReadObject(
-            BinaryReader reader)
+            BinaryReader reader,
+            int version)
         {
             EditorObjectKind kind =
                 (EditorObjectKind)reader.ReadInt32();
@@ -468,7 +477,10 @@ namespace PptxViewer
             else if (kind == EditorObjectKind.Shape)
                 item.Shape = ReadShape(reader);
             else if (kind == EditorObjectKind.Image)
-                item.Image = ReadImage(reader);
+                item.Image =
+                    ReadImage(
+                        reader,
+                        version);
             else if (kind == EditorObjectKind.Table)
                 item.Table = ReadTable(reader);
             else
@@ -699,6 +711,10 @@ namespace PptxViewer
             writer.Write(image.Y);
             writer.Write(image.Width);
             writer.Write(image.Height);
+            writer.Write(image.CropLeft);
+            writer.Write(image.CropTop);
+            writer.Write(image.CropRight);
+            writer.Write(image.CropBottom);
 
             byte[] data =
                 image.Data ??
@@ -713,7 +729,8 @@ namespace PptxViewer
         }
 
         private static PresentationImage ReadImage(
-            BinaryReader reader)
+            BinaryReader reader,
+            int version)
         {
             PresentationImage image =
                 new PresentationImage();
@@ -726,6 +743,22 @@ namespace PptxViewer
             image.Y = reader.ReadInt64();
             image.Width = reader.ReadInt64();
             image.Height = reader.ReadInt64();
+
+            if (version >= 2)
+            {
+                image.CropLeft =
+                    PresentationRenderPrimitives.ClampCropValue(
+                        reader.ReadInt32());
+                image.CropTop =
+                    PresentationRenderPrimitives.ClampCropValue(
+                        reader.ReadInt32());
+                image.CropRight =
+                    PresentationRenderPrimitives.ClampCropValue(
+                        reader.ReadInt32());
+                image.CropBottom =
+                    PresentationRenderPrimitives.ClampCropValue(
+                        reader.ReadInt32());
+            }
 
             int length =
                 reader.ReadInt32();
@@ -908,6 +941,10 @@ namespace PptxViewer
             image.Name = "Clipboard image";
             image.X = 4114800;
             image.Y = 2286000;
+            image.CropLeft = 11000;
+            image.CropTop = 7000;
+            image.CropRight = 19000;
+            image.CropBottom = 5000;
 
             PresentationTextBox text =
                 slide.AddTextBox(
@@ -994,6 +1031,10 @@ namespace PptxViewer
                 decoded.Objects[1].Image == null ||
                 decoded.Objects[1].Image.Data == null ||
                 decoded.Objects[1].Image.Data.Length != 6 ||
+                decoded.Objects[1].Image.CropLeft != 11000 ||
+                decoded.Objects[1].Image.CropTop != 7000 ||
+                decoded.Objects[1].Image.CropRight != 19000 ||
+                decoded.Objects[1].Image.CropBottom != 5000 ||
                 decoded.Objects[2].TextBox == null ||
                 decoded.Objects[2].TextBox.Text !=
                     "Clipboard text" ||

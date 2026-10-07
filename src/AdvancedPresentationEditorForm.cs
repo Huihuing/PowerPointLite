@@ -63,6 +63,11 @@ namespace PptxViewer
         private readonly ComboBox shapeKindPicker;
         private readonly TextBox fillColorEditor;
         private readonly TextBox lineColorEditor;
+        private readonly NumericUpDown imageCropLeft;
+        private readonly NumericUpDown imageCropTop;
+        private readonly NumericUpDown imageCropRight;
+        private readonly NumericUpDown imageCropBottom;
+        private readonly Button resetImageCropButton;
         private readonly Button undoButton;
         private readonly Button redoButton;
         private readonly Button deleteObjectButton;
@@ -657,10 +662,93 @@ namespace PptxViewer
             lineColorEditor.BorderStyle = BorderStyle.FixedSingle;
             properties.Controls.Add(lineColorEditor);
 
+            Label imageLabel =
+                MakeLabel(
+                    "Image crop (%)",
+                    0,
+                    516,
+                    140,
+                    20,
+                    true);
+            imageLabel.ForeColor =
+                ApplicationTheme.Accent;
+            properties.Controls.Add(imageLabel);
+
+            Label cropLeftLabel =
+                MakeLabel(
+                    "Left",
+                    0,
+                    542,
+                    80,
+                    20,
+                    false);
+            Label cropTopLabel =
+                MakeLabel(
+                    "Top",
+                    142,
+                    542,
+                    80,
+                    20,
+                    false);
+            Label cropRightLabel =
+                MakeLabel(
+                    "Right",
+                    0,
+                    596,
+                    80,
+                    20,
+                    false);
+            Label cropBottomLabel =
+                MakeLabel(
+                    "Bottom",
+                    142,
+                    596,
+                    80,
+                    20,
+                    false);
+
+            properties.Controls.Add(cropLeftLabel);
+            properties.Controls.Add(cropTopLabel);
+            properties.Controls.Add(cropRightLabel);
+            properties.Controls.Add(cropBottomLabel);
+
+            imageCropLeft = CreateCropEditor(
+                0,
+                564,
+                126);
+            imageCropTop = CreateCropEditor(
+                142,
+                564,
+                128);
+            imageCropRight = CreateCropEditor(
+                0,
+                618,
+                126);
+            imageCropBottom = CreateCropEditor(
+                142,
+                618,
+                128);
+
+            properties.Controls.Add(imageCropLeft);
+            properties.Controls.Add(imageCropTop);
+            properties.Controls.Add(imageCropRight);
+            properties.Controls.Add(imageCropBottom);
+
+            resetImageCropButton =
+                MakeButton(
+                    "Reset crop",
+                    0,
+                    270);
+            resetImageCropButton.Top = 654;
+            resetImageCropButton.Height = 30;
+            resetImageCropButton.Tag = "Secondary";
+            properties.Controls.Add(
+                resetImageCropButton);
+
             Label hint = MakeLabel(
                 "Drag objects to move. Drag the lower-right handle to resize. Arrow keys nudge. Ctrl+Shift+Up/Down changes layer order.",
                 0,
-                516,
+                700,
                 270,
                 80,
                 false);
@@ -786,6 +874,52 @@ namespace PptxViewer
                         rightColumnLeft;
                     lineColorEditor.Width =
                         halfWidth;
+
+                    imageLabel.Left =
+                        contentLeft;
+                    imageLabel.Width =
+                        contentWidth;
+
+                    cropLeftLabel.Left =
+                        contentLeft;
+                    cropLeftLabel.Width =
+                        halfWidth;
+                    imageCropLeft.Left =
+                        contentLeft;
+                    imageCropLeft.Width =
+                        halfWidth;
+
+                    cropTopLabel.Left =
+                        rightColumnLeft;
+                    cropTopLabel.Width =
+                        halfWidth;
+                    imageCropTop.Left =
+                        rightColumnLeft;
+                    imageCropTop.Width =
+                        halfWidth;
+
+                    cropRightLabel.Left =
+                        contentLeft;
+                    cropRightLabel.Width =
+                        halfWidth;
+                    imageCropRight.Left =
+                        contentLeft;
+                    imageCropRight.Width =
+                        halfWidth;
+
+                    cropBottomLabel.Left =
+                        rightColumnLeft;
+                    cropBottomLabel.Width =
+                        halfWidth;
+                    imageCropBottom.Left =
+                        rightColumnLeft;
+                    imageCropBottom.Width =
+                        halfWidth;
+
+                    resetImageCropButton.Left =
+                        contentLeft;
+                    resetImageCropButton.Width =
+                        contentWidth;
 
                     hint.Left =
                         contentLeft;
@@ -1061,6 +1195,26 @@ namespace PptxViewer
             lineColorEditor.TextChanged += delegate
             {
                 ApplyShapeProperties();
+            };
+            imageCropLeft.ValueChanged += delegate
+            {
+                ApplyImageCropProperties();
+            };
+            imageCropTop.ValueChanged += delegate
+            {
+                ApplyImageCropProperties();
+            };
+            imageCropRight.ValueChanged += delegate
+            {
+                ApplyImageCropProperties();
+            };
+            imageCropBottom.ValueChanged += delegate
+            {
+                ApplyImageCropProperties();
+            };
+            resetImageCropButton.Click += delegate
+            {
+                ResetImageCrop();
             };
 
             textEditor.Leave += delegate { propertyEditSnapshotActive = false; };
@@ -2265,12 +2419,21 @@ namespace PptxViewer
                 if (data == null)
                     return true;
 
-                if (data.GetDataPresent(
-                        EditorClipboardCodec.ClipboardFormat))
+                string customFormat =
+                    data.GetDataPresent(
+                        EditorClipboardCodec.ClipboardFormat)
+                        ? EditorClipboardCodec.ClipboardFormat
+                        : data.GetDataPresent(
+                            EditorClipboardCodec.LegacyClipboardFormat)
+                            ? EditorClipboardCodec.LegacyClipboardFormat
+                            : null;
+
+                if (!string.IsNullOrEmpty(
+                        customFormat))
                 {
                     object raw =
                         data.GetData(
-                            EditorClipboardCodec.ClipboardFormat);
+                            customFormat);
                     string encoded =
                         raw as string;
                     EditorClipboardPackage decoded;
@@ -2353,6 +2516,8 @@ namespace PptxViewer
                     return
                         data.GetDataPresent(
                             EditorClipboardCodec.ClipboardFormat) ||
+                        data.GetDataPresent(
+                            EditorClipboardCodec.LegacyClipboardFormat) ||
                         data.GetDataPresent(
                             DataFormats.Bitmap,
                             true) ||
@@ -2463,6 +2628,7 @@ namespace PptxViewer
 
                 bool textEnabled = text != null;
                 bool shapeEnabled = shape != null;
+                bool imageEnabled = image != null;
 
                 objectTypeLabel.Text =
                     selectedCount > 1
@@ -2491,6 +2657,12 @@ namespace PptxViewer
                 fillColorEditor.Enabled = shapeEnabled;
                 lineColorEditor.Enabled = shapeEnabled;
 
+                imageCropLeft.Enabled = imageEnabled;
+                imageCropTop.Enabled = imageEnabled;
+                imageCropRight.Enabled = imageEnabled;
+                imageCropBottom.Enabled = imageEnabled;
+                resetImageCropButton.Enabled = imageEnabled;
+
                 if (text != null)
                 {
                     LoadTextEditorFromModel(text);
@@ -2518,6 +2690,29 @@ namespace PptxViewer
                 {
                     fillColorEditor.Text = string.Empty;
                     lineColorEditor.Text = string.Empty;
+                }
+
+                if (image != null)
+                {
+                    imageCropLeft.Value =
+                        CropValueToPercent(
+                            image.CropLeft);
+                    imageCropTop.Value =
+                        CropValueToPercent(
+                            image.CropTop);
+                    imageCropRight.Value =
+                        CropValueToPercent(
+                            image.CropRight);
+                    imageCropBottom.Value =
+                        CropValueToPercent(
+                            image.CropBottom);
+                }
+                else
+                {
+                    imageCropLeft.Value = 0M;
+                    imageCropTop.Value = 0M;
+                    imageCropRight.Value = 0M;
+                    imageCropBottom.Value = 0M;
                 }
             }
             finally
@@ -2802,6 +2997,185 @@ namespace PptxViewer
             session.MarkDirty();
             canvas.Invalidate();
             UpdateStatus();
+        }
+
+        private void ApplyImageCropProperties()
+        {
+            if (loadingProperties)
+                return;
+
+            PresentationImage image =
+                canvas.GetSelectedImage();
+
+            if (image == null)
+                return;
+
+            int left =
+                PercentToCropValue(
+                    imageCropLeft.Value);
+            int top =
+                PercentToCropValue(
+                    imageCropTop.Value);
+            int right =
+                PercentToCropValue(
+                    imageCropRight.Value);
+            int bottom =
+                PercentToCropValue(
+                    imageCropBottom.Value);
+            int normalizedLeft;
+            int normalizedTop;
+            int normalizedRight;
+            int normalizedBottom;
+
+            PresentationRenderPrimitives.NormalizeCrop(
+                left,
+                top,
+                right,
+                bottom,
+                out normalizedLeft,
+                out normalizedTop,
+                out normalizedRight,
+                out normalizedBottom);
+
+            if (image.CropLeft == normalizedLeft &&
+                image.CropTop == normalizedTop &&
+                image.CropRight == normalizedRight &&
+                image.CropBottom == normalizedBottom)
+            {
+                return;
+            }
+
+            EnsurePropertyHistorySnapshot();
+
+            image.CropLeft =
+                normalizedLeft;
+            image.CropTop =
+                normalizedTop;
+            image.CropRight =
+                normalizedRight;
+            image.CropBottom =
+                normalizedBottom;
+
+            bool previousLoading =
+                loadingProperties;
+            loadingProperties = true;
+
+            try
+            {
+                imageCropLeft.Value =
+                    CropValueToPercent(
+                        normalizedLeft);
+                imageCropTop.Value =
+                    CropValueToPercent(
+                        normalizedTop);
+                imageCropRight.Value =
+                    CropValueToPercent(
+                        normalizedRight);
+                imageCropBottom.Value =
+                    CropValueToPercent(
+                        normalizedBottom);
+            }
+            finally
+            {
+                loadingProperties =
+                    previousLoading;
+            }
+
+            session.MarkDirty();
+            canvas.Invalidate();
+            UpdateStatus();
+        }
+
+        private void ResetImageCrop()
+        {
+            PresentationImage image =
+                canvas.GetSelectedImage();
+
+            if (image == null)
+                return;
+
+            if (image.CropLeft == 0 &&
+                image.CropTop == 0 &&
+                image.CropRight == 0 &&
+                image.CropBottom == 0)
+            {
+                return;
+            }
+
+            EnsurePropertyHistorySnapshot();
+
+            image.CropLeft = 0;
+            image.CropTop = 0;
+            image.CropRight = 0;
+            image.CropBottom = 0;
+
+            bool previousLoading =
+                loadingProperties;
+            loadingProperties = true;
+
+            try
+            {
+                imageCropLeft.Value = 0M;
+                imageCropTop.Value = 0M;
+                imageCropRight.Value = 0M;
+                imageCropBottom.Value = 0M;
+            }
+            finally
+            {
+                loadingProperties =
+                    previousLoading;
+            }
+
+            session.MarkDirty();
+            canvas.Invalidate();
+            UpdateStatus();
+        }
+
+        private NumericUpDown CreateCropEditor(
+            int left,
+            int top,
+            int width)
+        {
+            NumericUpDown editor =
+                new NumericUpDown();
+            editor.Left = left;
+            editor.Top = top;
+            editor.Width = width;
+            editor.Minimum = 0M;
+            editor.Maximum = 99.9M;
+            editor.DecimalPlaces = 1;
+            editor.Increment = 0.5M;
+            editor.BackColor =
+                ApplicationTheme.Surface;
+            editor.ForeColor =
+                ApplicationTheme.PrimaryText;
+            editor.BorderStyle =
+                BorderStyle.FixedSingle;
+            return editor;
+        }
+
+        private static decimal CropValueToPercent(
+            int value)
+        {
+            return
+                Math.Max(
+                    0M,
+                    Math.Min(
+                        99.9M,
+                        PresentationRenderPrimitives
+                            .ClampCropValue(value) /
+                        1000M));
+        }
+
+        private static int PercentToCropValue(
+            decimal percent)
+        {
+            return PresentationRenderPrimitives
+                .ClampCropValue(
+                    (int)Math.Round(
+                        (double)(
+                            percent *
+                            1000M)));
         }
 
         private void ApplyShapeProperties()
