@@ -5592,6 +5592,12 @@ chartDoc);
                         "val") ??
                       string.Empty;
 
+            bool customValueType =
+                string.Equals(
+                    valueTypeName,
+                    "cust",
+                    StringComparison.OrdinalIgnoreCase);
+
             bool supportedValueType =
                 string.Equals(
                     valueTypeName,
@@ -5600,21 +5606,27 @@ chartDoc);
                 string.Equals(
                     valueTypeName,
                     "percentage",
-                    StringComparison.OrdinalIgnoreCase);
+                    StringComparison.OrdinalIgnoreCase) ||
+                customValueType;
 
             if (!supportedValueType)
                 return;
 
-            double value =
-                ReadChartOverlayNumber(
-                    errorBars,
-                    "val");
+            double value = 0.0;
 
-            if (double.IsNaN(value) ||
-                double.IsInfinity(value) ||
-                value < 0.0)
+            if (!customValueType)
             {
-                return;
+                value =
+                    ReadChartOverlayNumber(
+                        errorBars,
+                        "val");
+
+                if (double.IsNaN(value) ||
+                    double.IsInfinity(value) ||
+                    value < 0.0)
+                {
+                    return;
+                }
             }
 
             ChartErrorBarOptions errorOptions =
@@ -5648,6 +5660,50 @@ chartDoc);
                 valueTypeName;
             errorOptions.Value =
                 value;
+
+            if (customValueType)
+            {
+                XmlNode plus =
+                    DirectChild(
+                        errorBars,
+                        "plus");
+
+                XmlNode minus =
+                    DirectChild(
+                        errorBars,
+                        "minus");
+
+                List<double> plusValues =
+                    ReadCachedNumbers(
+                        plus);
+                List<double> minusValues =
+                    ReadCachedNumbers(
+                        minus);
+
+                for (int i = 0;
+                     i < plusValues.Count;
+                     i++)
+                {
+                    errorOptions.PlusValues.Add(
+                        Math.Abs(
+                            plusValues[i]));
+                }
+
+                for (int i = 0;
+                     i < minusValues.Count;
+                     i++)
+                {
+                    errorOptions.MinusValues.Add(
+                        Math.Abs(
+                            minusValues[i]));
+                }
+
+                if (errorOptions.PlusValues.Count == 0 &&
+                    errorOptions.MinusValues.Count == 0)
+                {
+                    return;
+                }
+            }
 
             Color errorFallback =
                 data.ExplicitColor ??
@@ -6657,24 +6713,37 @@ chartDoc);
             return true;
         }
 
-        private static double ResolveChartErrorMagnitude(
+        private static void ResolveChartErrorMagnitudes(
             double value,
-            ChartErrorBarOptions options)
+            int pointIndex,
+            ChartErrorBarOptions options,
+            out double plusMagnitude,
+            out double minusMagnitude)
         {
+            plusMagnitude = 0.0;
+            minusMagnitude = 0.0;
+
             if (options == null)
-                return 0.0;
+                return;
 
             if (string.Equals(
                     options.ValueType,
                     "percentage",
                     StringComparison.OrdinalIgnoreCase))
             {
-                return Math.Abs(
-                           value) *
+                double magnitude =
+                    Math.Abs(
+                        value) *
                     Math.Max(
                         0.0,
                         options.Value) /
                     100.0;
+
+                plusMagnitude =
+                    magnitude;
+                minusMagnitude =
+                    magnitude;
+                return;
             }
 
             if (string.Equals(
@@ -6682,12 +6751,45 @@ chartDoc);
                     "fixedVal",
                     StringComparison.OrdinalIgnoreCase))
             {
-                return Math.Max(
-                    0.0,
-                    options.Value);
+                double magnitude =
+                    Math.Max(
+                        0.0,
+                        options.Value);
+
+                plusMagnitude =
+                    magnitude;
+                minusMagnitude =
+                    magnitude;
+                return;
             }
 
-            return 0.0;
+            if (string.Equals(
+                    options.ValueType,
+                    "cust",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                if (pointIndex >= 0 &&
+                    pointIndex <
+                    options.PlusValues.Count)
+                {
+                    plusMagnitude =
+                        Math.Max(
+                            0.0,
+                            options.PlusValues[
+                                pointIndex]);
+                }
+
+                if (pointIndex >= 0 &&
+                    pointIndex <
+                    options.MinusValues.Count)
+                {
+                    minusMagnitude =
+                        Math.Max(
+                            0.0,
+                            options.MinusValues[
+                                pointIndex]);
+                }
+            }
         }
 
         private static void DrawChartErrorBar(
@@ -6697,6 +6799,7 @@ chartDoc);
             string kind,
             PointF point,
             double value,
+            int pointIndex,
             ChartErrorBarOptions options,
             Color fallbackColor)
         {
@@ -6707,13 +6810,21 @@ chartDoc);
                 return;
             }
 
-            double magnitude =
-                ResolveChartErrorMagnitude(
-                    value,
-                    options);
+            double plusMagnitude;
+            double minusMagnitude;
 
-            if (magnitude <= 0.0)
+            ResolveChartErrorMagnitudes(
+                value,
+                pointIndex,
+                options,
+                out plusMagnitude,
+                out minusMagnitude);
+
+            if (plusMagnitude <= 0.0 &&
+                minusMagnitude <= 0.0)
+            {
                 return;
+            }
 
             bool drawPlus =
                 !string.Equals(
@@ -6758,7 +6869,7 @@ chartDoc);
                         (float)(
                             ChartAxisFraction(
                                 value +
-                                magnitude,
+                                plusMagnitude,
                                 scale) *
                             plot.Width);
 
@@ -6767,7 +6878,7 @@ chartDoc);
                         (float)(
                             ChartAxisFraction(
                                 value -
-                                magnitude,
+                                minusMagnitude,
                                 scale) *
                             plot.Width);
 
