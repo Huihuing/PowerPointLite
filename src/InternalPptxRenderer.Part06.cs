@@ -45,6 +45,8 @@ internal static partial class InternalPptxRenderer
             public string Type;
             public double Forward;
             public double Backward;
+            public int Order;
+            public int Period;
             public ChartLineStyle LineStyle;
         }
 
