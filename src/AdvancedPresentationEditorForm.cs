@@ -13,7 +13,8 @@ namespace PptxViewer
         None,
         TextBox,
         Shape,
-        Image
+        Image,
+        Table
     }
 
     internal enum EditorAlignmentCommand
@@ -130,9 +131,9 @@ namespace PptxViewer
                             161,
                             306,
                             609,
-                            754,
-                            948,
-                            1030
+                            830,
+                            1024,
+                            1106
                         };
 
                     for (int i = 0;
@@ -160,12 +161,13 @@ namespace PptxViewer
             Button addTextButton = MakeButton("Text", 316, 64);
             Button addImageButton = MakeButton("Image", 386, 68);
             Button addShapeButton = MakeButton("Shape", 460, 68);
-            deleteObjectButton = MakeButton("Delete", 534, 70);
-            copyButton = MakeButton("Copy", 614, 64);
-            pasteButton = MakeButton("Paste", 684, 64);
-            sendBackButton = MakeButton("Send Back", 760, 84);
-            bringFrontButton = MakeButton("Bring Front", 850, 92);
-            alignButton = MakeButton("Align", 954, 70);
+            Button addTableButton = MakeButton("Table", 534, 68);
+            deleteObjectButton = MakeButton("Delete", 614, 70);
+            copyButton = MakeButton("Copy", 690, 64);
+            pasteButton = MakeButton("Paste", 760, 64);
+            sendBackButton = MakeButton("Send Back", 836, 84);
+            bringFrontButton = MakeButton("Bring Front", 926, 92);
+            alignButton = MakeButton("Align", 1030, 70);
 
             saveButton.Tag = "Primary";
             ApplicationTheme.ApplyButton(
@@ -181,6 +183,7 @@ namespace PptxViewer
             mainToolbar.Controls.Add(addTextButton);
             mainToolbar.Controls.Add(addImageButton);
             mainToolbar.Controls.Add(addShapeButton);
+            mainToolbar.Controls.Add(addTableButton);
             mainToolbar.Controls.Add(deleteObjectButton);
             mainToolbar.Controls.Add(copyButton);
             mainToolbar.Controls.Add(pasteButton);
@@ -366,6 +369,10 @@ namespace PptxViewer
             addShapeButton.Click += delegate
             {
                 AddShape((PresentationShapeKind)Math.Max(0, quickShapeKind.SelectedIndex));
+            };
+            addTableButton.Click += delegate
+            {
+                OpenTableEditor(-1);
             };
             deleteObjectButton.Click += delegate { DeleteSelectedObject(); };
             copyButton.Click += delegate { CopySelectedObject(); };
@@ -870,7 +877,8 @@ namespace PptxViewer
                     selectedSlide != null &&
                     (selectedSlide.TextBoxes.Count > 0 ||
                      selectedSlide.Shapes.Count > 0 ||
-                     selectedSlide.Images.Count > 0);
+                     selectedSlide.Images.Count > 0 ||
+                     selectedSlide.Tables.Count > 0);
 
                 cutMenuItem.Enabled = hasSelection;
                 copyMenuItem.Enabled = hasSelection;
@@ -1397,6 +1405,34 @@ namespace PptxViewer
             item.Height = 3657600;
         }
 
+        private void OpenTableEditor(
+            int initialTableIndex)
+        {
+            int slideIndex =
+                canvas.SelectedSlideIndex;
+
+            if (slideIndex < 0 ||
+                slideIndex >=
+                    session.Document.Slides.Count)
+            {
+                return;
+            }
+
+            using (PresentationTableManagerForm form =
+                new PresentationTableManagerForm(
+                    session,
+                    slideIndex,
+                    initialTableIndex))
+            {
+                form.ShowDialog(this);
+            }
+
+            canvas.Document = session.Document;
+            canvas.Invalidate();
+            LoadSelectedProperties();
+            UpdateStatus();
+        }
+
         private void DeleteSelectedObject()
         {
             int slideIndex =
@@ -1415,6 +1451,8 @@ namespace PptxViewer
             List<int> shapeIndexes =
                 new List<int>();
             List<int> imageIndexes =
+                new List<int>();
+            List<int> tableIndexes =
                 new List<int>();
 
             for (int i = 0;
@@ -1442,11 +1480,18 @@ namespace PptxViewer
                     imageIndexes.Add(
                         entry.Index);
                 }
+                else if (entry.Kind ==
+                         EditorObjectKind.Table)
+                {
+                    tableIndexes.Add(
+                        entry.Index);
+                }
             }
 
             textIndexes.Sort();
             shapeIndexes.Sort();
             imageIndexes.Sort();
+            tableIndexes.Sort();
 
             CaptureHistory();
             bool removed = false;
@@ -1487,6 +1532,18 @@ namespace PptxViewer
                     removed;
             }
 
+            for (int i =
+                     tableIndexes.Count - 1;
+                 i >= 0;
+                 i--)
+            {
+                removed =
+                    session.RemoveTable(
+                        slideIndex,
+                        tableIndexes[i]) ||
+                    removed;
+            }
+
             if (!removed)
                 return;
 
@@ -1524,6 +1581,14 @@ namespace PptxViewer
             {
                 kind =
                     PresentationLayerKind.Image;
+                return true;
+            }
+
+            if (canvas.SelectedObjectKind ==
+                EditorObjectKind.Table)
+            {
+                kind =
+                    PresentationLayerKind.Table;
                 return true;
             }
 
@@ -1932,6 +1997,19 @@ namespace PptxViewer
                         PresentationLayerKind.Image,
                         selection.Index);
                 }
+                else if (item.Kind == EditorObjectKind.Table &&
+                         item.Table != null)
+                {
+                    slide.Tables.Add(
+                        item.Table.Clone());
+                    selection.Kind =
+                        EditorObjectKind.Table;
+                    selection.Index =
+                        slide.Tables.Count - 1;
+                    slide.RegisterObjectOrder(
+                        PresentationLayerKind.Table,
+                        selection.Index);
+                }
                 else
                 {
                     continue;
@@ -2259,6 +2337,7 @@ namespace PptxViewer
                 PresentationTextBox text = canvas.GetSelectedTextBox();
                 PresentationShape shape = canvas.GetSelectedShape();
                 PresentationImage image = canvas.GetSelectedImage();
+                PresentationTable table = canvas.GetSelectedTable();
 
                 bool textEnabled = text != null;
                 bool shapeEnabled = shape != null;
@@ -2273,7 +2352,9 @@ namespace PptxViewer
                                 ? "Shape"
                                 : image != null
                                     ? "Image"
-                                    : "No object selected";
+                                    : table != null
+                                        ? "Table"
+                                        : "No object selected";
 
                 textEditor.Enabled = textEnabled;
                 fontPicker.Enabled = textEnabled;
@@ -2731,6 +2812,12 @@ namespace PptxViewer
                         kind =
                             EditorObjectKind.Image;
                     }
+                    else if (layer.Kind ==
+                             PresentationLayerKind.Table)
+                    {
+                        kind =
+                            EditorObjectKind.Table;
+                    }
 
                     if (kind != EditorObjectKind.None)
                     {
@@ -2960,6 +3047,21 @@ namespace PptxViewer
             return slide.Images[SelectedObjectIndex];
         }
 
+        public PresentationTable GetSelectedTable()
+        {
+            PresentationSlide slide = GetSlide();
+            if (slide == null ||
+                selectedObjects.Count != 1 ||
+                SelectedObjectKind != EditorObjectKind.Table ||
+                SelectedObjectIndex < 0 ||
+                SelectedObjectIndex >= slide.Tables.Count)
+            {
+                return null;
+            }
+
+            return slide.Tables[SelectedObjectIndex];
+        }
+
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
@@ -3022,6 +3124,16 @@ namespace PptxViewer
                     DrawTextBox(
                         e.Graphics,
                         slide.TextBoxes[entry.Index],
+                        entry.Index);
+                }
+                else if (entry.Kind ==
+                             PresentationLayerKind.Table &&
+                         entry.Index >= 0 &&
+                         entry.Index < slide.Tables.Count)
+                {
+                    DrawTable(
+                        e.Graphics,
+                        slide.Tables[entry.Index],
                         entry.Index);
                 }
             }
@@ -3357,6 +3469,147 @@ namespace PptxViewer
             }
 
             DrawSelectionIfNeeded(graphics, EditorObjectKind.Image, index, rect);
+        }
+
+        private void DrawTable(
+            Graphics graphics,
+            PresentationTable table,
+            int index)
+        {
+            if (table == null)
+                return;
+
+            RectangleF rect =
+                ToRectangle(
+                    table.X,
+                    table.Y,
+                    table.Width,
+                    table.Height);
+            int rows =
+                Math.Max(1, table.Rows);
+            int columns =
+                Math.Max(1, table.Columns);
+            float cellWidth =
+                rect.Width / columns;
+            float cellHeight =
+                rect.Height / rows;
+            float scale =
+                slideRectangle.Width / 960f;
+
+            using (Pen border =
+                new Pen(
+                    Color.FromArgb(
+                        166,
+                        172,
+                        184),
+                    1f))
+            {
+                for (int row = 0;
+                     row < rows;
+                     row++)
+                {
+                    for (int column = 0;
+                         column < columns;
+                         column++)
+                    {
+                        PresentationTableCell cell =
+                            table.GetCell(
+                                row,
+                                column);
+                        RectangleF cellRect =
+                            new RectangleF(
+                                rect.Left +
+                                column * cellWidth,
+                                rect.Top +
+                                row * cellHeight,
+                                cellWidth,
+                                cellHeight);
+                        Color fill =
+                            ParseColor(
+                                cell == null
+                                    ? null
+                                    : cell.FillColorHex,
+                                Color.White);
+
+                        using (Brush fillBrush =
+                            new SolidBrush(fill))
+                        {
+                            graphics.FillRectangle(
+                                fillBrush,
+                                cellRect);
+                        }
+
+                        graphics.DrawRectangle(
+                            border,
+                            Rectangle.Round(cellRect));
+
+                        if (cell == null ||
+                            string.IsNullOrEmpty(
+                                cell.Text))
+                        {
+                            continue;
+                        }
+
+                        FontStyle style =
+                            cell.Bold
+                                ? FontStyle.Bold
+                                : FontStyle.Regular;
+                        float displaySize =
+                            Math.Max(
+                                5f,
+                                cell.FontSizePoints *
+                                scale);
+
+                        using (Font font =
+                            SafeFont(
+                                cell.FontFamily,
+                                displaySize,
+                                style))
+                        using (Brush textBrush =
+                            new SolidBrush(
+                                ParseColor(
+                                    cell.TextColorHex,
+                                    Color.FromArgb(
+                                        32,
+                                        36,
+                                        42))))
+                        using (StringFormat format =
+                            new StringFormat())
+                        {
+                            format.Alignment =
+                                cell.Alignment ==
+                                    PresentationTextAlignment.Center
+                                    ? StringAlignment.Center
+                                    : cell.Alignment ==
+                                        PresentationTextAlignment.Right
+                                        ? StringAlignment.Far
+                                        : StringAlignment.Near;
+                            format.LineAlignment =
+                                StringAlignment.Center;
+                            format.Trimming =
+                                StringTrimming.EllipsisCharacter;
+
+                            RectangleF textRect =
+                                RectangleF.Inflate(
+                                    cellRect,
+                                    -4f,
+                                    -2f);
+                            graphics.DrawString(
+                                cell.Text,
+                                font,
+                                textBrush,
+                                textRect,
+                                format);
+                        }
+                    }
+                }
+            }
+
+            DrawSelectionIfNeeded(
+                graphics,
+                EditorObjectKind.Table,
+                index,
+                rect);
         }
 
         private void DrawSelectionIfNeeded(
@@ -4076,6 +4329,21 @@ namespace PptxViewer
                     candidateKind =
                         EditorObjectKind.Shape;
                 }
+                else if (entry.Kind ==
+                             PresentationLayerKind.Table &&
+                         entry.Index >= 0 &&
+                         entry.Index < slide.Tables.Count)
+                {
+                    PresentationTable item =
+                        slide.Tables[entry.Index];
+                    candidate = ToRectangle(
+                        item.X,
+                        item.Y,
+                        item.Width,
+                        item.Height);
+                    candidateKind =
+                        EditorObjectKind.Table;
+                }
 
                 if (candidateKind !=
                         EditorObjectKind.None &&
@@ -4175,6 +4443,18 @@ namespace PptxViewer
                 return true;
             }
 
+            if (kind == EditorObjectKind.Table &&
+                index < slide.Tables.Count)
+            {
+                PresentationTable item =
+                    slide.Tables[index];
+                x = item.X;
+                y = item.Y;
+                width = item.Width;
+                height = item.Height;
+                return true;
+            }
+
             return false;
         }
 
@@ -4239,6 +4519,18 @@ namespace PptxViewer
             {
                 PresentationImage item =
                     slide.Images[index];
+                item.X = x;
+                item.Y = y;
+                item.Width = width;
+                item.Height = height;
+                return;
+            }
+
+            if (kind == EditorObjectKind.Table &&
+                index < slide.Tables.Count)
+            {
+                PresentationTable item =
+                    slide.Tables[index];
                 item.X = x;
                 item.Y = y;
                 item.Width = width;

@@ -11,6 +11,7 @@ namespace PptxViewer
         public PresentationTextBox TextBox { get; set; }
         public PresentationShape Shape { get; set; }
         public PresentationImage Image { get; set; }
+        public PresentationTable Table { get; set; }
 
         public EditorClipboardObject Clone()
         {
@@ -29,6 +30,10 @@ namespace PptxViewer
                 Image == null
                     ? null
                     : Image.Clone();
+            copy.Table =
+                Table == null
+                    ? null
+                    : Table.Clone();
             return copy;
         }
 
@@ -73,6 +78,16 @@ namespace PptxViewer
                 return true;
             }
 
+            if (Kind == EditorObjectKind.Table &&
+                Table != null)
+            {
+                x = Table.X;
+                y = Table.Y;
+                width = Table.Width;
+                height = Table.Height;
+                return true;
+            }
+
             return false;
         }
 
@@ -97,6 +112,12 @@ namespace PptxViewer
             {
                 Image.X += dx;
                 Image.Y += dy;
+            }
+            else if (Kind == EditorObjectKind.Table &&
+                     Table != null)
+            {
+                Table.X += dx;
+                Table.Y += dy;
             }
         }
     }
@@ -354,6 +375,18 @@ namespace PptxViewer
                 return item;
             }
 
+            if (kind == EditorObjectKind.Table &&
+                index >= 0 &&
+                index < slide.Tables.Count)
+            {
+                EditorClipboardObject item =
+                    new EditorClipboardObject();
+                item.Kind = kind;
+                item.Table =
+                    slide.Tables[index].Clone();
+                return item;
+            }
+
             return null;
         }
 
@@ -392,6 +425,9 @@ namespace PptxViewer
             if (kind == PresentationLayerKind.Image)
                 return EditorObjectKind.Image;
 
+            if (kind == PresentationLayerKind.Table)
+                return EditorObjectKind.Table;
+
             return EditorObjectKind.None;
         }
 
@@ -411,6 +447,8 @@ namespace PptxViewer
                 WriteShape(writer, item.Shape);
             else if (item.Kind == EditorObjectKind.Image)
                 WriteImage(writer, item.Image);
+            else if (item.Kind == EditorObjectKind.Table)
+                WriteTable(writer, item.Table);
             else
                 throw new InvalidDataException(
                     "Unsupported clipboard object kind.");
@@ -431,6 +469,8 @@ namespace PptxViewer
                 item.Shape = ReadShape(reader);
             else if (kind == EditorObjectKind.Image)
                 item.Image = ReadImage(reader);
+            else if (kind == EditorObjectKind.Table)
+                item.Table = ReadTable(reader);
             else
                 return null;
 
@@ -707,6 +747,111 @@ namespace PptxViewer
             return image;
         }
 
+        private static void WriteTable(
+            BinaryWriter writer,
+            PresentationTable table)
+        {
+            if (table == null)
+                throw new InvalidDataException(
+                    "Clipboard table is missing.");
+
+            WriteString(writer, table.Name);
+            writer.Write(table.Rows);
+            writer.Write(table.Columns);
+            writer.Write(table.X);
+            writer.Write(table.Y);
+            writer.Write(table.Width);
+            writer.Write(table.Height);
+
+            for (int row = 0;
+                 row < table.Rows;
+                 row++)
+            {
+                for (int column = 0;
+                     column < table.Columns;
+                     column++)
+                {
+                    PresentationTableCell cell =
+                        table.GetCell(
+                            row,
+                            column) ??
+                        new PresentationTableCell();
+                    WriteString(writer, cell.Text);
+                    WriteString(
+                        writer,
+                        cell.FontFamily);
+                    writer.Write(
+                        cell.FontSizePoints);
+                    writer.Write(cell.Bold);
+                    WriteString(
+                        writer,
+                        cell.TextColorHex);
+                    WriteString(
+                        writer,
+                        cell.FillColorHex);
+                    writer.Write(
+                        (int)cell.Alignment);
+                }
+            }
+        }
+
+        private static PresentationTable ReadTable(
+            BinaryReader reader)
+        {
+            string name = reader.ReadString();
+            int rows = reader.ReadInt32();
+            int columns = reader.ReadInt32();
+
+            if (rows < 1 || rows > 50 ||
+                columns < 1 || columns > 50)
+            {
+                throw new InvalidDataException(
+                    "Clipboard table dimensions are invalid.");
+            }
+
+            PresentationTable table =
+                new PresentationTable(
+                    rows,
+                    columns);
+            table.Name = name;
+            table.X = reader.ReadInt64();
+            table.Y = reader.ReadInt64();
+            table.Width = reader.ReadInt64();
+            table.Height = reader.ReadInt64();
+
+            for (int row = 0;
+                 row < rows;
+                 row++)
+            {
+                for (int column = 0;
+                     column < columns;
+                     column++)
+                {
+                    PresentationTableCell cell =
+                        table.GetCell(
+                            row,
+                            column);
+                    cell.Text =
+                        reader.ReadString();
+                    cell.FontFamily =
+                        reader.ReadString();
+                    cell.FontSizePoints =
+                        reader.ReadSingle();
+                    cell.Bold =
+                        reader.ReadBoolean();
+                    cell.TextColorHex =
+                        reader.ReadString();
+                    cell.FillColorHex =
+                        reader.ReadString();
+                    cell.Alignment =
+                        (PresentationTextAlignment)
+                        reader.ReadInt32();
+                }
+            }
+
+            return table;
+        }
+
         private static void WriteString(
             BinaryWriter writer,
             string value)
@@ -773,6 +918,17 @@ namespace PptxViewer
             text.Bold = true;
             text.ColorHex = "2255AA";
 
+            PresentationTable table =
+                slide.AddTable(2, 2);
+            table.Name = "Clipboard table";
+            table.X = 2743200;
+            table.Y = 3657600;
+            table.GetCell(0, 0).Text =
+                "Table cell";
+            table.GetCell(0, 0).Bold = true;
+            table.GetCell(0, 0).FillColorHex =
+                "DDE8FF";
+
             List<EditorSelectionEntry> selection =
                 new List<EditorSelectionEntry>();
             selection.Add(
@@ -787,6 +943,10 @@ namespace PptxViewer
                 Selection(
                     EditorObjectKind.TextBox,
                     slide.TextBoxes.Count - 1));
+            selection.Add(
+                Selection(
+                    EditorObjectKind.Table,
+                    slide.Tables.Count - 1));
 
             EditorClipboardPackage package =
                 EditorClipboardCodec.CreatePackage(
@@ -794,7 +954,7 @@ namespace PptxViewer
                     selection);
 
             if (package == null ||
-                package.Objects.Count != 3)
+                package.Objects.Count != 4)
             {
                 throw new InvalidOperationException(
                     "Clipboard package did not preserve the selected object count.");
@@ -809,7 +969,7 @@ namespace PptxViewer
                     encoded,
                     out decoded) ||
                 decoded == null ||
-                decoded.Objects.Count != 3)
+                decoded.Objects.Count != 4)
             {
                 throw new InvalidOperationException(
                     "Clipboard package codec round-trip failed.");
@@ -820,7 +980,9 @@ namespace PptxViewer
                 decoded.Objects[1].Kind !=
                     EditorObjectKind.Image ||
                 decoded.Objects[2].Kind !=
-                    EditorObjectKind.TextBox)
+                    EditorObjectKind.TextBox ||
+                decoded.Objects[3].Kind !=
+                    EditorObjectKind.Table)
             {
                 throw new InvalidOperationException(
                     "Clipboard package did not preserve relative z-order.");
@@ -835,7 +997,17 @@ namespace PptxViewer
                 decoded.Objects[2].TextBox == null ||
                 decoded.Objects[2].TextBox.Text !=
                     "Clipboard text" ||
-                !decoded.Objects[2].TextBox.Bold)
+                !decoded.Objects[2].TextBox.Bold ||
+                decoded.Objects[3].Table == null ||
+                decoded.Objects[3].Table.Rows != 2 ||
+                decoded.Objects[3].Table.Columns != 2 ||
+                decoded.Objects[3].Table.GetCell(
+                    0,
+                    0).Text !=
+                    "Table cell" ||
+                !decoded.Objects[3].Table.GetCell(
+                    0,
+                    0).Bold)
             {
                 throw new InvalidOperationException(
                     "Clipboard package object properties were not preserved.");

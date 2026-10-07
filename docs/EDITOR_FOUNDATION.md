@@ -151,11 +151,13 @@ Writer 자체 테스트는 프로젝트 코드만으로 text box, shape, 자체 
 
 Advanced Editor는 선택 객체에 대해 **Send Back / Bring Front**를 제공한다. 이 동작은 단순 화면 표시 순서가 아니라 모델의 공통 layer order를 변경하며, Canvas paint/hit-test와 Writer 저장에 동일하게 적용된다. `Ctrl+Shift+Down` / `Ctrl+Shift+Up`으로도 실행할 수 있다.
 
-또한 **Ctrl+클릭 multi-selection**을 지원한다. 여러 text box/shape/image를 함께 선택하면 각 객체 선택선과 전체 group bounds가 표시되고, 마우스 drag 또는 방향키로 상대 간격을 유지한 채 동시에 이동할 수 있다. 그룹이 slide 경계에 닿으면 전체 그룹 기준으로 이동량을 제한하며, Delete는 선택된 객체를 종류별 역순으로 제거해 index 변화에도 안전하게 동작한다. 다중 선택 중에는 개별 속성 편집과 단일-object z-order 버튼만 잠그고, Copy/Cut/Duplicate는 선택 묶음 전체를 대상으로 동작한다.
+또한 **Ctrl+클릭 multi-selection**을 지원한다. text box/shape/image/table을 섞어서 선택하면 각 객체 선택선과 전체 group bounds가 표시되고, 마우스 drag 또는 방향키로 상대 간격을 유지한 채 동시에 이동할 수 있다. 그룹이 slide 경계에 닿으면 전체 그룹 기준으로 이동량을 제한하며, Delete는 선택된 객체를 종류별 역순으로 제거해 index 변화에도 안전하게 동작한다. 다중 선택 중에는 개별 속성 편집과 단일-object z-order 버튼만 잠그고, Copy/Cut/Duplicate는 선택 묶음 전체를 대상으로 동작한다.
+
+Table도 Canvas의 일반 객체 paint/hit-test 경로를 사용한다. 따라서 단일 table은 drag/resize 및 Send Back/Bring Front를 사용할 수 있고, 다른 객체와 함께 multi-selection/align/distribute/delete/copy/cut/duplicate에 참여한다. 기존 table preview child-control 오버레이는 제거했으며, table을 더블클릭하면 기존 Table Editor를 열어 cell 내용을 수정한다.
 
 multi-selection 상태에서는 상단 **Align** 메뉴가 활성화된다. 2개 이상 객체에 대해 left/center/right/top/middle/bottom 정렬을 제공하고, 3개 이상에서는 horizontal/vertical distribute를 추가로 활성화한다. distribute는 양 끝 객체의 center를 고정한 채 중간 객체의 center 간격을 균등하게 재배치한다.
 
-복사/붙여넣기는 단일 객체뿐 아니라 **현재 multi-selection 전체**를 처리한다. 선택 객체는 원본 `ObjectOrder` 순서대로 PowerPointLite 전용 versioned Clipboard payload에 기록되고, 상대 좌표·서식·이미지 bytes·상대 z-order를 유지한 채 현재 슬라이드에 붙여넣는다. 그룹이 슬라이드 경계를 벗어날 때는 객체별로 잘라 맞추지 않고 그룹 bounds에 하나의 translation을 적용해 내부 간격을 보존한다.
+복사/붙여넣기는 단일 객체뿐 아니라 **현재 multi-selection 전체**를 처리한다. 선택 객체는 원본 `ObjectOrder` 순서대로 PowerPointLite 전용 versioned Clipboard payload에 기록되고, text/shape/image/table의 상대 좌표·서식·table cell 내용·이미지 bytes·상대 z-order를 유지한 채 현재 슬라이드에 붙여넣는다. 그룹이 슬라이드 경계를 벗어날 때는 객체별로 잘라 맞추지 않고 그룹 bounds에 하나의 translation을 적용해 내부 간격을 보존한다.
 
 Windows system clipboard에도 `PowerPointLite.ObjectSelection.v1` 포맷을 함께 기록하므로 다른 PowerPointLite 창/프로세스에서도 객체 묶음을 붙여넣을 수 있다. 단일 text box는 Unicode text도 함께 내보내고 단일 image는 Bitmap도 함께 내보낸다. 반대로 외부 프로그램에서 복사한 일반 text와 Bitmap image도 각각 새 text box / image 객체로 받아들인다. 전용 payload codec은 이미지 크기와 object/run count에 상한을 두고 structural self-test에서 encode/decode와 relative z-order round-trip을 검증한다.
 
@@ -170,7 +172,6 @@ Animation 자체 테스트는 합성 `p:timing`을 프로젝트가 만든 PPTX�
 - rich text를 선택 영역 단위로 직접 편집하는 UI
 - Viewer renderer와 interactive canvas의 공통 layout/render primitive 확대
 - chart/SmartArt/media 등 고급 요소는 Viewer fidelity를 보존하면서 단계적 편집 지원
-- table을 일반 object selection과 통합해 drag/resize
 - accessible focus order 강화
 - arbitrary existing PPTX unknown/unsupported part preservation
 - Windows 실제 `BUILD_EXE.cmd` / `RUN_PREMERGE_CHECKS.cmd` 검증

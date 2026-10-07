@@ -17,39 +17,45 @@ namespace PptxViewer
             ListBox slideList = FindControl<ListBox>(editor);
             AdvancedPresentationCanvas canvas =
                 FindControl<AdvancedPresentationCanvas>(editor);
-            Panel toolbar = FindToolbar(editor);
 
-            if (slideList == null || canvas == null || toolbar == null)
+            if (slideList == null || canvas == null)
                 return;
-
-            Button tableButton = new Button();
-            tableButton.Text = "Table";
-            tableButton.Left = 900;
-            tableButton.Top = 8;
-            tableButton.Width = 68;
-            tableButton.Height = 32;
-            ApplicationTheme.ApplyButton(tableButton);
-            toolbar.Controls.Add(tableButton);
 
             EventHandler refresh = delegate
             {
-                RefreshTablePreviews(editor, session, slideList, canvas);
+                RefreshTablePreviews(
+                    editor,
+                    session,
+                    slideList,
+                    canvas);
             };
 
-            tableButton.Click += delegate
-            {
-                int slideIndex = slideList.SelectedIndex;
-                if (slideIndex < 0 || slideIndex >= session.Document.Slides.Count)
-                    return;
-
-                using (PresentationTableManagerForm form =
-                    new PresentationTableManagerForm(session, slideIndex))
+            canvas.MouseDoubleClick +=
+                delegate(object sender, MouseEventArgs e)
                 {
-                    form.ShowDialog(editor);
-                }
+                    if (e.Button != MouseButtons.Left ||
+                        canvas.SelectedObjectKind !=
+                            EditorObjectKind.Table ||
+                        canvas.SelectedObjectIndex < 0)
+                    {
+                        return;
+                    }
 
-                RefreshTablePreviews(editor, session, slideList, canvas);
-            };
+                    using (PresentationTableManagerForm form =
+                        new PresentationTableManagerForm(
+                            session,
+                            slideList.SelectedIndex,
+                            canvas.SelectedObjectIndex))
+                    {
+                        form.ShowDialog(editor);
+                    }
+
+                    RefreshTablePreviews(
+                        editor,
+                        session,
+                        slideList,
+                        canvas);
+                };
 
             slideList.SelectedIndexChanged += refresh;
             canvas.Resize += refresh;
@@ -63,10 +69,16 @@ namespace PptxViewer
             ListBox slideList,
             AdvancedPresentationCanvas canvas)
         {
-            for (int i = canvas.Controls.Count - 1; i >= 0; i--)
+            // Older builds used child controls for table previews. Tables now
+            // participate in the canvas' normal paint/hit-test/layer pipeline,
+            // so remove any stale preview controls and let the canvas render.
+            for (int i = canvas.Controls.Count - 1;
+                 i >= 0;
+                 i--)
             {
                 TablePreviewControl existing =
                     canvas.Controls[i] as TablePreviewControl;
+
                 if (existing != null)
                 {
                     canvas.Controls.RemoveAt(i);
@@ -74,59 +86,7 @@ namespace PptxViewer
                 }
             }
 
-            int slideIndex = slideList.SelectedIndex;
-            if (slideIndex < 0 || slideIndex >= session.Document.Slides.Count)
-                return;
-
-            PresentationSlide slide = session.Document.Slides[slideIndex];
-            if (slide == null || slide.Tables.Count == 0)
-                return;
-
-            Rectangle slideBounds = CalculateSlideRectangle(
-                canvas,
-                session.Document);
-
-            for (int i = 0; i < slide.Tables.Count; i++)
-            {
-                PresentationTable table = slide.Tables[i];
-                if (table == null)
-                    continue;
-
-                Rectangle bounds = ToPixels(
-                    table.X,
-                    table.Y,
-                    table.Width,
-                    table.Height,
-                    slideBounds,
-                    session.Document);
-
-                int tableIndex = i;
-                TablePreviewControl preview = new TablePreviewControl();
-                preview.Table = table;
-                preview.Bounds = bounds;
-                preview.Cursor = Cursors.Hand;
-                preview.TabStop = false;
-                preview.DoubleClick += delegate
-                {
-                    using (PresentationTableManagerForm form =
-                        new PresentationTableManagerForm(
-                            session,
-                            slideList.SelectedIndex,
-                            tableIndex))
-                    {
-                        form.ShowDialog(editor);
-                    }
-
-                    RefreshTablePreviews(
-                        editor,
-                        session,
-                        slideList,
-                        canvas);
-                };
-
-                canvas.Controls.Add(preview);
-                preview.BringToFront();
-            }
+            canvas.Invalidate();
         }
 
         private static Rectangle CalculateSlideRectangle(
