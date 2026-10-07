@@ -2930,6 +2930,60 @@ namespace PptxViewer
                     103,
                     176);
 
+            XmlDocument overlayChart =
+                new XmlDocument();
+
+            overlayChart.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<c:chart><c:title><c:tx><c:rich><a:p><a:r><a:t>Overlay</a:t></a:r></a:p></c:rich></c:tx><c:overlay val=\"1\"/></c:title>" +
+                "<c:plotArea/>" +
+                "<c:legend><c:legendPos val=\"r\"/><c:overlay val=\"1\"/></c:legend>" +
+                "</c:chart></c:chartSpace>");
+
+            if (!ReadChartOverlay(
+                    overlayChart,
+                    "title") ||
+                !ReadChartOverlay(
+                    overlayChart,
+                    "legend"))
+            {
+                throw new InvalidOperationException(
+                    "Chart title or legend overlay setting was not parsed.");
+            }
+
+            using (Bitmap overlayBitmap =
+                new Bitmap(
+                    360,
+                    240,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics overlayGraphics =
+                Graphics.FromImage(
+                    overlayBitmap))
+            {
+                overlayGraphics.Clear(
+                    Color.White);
+
+                RectangleF overlayPlot;
+
+                PrepareChartSurface(
+                    overlayGraphics,
+                    new RectangleF(
+                        10f,
+                        10f,
+                        320f,
+                        200f),
+                    overlayChart,
+                    theme,
+                    out overlayPlot);
+
+                if (overlayPlot.Top > 30f ||
+                    overlayPlot.Right < 295f)
+                {
+                    throw new InvalidOperationException(
+                        "Chart overlay title or legend still consumed plot layout space.");
+                }
+            }
+
             XmlDocument doughnut =
                 new XmlDocument();
 
