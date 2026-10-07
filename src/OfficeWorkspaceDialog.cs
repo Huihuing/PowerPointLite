@@ -123,6 +123,24 @@ namespace PptxViewer
             note.Width = 350;
             note.Height = 90;
             note.BackColor = ApplicationTheme.Surface;
+            note.Paint += delegate(object sender, PaintEventArgs e)
+            {
+                using (Pen border =
+                    new Pen(
+                        ApplicationTheme.Divider))
+                {
+                    e.Graphics.DrawRectangle(
+                        border,
+                        0,
+                        0,
+                        Math.Max(
+                            0,
+                            note.ClientSize.Width - 1),
+                        Math.Max(
+                            0,
+                            note.ClientSize.Height - 1));
+                }
+            };
             Controls.Add(note);
 
             Label noteTitle = new Label();
@@ -147,6 +165,7 @@ namespace PptxViewer
 
             Button open = new Button();
             open.Text = "Open existing editable file...";
+            open.Tag = "Open";
             open.Left = 30;
             open.Top = 528;
             open.Width = 350;
@@ -267,6 +286,8 @@ namespace PptxViewer
             format.TextAlign = ContentAlignment.MiddleRight;
             format.Text = formatText;
             format.ForeColor = ApplicationTheme.Accent;
+            format.BackColor = ApplicationTheme.AccentSoft;
+            format.Padding = new Padding(4, 0, 4, 0);
             format.Cursor = Cursors.Hand;
             card.Controls.Add(format);
 
@@ -287,13 +308,109 @@ namespace PptxViewer
                 Close();
             };
 
+            bool hot = false;
+
+            Action<bool> setHot =
+                delegate(bool value)
+                {
+                    if (hot == value)
+                        return;
+
+                    hot = value;
+                    card.BackColor =
+                        hot
+                            ? ApplicationTheme.SurfaceHover
+                            : ApplicationTheme.Surface;
+                    card.Invalidate();
+                };
+
+            EventHandler enterCard =
+                delegate
+                {
+                    setHot(true);
+                };
+
+            EventHandler leaveCard =
+                delegate
+                {
+                    Point local =
+                        card.PointToClient(
+                            Cursor.Position);
+
+                    if (!card.ClientRectangle.Contains(
+                            local))
+                    {
+                        setHot(false);
+                    }
+                };
+
+            card.Paint += delegate(object sender, PaintEventArgs e)
+            {
+                bool focused =
+                    card.Focused;
+
+                using (Pen border =
+                    new Pen(
+                        hot || focused
+                            ? ApplicationTheme.Accent
+                            : ApplicationTheme.Divider,
+                        hot || focused
+                            ? 2f
+                            : 1f))
+                {
+                    e.Graphics.DrawRectangle(
+                        border,
+                        hot || focused ? 1 : 0,
+                        hot || focused ? 1 : 0,
+                        Math.Max(
+                            0,
+                            card.ClientSize.Width -
+                            (hot || focused ? 3 : 1)),
+                        Math.Max(
+                            0,
+                            card.ClientSize.Height -
+                            (hot || focused ? 3 : 1)));
+                }
+            };
+
             card.Click += choose;
             title.Click += choose;
             format.Click += choose;
             body.Click += choose;
 
-            card.MouseEnter += delegate { card.BackColor = ApplicationTheme.SurfaceHover; };
-            card.MouseLeave += delegate { card.BackColor = ApplicationTheme.Surface; };
+            card.MouseEnter += enterCard;
+            title.MouseEnter += enterCard;
+            format.MouseEnter += enterCard;
+            body.MouseEnter += enterCard;
+
+            card.MouseLeave += leaveCard;
+            title.MouseLeave += leaveCard;
+            format.MouseLeave += leaveCard;
+            body.MouseLeave += leaveCard;
+
+            card.Enter += delegate
+            {
+                card.Invalidate();
+            };
+
+            card.Leave += delegate
+            {
+                setHot(false);
+                card.Invalidate();
+            };
+
+            card.KeyDown += delegate(object sender, KeyEventArgs e)
+            {
+                if (e.KeyCode == Keys.Enter ||
+                    e.KeyCode == Keys.Space)
+                {
+                    e.Handled = true;
+                    e.SuppressKeyPress = true;
+                    choose(
+                        card,
+                        EventArgs.Empty);
+                }
+            };
 
             Controls.Add(card);
         }
