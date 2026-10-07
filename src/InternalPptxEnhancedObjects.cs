@@ -15482,10 +15482,12 @@ namespace PptxViewer
                             else
                             {
                                 float middleY =
-                                    from.Y +
-                                    (to.Y -
-                                     from.Y) /
-                                    2f;
+                                    ChooseSmartArtHorizontalChannel(
+                                        from,
+                                        to,
+                                        positions,
+                                        node.Id,
+                                        node.Children[i]);
 
                                 g.DrawLines(
                                     connector,
@@ -15507,10 +15509,12 @@ namespace PptxViewer
                                   !processSameRow))
                         {
                             float middleY =
-                                from.Y +
-                                (to.Y -
-                                 from.Y) /
-                                2f;
+                                ChooseSmartArtHorizontalChannel(
+                                    from,
+                                    to,
+                                    positions,
+                                    node.Id,
+                                    node.Children[i]);
 
                             g.DrawLines(
                                 connector,
@@ -15536,6 +15540,136 @@ namespace PptxViewer
                     }
                 }
             }
+        }
+
+        private static float ChooseSmartArtHorizontalChannel(
+            PointF from,
+            PointF to,
+            Dictionary<string, RectangleF> positions,
+            string sourceId,
+            string destinationId)
+        {
+            float low =
+                Math.Min(
+                    from.Y,
+                    to.Y);
+
+            float high =
+                Math.Max(
+                    from.Y,
+                    to.Y);
+
+            float span =
+                Math.Max(
+                    0f,
+                    high - low);
+
+            float preferred =
+                low +
+                span /
+                2f;
+
+            float[] candidates =
+                new float[]
+                {
+                    preferred,
+                    low +
+                        span *
+                        0.25f,
+                    low +
+                        span *
+                        0.75f,
+                    low +
+                        Math.Min(
+                            4f,
+                            span /
+                            2f),
+                    high -
+                        Math.Min(
+                            4f,
+                            span /
+                            2f)
+                };
+
+            for (int i = 0;
+                 i < candidates.Length;
+                 i++)
+            {
+                if (IsSmartArtHorizontalChannelClear(
+                        candidates[i],
+                        from.X,
+                        to.X,
+                        positions,
+                        sourceId,
+                        destinationId))
+                {
+                    return candidates[i];
+                }
+            }
+
+            return preferred;
+        }
+
+        private static bool IsSmartArtHorizontalChannelClear(
+            float y,
+            float x1,
+            float x2,
+            Dictionary<string, RectangleF> positions,
+            string sourceId,
+            string destinationId)
+        {
+            if (positions == null)
+                return true;
+
+            float left =
+                Math.Min(
+                    x1,
+                    x2);
+
+            float right =
+                Math.Max(
+                    x1,
+                    x2);
+
+            const float clearance =
+                3f;
+
+            foreach (KeyValuePair<string, RectangleF> pair
+                in positions)
+            {
+                if (pair.Key == sourceId ||
+                    pair.Key == destinationId)
+                {
+                    continue;
+                }
+
+                RectangleF obstacle =
+                    pair.Value;
+
+                if (y <=
+                        obstacle.Top -
+                        clearance ||
+                    y >=
+                        obstacle.Bottom +
+                        clearance)
+                {
+                    continue;
+                }
+
+                if (right <=
+                        obstacle.Left -
+                        clearance ||
+                    left >=
+                        obstacle.Right +
+                        clearance)
+                {
+                    continue;
+                }
+
+                return false;
+            }
+
+            return true;
         }
 
         private static Color LightenSmartArtColor(
