@@ -123,6 +123,7 @@ Microsoft PowerPoint (설치된 경우)
   - dLbls/dLbl[idx] txPr의 solidFill 텍스트 색상 및 sz/b/i/latin typeface 기본 반영
   - dLbls/dLbl[idx] spPr의 solidFill 배경과 ln 색상·굵기·dash 박스 스타일 기본 반영
   - series dLbls/dLbl[idx]의 표시 항목·위치·numFmt·separator·delete point override 기본 반영
+  - 개별 dLbl/layout/manualLayout의 x/y/w/h 및 factor/edge mode를 chart 전체 좌표 기준으로 point label box에 반영
   - chart-level dLbls와 series-level dLbls를 별도 scope로 해석
   - legendPos 좌/우/상/하/우상단 배치 및 plot 영역 조정
   - legend txPr의 solidFill·sz·b/i·latin typeface 텍스트 스타일 기본 반영
@@ -141,6 +142,8 @@ Microsoft PowerPoint (설치된 경우)
   - chartSpace / plotArea spPr solidFill 배경색 기본 반영
   - valAx/catAx 축 제목 기본 렌더
   - catAx/valAx spPr/ln solidFill·width·prstDash 축선 스타일 기본 반영
+  - catAx/valAx delete=1이면 축선·tick·tick label·축 제목을 숨기고 value gridline 계산은 유지
+  - catAx/valAx axPos를 nextTo/미지정 tick label 기본 방향과 value-axis 기본 edge에 반영
   - catAx/valAx txPr의 solidFill·sz·b/i·latin typeface tick label 스타일 기본 반영
   - catAx majorTickMark 및 valAx majorTickMark/minorTickMark의 in/out/cross 축 눈금 기본 반영
   - valAx majorGridlines spPr/ln solidFill·width·prstDash 스타일 기본 반영
@@ -167,6 +170,7 @@ Microsoft PowerPoint (설치된 경우)
   - hierarchy parent-child 및 assistant connector를 직각 elbow routing으로 근사
   - process 같은 행은 node edge 연결, 행 전환 및 verticalProcess는 직각 elbow routing으로 근사
   - hierarchy/process/verticalProcess elbow의 전체 V-H-V 경로를 장애물과 대조하고, 중앙/분할 수평 channel이 막히면 H-V-H side-channel로 전환
+  - hierarchy assistant connector도 같은 full-route 검사기를 사용해 중앙 세로 channel이 막히면 다른 side-channel로 우회
   - process multi-row 배치는 행별 실제 노드 수 기준 중앙 정렬 및 안정적인 row spacing 적용
   - 좁은 process 영역에서는 가용 폭 기준으로 열 수를 자동 축소해 node가 좌우 경계를 벗어나지 않도록 배치
   - verticalProcess는 높이 cap 이후 전체 node stack을 영역 중앙에 재배치
