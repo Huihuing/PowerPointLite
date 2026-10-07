@@ -4085,31 +4085,31 @@ namespace PptxViewer
 
         private void DrawTextBox(Graphics graphics, PresentationTextBox box, int index)
         {
-            RectangleF rect = ToRectangle(box.X, box.Y, box.Width, box.Height);
-            FontStyle style = FontStyle.Regular;
-            if (box.Bold)
-                style |= FontStyle.Bold;
-            if (box.Italic)
-                style |= FontStyle.Italic;
+            RectangleF rect =
+                ToRectangle(
+                    box.X,
+                    box.Y,
+                    box.Width,
+                    box.Height);
+            float scale =
+                slideRectangle.Width /
+                960f;
 
-            float scale = slideRectangle.Width / 960f;
-            float displaySize = Math.Max(6f, box.FontSizePoints * scale);
+            PresentationModelTextRenderer.DrawTextBox(
+                graphics,
+                box,
+                rect,
+                scale,
+                Color.FromArgb(
+                    32,
+                    36,
+                    42));
 
-            using (Font font = SafeFont(box.FontFamily, displaySize, style))
-            using (Brush brush = new SolidBrush(ParseColor(box.ColorHex, Color.FromArgb(32, 36, 42))))
-            using (StringFormat format = new StringFormat())
-            {
-                format.Alignment = box.Alignment == PresentationTextAlignment.Center
-                    ? StringAlignment.Center
-                    : box.Alignment == PresentationTextAlignment.Right
-                        ? StringAlignment.Far
-                        : StringAlignment.Near;
-                format.LineAlignment = StringAlignment.Center;
-                format.Trimming = StringTrimming.EllipsisCharacter;
-                graphics.DrawString(box.Text ?? string.Empty, font, brush, rect, format);
-            }
-
-            DrawSelectionIfNeeded(graphics, EditorObjectKind.TextBox, index, rect);
+            DrawSelectionIfNeeded(
+                graphics,
+                EditorObjectKind.TextBox,
+                index,
+                rect);
         }
 
         private void DrawShape(Graphics graphics, PresentationShape shape, int index)
@@ -5251,83 +5251,27 @@ namespace PptxViewer
             PresentationShapeKind kind,
             RectangleF rect)
         {
-            GraphicsPath path = new GraphicsPath();
-
-            if (kind == PresentationShapeKind.Ellipse)
-            {
-                path.AddEllipse(rect);
-                return path;
-            }
-
-            if (kind == PresentationShapeKind.Triangle)
-            {
-                path.AddPolygon(new PointF[]
-                {
-                    new PointF(rect.Left + rect.Width / 2f, rect.Top),
-                    new PointF(rect.Right, rect.Bottom),
-                    new PointF(rect.Left, rect.Bottom)
-                });
-                return path;
-            }
-
-            if (kind == PresentationShapeKind.Diamond)
-            {
-                path.AddPolygon(new PointF[]
-                {
-                    new PointF(rect.Left + rect.Width / 2f, rect.Top),
-                    new PointF(rect.Right, rect.Top + rect.Height / 2f),
-                    new PointF(rect.Left + rect.Width / 2f, rect.Bottom),
-                    new PointF(rect.Left, rect.Top + rect.Height / 2f)
-                });
-                return path;
-            }
-
-            if (kind == PresentationShapeKind.RoundedRectangle)
-            {
-                float radius = Math.Max(4f, Math.Min(rect.Width, rect.Height) * 0.12f);
-                float diameter = radius * 2f;
-                path.AddArc(rect.Left, rect.Top, diameter, diameter, 180f, 90f);
-                path.AddArc(rect.Right - diameter, rect.Top, diameter, diameter, 270f, 90f);
-                path.AddArc(rect.Right - diameter, rect.Bottom - diameter, diameter, diameter, 0f, 90f);
-                path.AddArc(rect.Left, rect.Bottom - diameter, diameter, diameter, 90f, 90f);
-                path.CloseFigure();
-                return path;
-            }
-
-            path.AddRectangle(rect);
-            return path;
+            return PresentationRenderPrimitives
+                .CreateBasicShapePath(
+                    kind,
+                    rect);
         }
 
         private static Font SafeFont(string family, float size, FontStyle style)
         {
-            try
-            {
-                return new Font(
-                    string.IsNullOrEmpty(family) ? "Arial" : family,
+            return PresentationRenderPrimitives
+                .SafeFont(
+                    family,
                     size,
-                    style,
-                    GraphicsUnit.Point);
-            }
-            catch
-            {
-                return new Font(SystemFonts.MessageBoxFont.FontFamily, size, style);
-            }
+                    style);
         }
 
         private static Color ParseColor(string value, Color fallback)
         {
-            string candidate = (value ?? string.Empty).Trim().TrimStart('#');
-            int parsed;
-            if (candidate.Length == 6 &&
-                int.TryParse(candidate, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out parsed))
-            {
-                return Color.FromArgb(
-                    (parsed >> 16) & 0xFF,
-                    (parsed >> 8) & 0xFF,
-                    parsed & 0xFF);
-            }
-
-            return fallback;
+            return PresentationRenderPrimitives
+                .ParseHexColor(
+                    value,
+                    fallback);
         }
     }
 }

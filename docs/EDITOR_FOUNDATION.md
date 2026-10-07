@@ -41,7 +41,7 @@ Viewer와 같은 렌더링 경로의 read-only preview
 
 미리보기에서는 현재 슬라이드 선택을 따라가며, 편집 후 `미리보기 새로고침`으로 다시 렌더링한다. 임시 package와 이미지 cache는 Editor 종료 시 삭제한다.
 
-향후 Editor 표현력을 높일 때도 Viewer renderer와 별개의 두 번째 고급 renderer를 새로 만드는 방향은 피한다. 가능한 한 Viewer renderer의 layout/text/table/image 처리 계층을 재사용해 두 경로의 시각 차이를 줄인다.
+Editor 표현력을 높일 때도 Viewer renderer와 별개의 두 번째 고급 renderer를 새로 만드는 방향은 피한다. `PresentationRenderPrimitives`가 font fallback과 기본 rect/ellipse/roundRect/triangle/diamond geometry, hex color, text alignment 같은 저수준 계산을 공유하며, `InternalPptxRenderer`와 Advanced Editor Canvas가 이 공통 helper를 사용한다. Editor의 모델 기반 text renderer도 rich run별 font/size/bold/italic/underline/color와 paragraph alignment/spacing을 직접 그려 Viewer와의 시각 차이를 줄인다.
 
 PPTX 시각 표현과 animation 범위는 `docs/PPTX_FIDELITY.md`를 함께 본다.
 
@@ -172,7 +172,7 @@ Animation 자체 테스트는 합성 `p:timing`을 프로젝트가 만든 PPTX�
 
 ## 현재 남은 Editor 작업
 
-- Viewer renderer와 interactive canvas의 공통 layout/render primitive 확대
+- Viewer renderer와 interactive canvas의 공통 layout/render primitive를 chart/SmartArt/image crop 등 고급 요소까지 확대
 - chart/SmartArt/media 등 고급 요소는 Viewer fidelity를 보존하면서 단계적 편집 지원
 - accessible focus order 강화
 - arbitrary existing PPTX unknown/unsupported part preservation

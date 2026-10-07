@@ -876,29 +876,20 @@ internal static partial class InternalPptxRenderer
         {
             GraphicsPath path = new GraphicsPath();
 
-            if (string.IsNullOrEmpty(preset) || preset == "rect")
+            if (string.IsNullOrEmpty(preset) ||
+                preset == "rect" ||
+                preset == "ellipse" ||
+                preset == "roundRect" ||
+                preset == "triangle" ||
+                preset == "diamond")
             {
-                path.AddRectangle(r);
-                return path;
-            }
-
-            if (preset == "ellipse")
-            {
-                path.AddEllipse(r);
-                return path;
-            }
-
-            if (preset == "roundRect")
-            {
-                float radius = Math.Max(3f, Math.Min(r.Width, r.Height) * 0.12f);
-                float d = radius * 2f;
-
-                path.AddArc(r.Left, r.Top, d, d, 180, 90);
-                path.AddArc(r.Right - d, r.Top, d, d, 270, 90);
-                path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
-                path.AddArc(r.Left, r.Bottom - d, d, d, 90, 90);
-                path.CloseFigure();
-                return path;
+                path.Dispose();
+                return PresentationRenderPrimitives
+                    .CreatePresetShapePath(
+                        string.IsNullOrEmpty(preset)
+                            ? "rect"
+                            : preset,
+                        r);
             }
 
             PointF[] pts = null;

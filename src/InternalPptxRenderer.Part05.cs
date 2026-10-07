@@ -58,21 +58,11 @@ namespace PptxViewer
 
         private static Font SafeFont(string name, float size, FontStyle style)
         {
-            try
-            {
-                return new Font(name, size, style, GraphicsUnit.Point);
-            }
-            catch
-            {
-                try
-                {
-                    return new Font(SystemFonts.MessageBoxFont.FontFamily, size, style, GraphicsUnit.Point);
-                }
-                catch
-                {
-                    return new Font("Arial", size, style, GraphicsUnit.Point);
-                }
-            }
+            return PresentationRenderPrimitives
+                .SafeFont(
+                    name,
+                    size,
+                    style);
         }
 
         private static void DrawGraphicFrame(

@@ -14,6 +14,7 @@ namespace PptxViewer
         {
             EditorClipboardCodecDiagnostics.Validate();
             RichTextSelectionEditorDiagnostics.Validate();
+            PresentationRenderPrimitivesDiagnostics.Validate();
 
             PresentationDocument document =
                 PresentationDocument.CreateNew("Writer Self Test");
