@@ -128,6 +128,7 @@ Microsoft PowerPoint (설치된 경우)
   - legend txPr의 solidFill·sz·b/i·latin typeface 텍스트 스타일 기본 반영
   - legendEntry/idx/delete 기반 개별 legend 항목 숨김 반영
   - chart title/legend overlay=1일 때 plot 영역을 예약하지 않고 겹쳐 배치
+  - plotArea/layout/manualLayout의 x/y/w/h 및 factor/edge mode를 일반/확장 차트 plot 사각형에 기본 반영
   - chart title txPr의 solidFill·sz·b/i·latin typeface 텍스트 스타일 기본 반영
   - catAx/valAx title txPr의 solidFill·sz·b/i·latin typeface 축 제목 스타일 기본 반영
   - 파이/도넛 category 범례 및 percent 레이블
@@ -161,6 +162,7 @@ Microsoft PowerPoint (설치된 경우)
   - hierarchy parent-child 및 assistant connector를 직각 elbow routing으로 근사
   - process 같은 행은 node edge 연결, 행 전환 및 verticalProcess는 직각 elbow routing으로 근사
   - process multi-row 배치는 행별 실제 노드 수 기준 중앙 정렬 및 안정적인 row spacing 적용
+  - 좁은 process 영역에서는 가용 폭 기준으로 열 수를 자동 축소해 node가 좌우 경계를 벗어나지 않도록 배치
   - verticalProcess는 높이 cap 이후 전체 node stack을 영역 중앙에 재배치
   - 구조를 알 수 없는 경우 기존 static approximation으로 fallback
 - hyperlink / slide navigation / media extraction
