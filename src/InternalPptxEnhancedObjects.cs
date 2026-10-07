@@ -11706,22 +11706,338 @@ namespace PptxViewer
                     chartDoc,
                     "plotArea");
 
-            if (plotArea == null)
-                return;
+            XmlNode layout =
+                plotArea == null
+                    ? null
+                    : DirectChild(
+                        plotArea,
+                        "layout");
 
             XmlNode manualLayout =
-                FindFirst(
-                    plotArea,
-                    "manualLayout");
+                layout == null
+                    ? null
+                    : DirectChild(
+                        layout,
+                        "manualLayout");
 
             if (manualLayout == null)
                 return;
 
-            plot =
+            RectangleF automaticInner =
+                plot;
+
+            string layoutTarget =
+                ReadChartManualLayoutTarget(
+                    manualLayout);
+
+            if (layoutTarget == "inner" ||
+                !ChartHasRenderableAxes(
+                    chartDoc))
+            {
+                plot =
+                    ResolveChartManualLayoutRectangle(
+                        manualLayout,
+                        chartRect,
+                        automaticInner);
+
+                return;
+            }
+
+            RectangleF automaticOuter =
+                EstimateChartAutomaticOuterPlotRectangle(
+                    chartDoc,
+                    chartRect,
+                    automaticInner);
+
+            RectangleF resolvedOuter =
                 ResolveChartManualLayoutRectangle(
                     manualLayout,
                     chartRect,
-                    plot);
+                    automaticOuter);
+
+            plot =
+                ConvertChartOuterLayoutToInner(
+                    chartRect,
+                    automaticOuter,
+                    automaticInner,
+                    resolvedOuter);
+        }
+
+        private static string ReadChartManualLayoutTarget(
+            XmlNode manualLayout)
+        {
+            if (manualLayout == null)
+                return "outer";
+
+            XmlNode target =
+                DirectChild(
+                    manualLayout,
+                    "layoutTarget");
+
+            string value =
+                target == null
+                    ? string.Empty
+                    : GetAttr(
+                        target,
+                        "val");
+
+            return string.Equals(
+                    value,
+                    "inner",
+                    StringComparison.OrdinalIgnoreCase)
+                ? "inner"
+                : "outer";
+        }
+
+        private static bool ChartHasRenderableAxes(
+            XmlDocument chartDoc)
+        {
+            if (chartDoc == null)
+                return false;
+
+            XmlNode plotArea =
+                FindFirst(
+                    chartDoc,
+                    "plotArea");
+
+            if (plotArea == null)
+                return false;
+
+            return
+                FindFirst(
+                    plotArea,
+                    "catAx") != null ||
+                FindFirst(
+                    plotArea,
+                    "valAx") != null ||
+                FindFirst(
+                    plotArea,
+                    "dateAx") != null ||
+                FindFirst(
+                    plotArea,
+                    "serAx") != null;
+        }
+
+        private static RectangleF EstimateChartAutomaticOuterPlotRectangle(
+            XmlDocument chartDoc,
+            RectangleF chartRect,
+            RectangleF automaticInner)
+        {
+            float left =
+                chartRect.Left +
+                Math.Max(
+                    6f,
+                    chartRect.Width *
+                    0.015f);
+
+            float right =
+                chartRect.Right -
+                Math.Max(
+                    6f,
+                    chartRect.Width *
+                    0.015f);
+
+            float top =
+                chartRect.Top +
+                12f;
+
+            float bottom =
+                chartRect.Bottom -
+                Math.Max(
+                    8f,
+                    chartRect.Height *
+                    0.025f);
+
+            string title =
+                ReadChartTitle(
+                    chartDoc);
+
+            if (!string.IsNullOrEmpty(
+                    title) &&
+                !ReadChartOverlay(
+                    chartDoc,
+                    "title"))
+            {
+                top =
+                    Math.Max(
+                        top,
+                        chartRect.Top +
+                        Math.Max(
+                            34f,
+                            chartRect.Height *
+                            0.10f));
+            }
+
+            if (!ReadChartOverlay(
+                    chartDoc,
+                    "legend"))
+            {
+                string legendPosition =
+                    ReadChartLegendPosition(
+                        chartDoc);
+
+                if (legendPosition == "l")
+                {
+                    left =
+                        Math.Max(
+                            left,
+                            chartRect.Left +
+                            Math.Max(
+                                82f,
+                                chartRect.Width *
+                                0.19f));
+                }
+                else if (legendPosition == "r" ||
+                         legendPosition == "tr")
+                {
+                    right =
+                        Math.Min(
+                            right,
+                            chartRect.Right -
+                            Math.Max(
+                                82f,
+                                chartRect.Width *
+                                0.19f));
+                }
+                else if (legendPosition == "t")
+                {
+                    top +=
+                        Math.Max(
+                            28f,
+                            chartRect.Height *
+                            0.09f);
+                }
+                else if (legendPosition == "b")
+                {
+                    bottom -=
+                        Math.Max(
+                            58f,
+                            chartRect.Height *
+                            0.17f);
+                }
+            }
+
+            if (right <= left + 12f ||
+                bottom <= top + 12f)
+            {
+                return automaticInner;
+            }
+
+            RectangleF automaticOuter =
+                new RectangleF(
+                    left,
+                    top,
+                    right - left,
+                    bottom - top);
+
+            if (automaticInner.Left <
+                    automaticOuter.Left ||
+                automaticInner.Top <
+                    automaticOuter.Top ||
+                automaticInner.Right >
+                    automaticOuter.Right ||
+                automaticInner.Bottom >
+                    automaticOuter.Bottom)
+            {
+                return automaticInner;
+            }
+
+            return automaticOuter;
+        }
+
+        private static RectangleF ConvertChartOuterLayoutToInner(
+            RectangleF chartRect,
+            RectangleF automaticOuter,
+            RectangleF automaticInner,
+            RectangleF resolvedOuter)
+        {
+            if (automaticOuter.Width <= 0f ||
+                automaticOuter.Height <= 0f)
+            {
+                return automaticInner;
+            }
+
+            float leftRatio =
+                Math.Max(
+                    0f,
+                    (automaticInner.Left -
+                     automaticOuter.Left) /
+                    automaticOuter.Width);
+
+            float topRatio =
+                Math.Max(
+                    0f,
+                    (automaticInner.Top -
+                     automaticOuter.Top) /
+                    automaticOuter.Height);
+
+            float rightRatio =
+                Math.Max(
+                    0f,
+                    (automaticOuter.Right -
+                     automaticInner.Right) /
+                    automaticOuter.Width);
+
+            float bottomRatio =
+                Math.Max(
+                    0f,
+                    (automaticOuter.Bottom -
+                     automaticInner.Bottom) /
+                    automaticOuter.Height);
+
+            float left =
+                resolvedOuter.Left +
+                resolvedOuter.Width *
+                leftRatio;
+
+            float top =
+                resolvedOuter.Top +
+                resolvedOuter.Height *
+                topRatio;
+
+            float right =
+                resolvedOuter.Right -
+                resolvedOuter.Width *
+                rightRatio;
+
+            float bottom =
+                resolvedOuter.Bottom -
+                resolvedOuter.Height *
+                bottomRatio;
+
+            left =
+                Math.Max(
+                    chartRect.Left,
+                    Math.Min(
+                        chartRect.Right - 12f,
+                        left));
+
+            top =
+                Math.Max(
+                    chartRect.Top,
+                    Math.Min(
+                        chartRect.Bottom - 12f,
+                        top));
+
+            right =
+                Math.Max(
+                    left + 12f,
+                    Math.Min(
+                        chartRect.Right,
+                        right));
+
+            bottom =
+                Math.Max(
+                    top + 12f,
+                    Math.Min(
+                        chartRect.Bottom,
+                        bottom));
+
+            return new RectangleF(
+                left,
+                top,
+                right - left,
+                bottom - top);
         }
 
         private static bool TryResolveChartElementManualLayout(
