@@ -2865,6 +2865,19 @@ chartDoc);
             double dataMinimum,
             double dataMaximum)
         {
+            return ReadChartAxisScale(
+                chartDoc,
+                string.Empty,
+                dataMinimum,
+                dataMaximum);
+        }
+
+        private static ChartAxisScale ReadChartAxisScale(
+            XmlDocument chartDoc,
+            string valueAxisId,
+            double dataMinimum,
+            double dataMaximum)
+        {
             ChartAxisScale scale =
                 new ChartAxisScale();
 
@@ -2878,9 +2891,21 @@ chartDoc);
             XmlNode valueAxis =
                 chartDoc == null
                     ? null
-                    : FindFirst(
-                        chartDoc,
-                        "valAx");
+                    : string.IsNullOrEmpty(
+                        valueAxisId)
+                        ? FindFirst(
+                            chartDoc,
+                            "valAx")
+                        : FindChartAxisById(
+                            chartDoc,
+                            valueAxisId);
+
+            if (valueAxis != null &&
+                valueAxis.LocalName !=
+                    "valAx")
+            {
+                valueAxis = null;
+            }
 
             if (valueAxis == null)
             {
