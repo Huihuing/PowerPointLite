@@ -108,7 +108,7 @@ PresentationDocument
 
 사용자가 기존 plain-text 편집 UI에서 문자열 자체를 바꾸면 이전 run 경계를 새 문자열에 억지로 적용하지 않는다. 이 경우 해당 textbox의 rich run을 비우고 box-level format으로 평문화해 **stale formatting이 다른 글자에 잘못 붙는 문제를 피한다.**
 
-오른쪽 text editor는 `RichTextBox`를 사용한다. 문자열 자체를 입력해서 바꾸는 경우에는 이전 run 경계를 버리고 box-level format으로 평문화하지만, 문자열을 선택한 뒤 font family/size/bold/italic/underline/color를 바꾸는 경우에는 선택과 겹치는 run만 경계에서 분할해 서식을 적용한다. 선택 밖 run은 그대로 유지하고, 서식이 다시 같아진 인접 run은 자동 병합한다. 선택 영역에 서로 다른 값이 섞여 있으면 Bold/Italic/Underline은 indeterminate 상태로, font family와 color는 혼합 상태로 표시한다. 선택 없이 서식을 바꾸는 기존 동작은 전체 text box에 적용된다.
+오른쪽 text editor는 `RichTextBox`를 사용하며, 선택 영역이 있으면 object summary에 선택된 문자 수를 표시한다. 문자열 자체를 입력해서 바꾸는 경우에는 이전 run 경계를 버리고 box-level format으로 평문화하지만, 문자열을 선택한 뒤 font family/size/bold/italic/underline/color를 바꾸는 경우에는 선택과 겹치는 run만 경계에서 분할해 서식을 적용한다. 선택 밖 run은 그대로 유지하고, 서식이 다시 같아진 인접 run은 자동 병합한다. 선택 영역에 서로 다른 값이 섞여 있으면 Bold/Italic/Underline은 indeterminate 상태로, font family와 color는 혼합 상태로 표시한다. 선택 없이 서식을 바꾸는 기존 동작은 전체 text box에 적용된다.
 
 문단 alignment 변경은 box-level 값과 rich paragraph alignment를 함께 갱신한다. baseline, bullet, paragraph spacing 등 현재 UI에서 직접 노출하지 않는 속성은 run/paragraph에 계속 보존한다.
 
@@ -164,7 +164,7 @@ multi-selection 상태에서는 상단 **Align** 메뉴가 활성화된다. 2개
 
 Windows system clipboard에도 `PowerPointLite.ObjectSelection.v1` 포맷을 함께 기록하므로 다른 PowerPointLite 창/프로세스에서도 객체 묶음을 붙여넣을 수 있다. 단일 text box는 Unicode text도 함께 내보내고 단일 image는 Bitmap도 함께 내보낸다. 반대로 외부 프로그램에서 복사한 일반 text와 Bitmap image도 각각 새 text box / image 객체로 받아들인다. 전용 payload codec은 이미지 크기와 object/run count에 상한을 두고 structural self-test에서 encode/decode와 relative z-order round-trip을 검증한다.
 
-기본 편집 단축키는 `Ctrl+C` Copy, `Ctrl+X` Cut, `Ctrl+V` Paste, `Ctrl+D` Duplicate, `Ctrl+A` Select All이다. Canvas 우클릭 메뉴에서도 동일한 작업을 제공한다. 우클릭한 객체가 기존 selection 밖에 있으면 해당 객체를 먼저 단일 선택하고, 빈 canvas를 우클릭하면 selection을 해제한다. Properties의 text/number/combobox 입력에 포커스가 있을 때는 Copy/Cut/Paste/Select All 단축키를 폼이 가로채지 않고 해당 입력 컨트롤에 넘긴다.
+기본 편집 단축키는 `Ctrl+C` Copy, `Ctrl+X` Cut, `Ctrl+V` Paste, `Ctrl+D` Duplicate, `Ctrl+A` Select All이다. Text box가 선택되어 있을 때 `Ctrl+B`, `Ctrl+I`, `Ctrl+U`는 각각 Bold/Italic/Underline을 토글하며, text editor에서 문자열을 선택한 상태라면 선택 영역에만 적용된다. 혼합 서식 범위는 indeterminate 상태로 표시하고 첫 토글은 서식을 켜는 방향으로 동작한다. Canvas 우클릭 메뉴에서도 동일한 작업을 제공한다. 우클릭한 객체가 기존 selection 밖에 있으면 해당 객체를 먼저 단일 선택하고, 빈 canvas를 우클릭하면 selection을 해제한다. Properties의 text/number/combobox 입력에 포커스가 있을 때는 Copy/Cut/Paste/Select All 단축키를 폼이 가로채지 않고 해당 입력 컨트롤에 넘긴다.
 
 Animation 자체 테스트는 합성 `p:timing`을 프로젝트가 만든 PPTX에 주입해 click entrance, with-previous emphasis, after-previous exit, delayed motion step과 단계별 render state를 검사한다.
 

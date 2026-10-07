@@ -1064,6 +1064,30 @@ namespace PptxViewer
             bool textEditing =
                 IsTextEditingControlActive();
 
+            if (keyData == (Keys.Control | Keys.B) &&
+                canvas.GetSelectedTextBox() != null)
+            {
+                ToggleTextBooleanFormatting(
+                    RichTextFormatField.Bold);
+                return true;
+            }
+
+            if (keyData == (Keys.Control | Keys.I) &&
+                canvas.GetSelectedTextBox() != null)
+            {
+                ToggleTextBooleanFormatting(
+                    RichTextFormatField.Italic);
+                return true;
+            }
+
+            if (keyData == (Keys.Control | Keys.U) &&
+                canvas.GetSelectedTextBox() != null)
+            {
+                ToggleTextBooleanFormatting(
+                    RichTextFormatField.Underline);
+                return true;
+            }
+
             if (textEditing &&
                 (keyData == (Keys.Control | Keys.C) ||
                  keyData == (Keys.Control | Keys.X) ||
@@ -2523,6 +2547,41 @@ namespace PptxViewer
             UpdateStatus();
         }
 
+        private void ToggleTextBooleanFormatting(
+            RichTextFormatField field)
+        {
+            CheckBox target = null;
+
+            if (field ==
+                RichTextFormatField.Bold)
+            {
+                target = boldCheck;
+            }
+            else if (field ==
+                     RichTextFormatField.Italic)
+            {
+                target = italicCheck;
+            }
+            else if (field ==
+                     RichTextFormatField.Underline)
+            {
+                target = underlineCheck;
+            }
+
+            if (target == null)
+                return;
+
+            bool turnOn =
+                target.CheckState ==
+                    CheckState.Indeterminate ||
+                !target.Checked;
+
+            target.CheckState =
+                turnOn
+                    ? CheckState.Checked
+                    : CheckState.Unchecked;
+        }
+
         private void ApplyTextFormatting(
             RichTextFormatField field)
         {
@@ -2905,15 +2964,43 @@ namespace PptxViewer
             try
             {
                 RichTextSelectionStyle style = null;
+                int selectedCharacters =
+                    textEditor.SelectionLength;
 
-                if (textEditor.SelectionLength > 0)
+                if (selectedCharacters > 0)
                 {
                     RichTextSelectionEditor
                         .TryGetSelectionStyle(
                             text,
                             textEditor.SelectionStart,
-                            textEditor.SelectionLength,
+                            selectedCharacters,
                             out style);
+                    objectTypeLabel.Text =
+                        "Text box  •  " +
+                        selectedCharacters.ToString() +
+                        (selectedCharacters == 1
+                            ? " char selected"
+                            : " chars selected");
+                }
+                else
+                {
+                    objectTypeLabel.Text =
+                        "Text box";
+
+                    string editorText =
+                        RichTextSelectionEditor.GetEditorText(
+                            text);
+
+                    if (text.HasRichText &&
+                        editorText.Length > 0)
+                    {
+                        RichTextSelectionEditor
+                            .TryGetSelectionStyle(
+                                text,
+                                0,
+                                editorText.Length,
+                                out style);
+                    }
                 }
 
                 if (style == null)
