@@ -313,6 +313,10 @@ namespace PptxViewer
         public int CropTop { get; set; }
         public int CropRight { get; set; }
         public int CropBottom { get; set; }
+        public int RotationUnits { get; set; }
+        public bool FlipHorizontal { get; set; }
+        public bool FlipVertical { get; set; }
+        public int Opacity { get; set; }
 
         public PresentationImage()
         {
@@ -328,6 +332,10 @@ namespace PptxViewer
             CropTop = 0;
             CropRight = 0;
             CropBottom = 0;
+            RotationUnits = 0;
+            FlipHorizontal = false;
+            FlipVertical = false;
+            Opacity = 100000;
         }
 
         public PresentationImage Clone()
@@ -345,6 +353,10 @@ namespace PptxViewer
             copy.CropTop = CropTop;
             copy.CropRight = CropRight;
             copy.CropBottom = CropBottom;
+            copy.RotationUnits = RotationUnits;
+            copy.FlipHorizontal = FlipHorizontal;
+            copy.FlipVertical = FlipVertical;
+            copy.Opacity = Opacity;
             return copy;
         }
     }

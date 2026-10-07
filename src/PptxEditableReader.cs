@@ -390,6 +390,45 @@ namespace PptxViewer
 
             ReadTransform(pictureNode, image);
 
+            XmlNode transform =
+                FindFirst(
+                    pictureNode,
+                    "xfrm");
+
+            image.RotationUnits =
+                PresentationRenderPrimitives
+                    .NormalizeRotationUnits(
+                        GetLongAttribute(
+                            transform,
+                            "rot",
+                            0L));
+            image.FlipHorizontal =
+                IsTrue(
+                    GetAttribute(
+                        transform,
+                        "flipH"));
+            image.FlipVertical =
+                IsTrue(
+                    GetAttribute(
+                        transform,
+                        "flipV"));
+
+            XmlNode alphaNode =
+                FindFirst(
+                    blip,
+                    "alphaModFix");
+
+            if (alphaNode != null)
+            {
+                image.Opacity =
+                    PresentationRenderPrimitives
+                        .ClampOpacity(
+                            (int)GetLongAttribute(
+                                alphaNode,
+                                "amt",
+                                100000L));
+            }
+
             XmlNode sourceRectangle =
                 FindFirst(
                     pictureNode,

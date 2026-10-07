@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.Globalization;
 using System.Text;
 
@@ -81,6 +82,40 @@ namespace PptxViewer
             }
 
             return fallback;
+        }
+
+        public static int NormalizeRotationUnits(
+            long value)
+        {
+            const int fullRotation =
+                360 * 60000;
+            long normalized =
+                value %
+                fullRotation;
+
+            if (normalized < 0)
+                normalized += fullRotation;
+
+            return (int)normalized;
+        }
+
+        public static int ClampOpacity(
+            int value)
+        {
+            return Math.Max(
+                0,
+                Math.Min(
+                    100000,
+                    value));
+        }
+
+        public static float RotationDegrees(
+            int rotationUnits)
+        {
+            return
+                NormalizeRotationUnits(
+                    rotationUnits) /
+                60000f;
         }
 
         public static int ClampCropValue(
@@ -197,6 +232,126 @@ namespace PptxViewer
                     0,
                     99999 -
                     leading);
+        }
+
+        public static void DrawImage(
+            Graphics graphics,
+            Image image,
+            RectangleF destination,
+            RectangleF source,
+            int rotationUnits,
+            bool flipHorizontal,
+            bool flipVertical,
+            int opacity)
+        {
+            if (graphics == null ||
+                image == null ||
+                destination.Width <= 0f ||
+                destination.Height <= 0f ||
+                source.Width <= 0f ||
+                source.Height <= 0f)
+            {
+                return;
+            }
+
+            GraphicsState state =
+                graphics.Save();
+
+            try
+            {
+                float centerX =
+                    destination.Left +
+                    destination.Width /
+                    2f;
+                float centerY =
+                    destination.Top +
+                    destination.Height /
+                    2f;
+                int normalizedRotation =
+                    NormalizeRotationUnits(
+                        rotationUnits);
+
+                if (normalizedRotation != 0 ||
+                    flipHorizontal ||
+                    flipVertical)
+                {
+                    graphics.TranslateTransform(
+                        centerX,
+                        centerY);
+
+                    if (flipHorizontal ||
+                        flipVertical)
+                    {
+                        graphics.ScaleTransform(
+                            flipHorizontal
+                                ? -1f
+                                : 1f,
+                            flipVertical
+                                ? -1f
+                                : 1f);
+                    }
+
+                    if (normalizedRotation != 0)
+                    {
+                        graphics.RotateTransform(
+                            RotationDegrees(
+                                normalizedRotation));
+                    }
+
+                    graphics.TranslateTransform(
+                        -centerX,
+                        -centerY);
+                }
+
+                int safeOpacity =
+                    ClampOpacity(
+                        opacity);
+
+                if (safeOpacity < 100000)
+                {
+                    ColorMatrix matrix =
+                        new ColorMatrix();
+                    matrix.Matrix33 =
+                        safeOpacity /
+                        100000f;
+
+                    using (ImageAttributes attributes =
+                        new ImageAttributes())
+                    {
+                        attributes.SetColorMatrix(
+                            matrix,
+                            ColorMatrixFlag.Default,
+                            ColorAdjustType.Bitmap);
+
+                        graphics.DrawImage(
+                            image,
+                            Rectangle.Round(
+                                destination),
+                            source.X,
+                            source.Y,
+                            source.Width,
+                            source.Height,
+                            GraphicsUnit.Pixel,
+                            attributes);
+                    }
+                }
+                else
+                {
+                    graphics.DrawImage(
+                        image,
+                        Rectangle.Round(
+                            destination),
+                        source.X,
+                        source.Y,
+                        source.Width,
+                        source.Height,
+                        GraphicsUnit.Pixel);
+                }
+            }
+            finally
+            {
+                graphics.Restore(state);
+            }
         }
 
         public static StringAlignment ToStringAlignment(
