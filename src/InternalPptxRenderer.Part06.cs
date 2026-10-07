@@ -247,20 +247,30 @@ internal static partial class InternalPptxRenderer
 
             if (!string.IsNullOrEmpty(title))
             {
-                using (Font font = SafeFont(
-                    "Arial",
-                    Math.Max(
-                        10f,
-                        Math.Min(
-                            18f,
-                            rect.Height / 18f)),
-                    FontStyle.Bold))
+                ChartLabelOptions titleTextStyle =
+                    ReadChartTitleTextStyle(
+                        chartDoc,
+                        theme);
+
+                using (Font font =
+                    SafeChartTextFont(
+                        "Arial",
+                        Math.Max(
+                            10f,
+                            Math.Min(
+                                18f,
+                                rect.Height / 18f)),
+                        FontStyle.Bold,
+                        titleTextStyle))
                 using (Brush brush =
                     new SolidBrush(
-                        Color.FromArgb(
-                            45,
-                            45,
-                            45)))
+                        titleTextStyle != null &&
+                        titleTextStyle.TextColor.HasValue
+                            ? titleTextStyle.TextColor.Value
+                            : Color.FromArgb(
+                                45,
+                                45,
+                                45)))
                 using (StringFormat sf =
                     new StringFormat())
                 {
@@ -5840,6 +5850,38 @@ internal static partial class InternalPptxRenderer
                     output.Add(parsed);
                 }
             }
+        }
+
+        private static ChartLabelOptions ReadChartTitleTextStyle(
+            XmlDocument chartDoc,
+            Dictionary<string, Color> theme)
+        {
+            ChartLabelOptions result =
+                new ChartLabelOptions();
+
+            XmlNode title =
+                chartDoc == null
+                    ? null
+                    : FindFirst(
+                        chartDoc,
+                        "title");
+
+            if (title == null)
+                return result;
+
+            result.TextColor =
+                ReadChartDataLabelTextColor(
+                    title,
+                    theme);
+
+            ReadChartDataLabelFontStyle(
+                title,
+                out result.FontSize,
+                out result.Bold,
+                out result.Italic,
+                out result.FontFamily);
+
+            return result;
         }
 
         private static string ReadChartTitle(XmlDocument chartDoc)
