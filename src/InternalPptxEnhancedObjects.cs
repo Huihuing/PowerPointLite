@@ -13936,6 +13936,32 @@ namespace PptxViewer
             Dictionary<string, int> assistantCounts =
                 new Dictionary<string, int>(
                     StringComparer.Ordinal);
+            Dictionary<string, int> assistantTotals =
+                new Dictionary<string, int>(
+                    StringComparer.Ordinal);
+
+            for (int i = 0;
+                 i < nodes.Count;
+                 i++)
+            {
+                SmartNode candidate =
+                    nodes[i];
+
+                if (!candidate.IsAssistant ||
+                    string.IsNullOrEmpty(
+                        candidate.ParentId))
+                {
+                    continue;
+                }
+
+                int total = 0;
+                assistantTotals.TryGetValue(
+                    candidate.ParentId,
+                    out total);
+                assistantTotals[
+                    candidate.ParentId] =
+                    total + 1;
+            }
 
             for (int i = 0;
                  i < nodes.Count;
@@ -14048,19 +14074,48 @@ namespace PptxViewer
                             boxW,
                             x));
 
-                float pairOffset =
-                    (assistantIndex / 2) *
+                int totalAssistants = 1;
+                assistantTotals.TryGetValue(
+                    assistant.ParentId,
+                    out totalAssistants);
+
+                int sideIndex =
+                    assistantIndex /
+                    2;
+                int sideTotal =
+                    placeLeft
+                        ? (totalAssistants + 1) /
+                          2
+                        : totalAssistants /
+                          2;
+
+                sideTotal =
+                    Math.Max(
+                        1,
+                        sideTotal);
+
+                float stackGap =
                     Math.Max(
                         5f,
                         boxH *
-                        0.55f);
+                        0.18f);
+                float stackHeight =
+                    sideTotal *
+                    boxH +
+                    Math.Max(
+                        0,
+                        sideTotal - 1) *
+                    stackGap;
 
                 float y =
                     parentBox.Top +
-                    (parentBox.Height -
-                     boxH) /
+                    parentBox.Height /
+                    2f -
+                    stackHeight /
                     2f +
-                    pairOffset;
+                    sideIndex *
+                    (boxH +
+                     stackGap);
 
                 y =
                     Math.Max(
