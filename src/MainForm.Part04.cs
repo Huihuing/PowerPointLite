@@ -255,6 +255,18 @@ public sealed partial class MainForm : Form
             presenter.Click += delegate { TogglePresenterView(); };
             menu.Items.Add(presenter);
 
+            ToolStripMenuItem thumbnailsItem =
+                new ToolStripMenuItem(
+                    "Slide thumbnails");
+            thumbnailsItem.Checked =
+                !mainSplit.Panel1Collapsed;
+            thumbnailsItem.Click += delegate
+            {
+                ToggleSidebar();
+            };
+            menu.Items.Add(
+                thumbnailsItem);
+
             ToolStripMenuItem autoToc = new ToolStripMenuItem("Auto-hide slide thumbnails");
             autoToc.Checked = autoHideSidebar;
             autoToc.Click += delegate
@@ -272,6 +284,7 @@ public sealed partial class MainForm : Form
             menu.Items.Add(autoToc);
 
             menu.Items.Add("Slide Sorter", null, delegate { ShowSlideSorter(); });
+            menu.Items.Add("Print...", null, delegate { PrintWithLayout(); });
             menu.Items.Add("Find...", null, delegate { FindSlidesDialog(); });
             menu.Items.Add("Go to slide...", null, delegate { GoToSlideDialog(); });
             menu.Items.Add(new ToolStripSeparator());
