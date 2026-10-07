@@ -1133,6 +1133,172 @@ namespace PptxViewer
                 }
             }
 
+            XmlDocument secondaryAxisDoc =
+                new XmlDocument();
+
+            secondaryAxisDoc.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<c:chart><c:plotArea>" +
+                "<c:lineChart><c:ser><c:idx val=\"0\"/><c:order val=\"0\"/></c:ser><c:axId val=\"10\"/><c:axId val=\"20\"/></c:lineChart>" +
+                "<c:lineChart><c:ser><c:idx val=\"1\"/><c:order val=\"1\"/></c:ser><c:axId val=\"11\"/><c:axId val=\"30\"/></c:lineChart>" +
+                "<c:catAx><c:axId val=\"10\"/><c:axPos val=\"b\"/><c:crossAx val=\"20\"/></c:catAx>" +
+                "<c:valAx><c:axId val=\"20\"/><c:axPos val=\"l\"/><c:scaling><c:min val=\"0\"/><c:max val=\"100\"/></c:scaling><c:majorUnit val=\"25\"/><c:crossAx val=\"10\"/></c:valAx>" +
+                "<c:catAx><c:axId val=\"11\"/><c:axPos val=\"t\"/><c:crossAx val=\"30\"/></c:catAx>" +
+                "<c:valAx><c:axId val=\"30\"/><c:axPos val=\"r\"/><c:scaling><c:min val=\"0\"/><c:max val=\"1000\"/></c:scaling><c:majorUnit val=\"250\"/><c:spPr><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"AA2288\"/></a:solidFill></a:ln></c:spPr><c:crossAx val=\"11\"/></c:valAx>" +
+                "</c:plotArea></c:chart></c:chartSpace>");
+
+            List<XmlNode> secondarySeriesNodes =
+                FindAll(
+                    secondaryAxisDoc,
+                    "ser");
+
+            ChartSeriesData primaryAxisSeries =
+                new ChartSeriesData();
+            ChartSeriesData secondaryAxisSeries =
+                new ChartSeriesData();
+
+            primaryAxisSeries.Values.Add(
+                0.0);
+            primaryAxisSeries.Values.Add(
+                50.0);
+            primaryAxisSeries.Values.Add(
+                100.0);
+
+            secondaryAxisSeries.Values.Add(
+                0.0);
+            secondaryAxisSeries.Values.Add(
+                500.0);
+            secondaryAxisSeries.Values.Add(
+                1000.0);
+
+            ReadChartSeriesAxisBinding(
+                secondarySeriesNodes[0],
+                secondaryAxisDoc,
+                primaryAxisSeries);
+            ReadChartSeriesAxisBinding(
+                secondarySeriesNodes[1],
+                secondaryAxisDoc,
+                secondaryAxisSeries);
+
+            List<ChartSeriesData> secondaryAxisSeriesList =
+                new List<ChartSeriesData>();
+            secondaryAxisSeriesList.Add(
+                primaryAxisSeries);
+            secondaryAxisSeriesList.Add(
+                secondaryAxisSeries);
+
+            ChartAxisScale primaryAxisScale =
+                ReadChartAxisScale(
+                    secondaryAxisDoc,
+                    "20",
+                    0.0,
+                    100.0);
+
+            Dictionary<string, ChartAxisScale>
+                secondaryAxisScales =
+                    BuildChartSecondaryValueAxisScales(
+                        secondaryAxisDoc,
+                        secondaryAxisSeriesList,
+                        "20",
+                        "line");
+
+            ChartAxisScale resolvedSecondaryScale =
+                ResolveChartSeriesAxisScale(
+                    secondaryAxisSeries,
+                    primaryAxisScale,
+                    secondaryAxisScales);
+
+            if (primaryAxisSeries.ValueAxisId !=
+                    "20" ||
+                secondaryAxisSeries.ValueAxisId !=
+                    "30" ||
+                primaryAxisSeries.CategoryAxisId !=
+                    "10" ||
+                secondaryAxisSeries.CategoryAxisId !=
+                    "11" ||
+                resolvedSecondaryScale == null ||
+                Math.Abs(
+                    resolvedSecondaryScale.Maximum -
+                    1000.0) > 0.0001 ||
+                Math.Abs(
+                    resolvedSecondaryScale.MajorUnit -
+                    250.0) > 0.0001 ||
+                Math.Abs(
+                    ChartAxisFraction(
+                        500.0,
+                        resolvedSecondaryScale) -
+                    0.5) > 0.0001 ||
+                Math.Abs(
+                    ChartAxisFraction(
+                        500.0,
+                        primaryAxisScale) -
+                    1.0) > 0.0001)
+            {
+                throw new InvalidOperationException(
+                    "Chart secondary-axis series binding or scale resolution failed.");
+            }
+
+            using (Bitmap secondaryAxisBitmap =
+                new Bitmap(
+                    260,
+                    160,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics secondaryAxisGraphics =
+                Graphics.FromImage(
+                    secondaryAxisBitmap))
+            {
+                secondaryAxisGraphics.Clear(
+                    Color.White);
+
+                RectangleF secondaryAxisPlot =
+                    new RectangleF(
+                        30f,
+                        20f,
+                        180f,
+                        110f);
+
+                DrawChartSecondaryValueAxes(
+                    secondaryAxisGraphics,
+                    secondaryAxisPlot,
+                    secondaryAxisDoc,
+                    "line",
+                    secondaryAxisScales,
+                    theme);
+
+                bool secondaryAxisVisible =
+                    false;
+
+                int axisX =
+                    (int)Math.Round(
+                        secondaryAxisPlot.Right);
+
+                for (int y = 24;
+                     y < 128 &&
+                     !secondaryAxisVisible;
+                     y++)
+                {
+                    Color pixel =
+                        secondaryAxisBitmap.GetPixel(
+                            axisX,
+                            y);
+
+                    if (pixel.R >
+                            pixel.G + 50 &&
+                        pixel.B >
+                            pixel.G + 35)
+                    {
+                        secondaryAxisVisible =
+                            true;
+                    }
+                }
+
+                if (!secondaryAxisVisible)
+                {
+                    throw new InvalidOperationException(
+                        "Chart secondary value axis was not rendered on its axPos edge.");
+                }
+            }
+
             ChartLabelOptions labels =
                 ReadChartLabelOptions(
                     chart,
