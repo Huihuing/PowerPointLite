@@ -1035,6 +1035,7 @@ chartDoc);
                                         "line",
                                         point,
                                         sd.Values[i],
+                                        i,
                                         sd.ErrorBars,
                                         color);
 
@@ -1197,6 +1198,7 @@ chartDoc);
                                             barH - 1f) /
                                         2f),
                                     value,
+                                    ci,
                                     series[si].ErrorBars,
                                     color);
                             }
@@ -1367,6 +1369,7 @@ chartDoc);
                                         2f,
                                         valueY),
                                     value,
+                                    ci,
                                     series[si].ErrorBars,
                                     color);
                             }
