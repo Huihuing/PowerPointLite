@@ -894,6 +894,13 @@ chartDoc);
                                 si,
                                 palette);
 
+                        DrawChartLinearTrendline(
+                            g,
+                            plot,
+                            points,
+                            sd.Trendline,
+                            color);
+
                         using (Pen pen =
                             new Pen(
                                 color,
@@ -930,6 +937,16 @@ chartDoc);
 
                                 if (i < sd.Values.Count)
                                 {
+                                    DrawChartErrorBar(
+                                        g,
+                                        plot,
+                                        axisScale,
+                                        "line",
+                                        point,
+                                        sd.Values[i],
+                                        sd.ErrorBars,
+                                        color);
+
                                     ChartLabelOptions pointLabels =
                                         ResolveChartPointLabelOptions(
                                             labelOptions,
@@ -1064,6 +1081,25 @@ chartDoc);
                                     Math.Max(
                                         1f,
                                         barH - 1));
+                            }
+
+                            if (!barOptions.IsStacked)
+                            {
+                                DrawChartErrorBar(
+                                    g,
+                                    plot,
+                                    axisScale,
+                                    "bar",
+                                    new PointF(
+                                        valueX,
+                                        y +
+                                        Math.Max(
+                                            1f,
+                                            barH - 1f) /
+                                        2f),
+                                    value,
+                                    series[si].ErrorBars,
+                                    color);
                             }
 
                             ChartLabelOptions pointLabels =
@@ -1207,6 +1243,25 @@ chartDoc);
                                         1f,
                                         barW - 1),
                                     height);
+                            }
+
+                            if (!barOptions.IsStacked)
+                            {
+                                DrawChartErrorBar(
+                                    g,
+                                    plot,
+                                    axisScale,
+                                    "column",
+                                    new PointF(
+                                        x +
+                                        Math.Max(
+                                            1f,
+                                            barW - 1f) /
+                                        2f,
+                                        valueY),
+                                    value,
+                                    series[si].ErrorBars,
+                                    color);
                             }
 
                             ChartLabelOptions pointLabels =
