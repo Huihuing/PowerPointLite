@@ -144,9 +144,16 @@ namespace PptxViewer
                 FindToolbarButton(
                     "Workspace") != null;
 
+            int normalToolbarWidth =
+                EstimateViewerToolbarRequiredWidth(
+                    order,
+                    hasWorkspace,
+                    buttonHeight,
+                    gap);
+
             bool compactToolbar =
                 toolbar.ClientSize.Width <
-                1120;
+                normalToolbarWidth;
 
             for (int i = 0;
                  i < order.Length;
@@ -370,6 +377,81 @@ namespace PptxViewer
             }
 
             return separator;
+        }
+
+        private int EstimateViewerToolbarRequiredWidth(
+            string[] order,
+            bool hasWorkspace,
+            int buttonHeight,
+            int gap)
+        {
+            int width =
+                10;
+
+            if (order != null)
+            {
+                for (int i = 0;
+                     i < order.Length;
+                     i++)
+                {
+                    string key =
+                        order[i];
+
+                    if (key == "Auto TOC" &&
+                        hasWorkspace)
+                    {
+                        continue;
+                    }
+
+                    Button button =
+                        FindToolbarButton(
+                            key);
+
+                    if (button == null)
+                        continue;
+
+                    int minimumWidth =
+                        GetToolbarButtonMinimumWidth(
+                            key);
+
+                    Size measured =
+                        TextRenderer.MeasureText(
+                            button.Text ?? "",
+                            button.Font,
+                            new Size(
+                                500,
+                                buttonHeight),
+                            TextFormatFlags.SingleLine |
+                            TextFormatFlags.NoPadding);
+
+                    width +=
+                        Math.Max(
+                            minimumWidth,
+                            Math.Min(
+                                122,
+                                measured.Width +
+                                24)) +
+                        gap;
+
+                    if (IsToolbarGroupBreakAfter(
+                            key))
+                    {
+                        width += 12;
+                    }
+                }
+            }
+
+            // Keep enough room for the normal zoom control, a useful
+            // engine-status label, the language button, and outer padding.
+            width +=
+                128 +
+                12 +
+                96 +
+                12 +
+                84 +
+                20;
+
+            return width;
         }
 
         private static bool IsCompactToolbarMenuItem(
