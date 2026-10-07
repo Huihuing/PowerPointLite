@@ -1170,7 +1170,15 @@ internal static partial class InternalPptxRenderer
                 rect,
                 kind,
                 valueAxisTitle,
-                categoryAxisTitle);
+                categoryAxisTitle,
+                ReadChartAxisTitleTextStyle(
+                    chartDoc,
+                    "valAx",
+                    theme),
+                ReadChartAxisTitleTextStyle(
+                    chartDoc,
+                    "catAx",
+                    theme));
 
             DrawChartLegend(
                 g,
@@ -5486,6 +5494,51 @@ internal static partial class InternalPptxRenderer
             return 1;
         }
 
+        private static ChartLabelOptions ReadChartAxisTitleTextStyle(
+            XmlDocument chartDoc,
+            string axisName,
+            Dictionary<string, Color> theme)
+        {
+            ChartLabelOptions result =
+                new ChartLabelOptions();
+
+            if (chartDoc == null ||
+                string.IsNullOrEmpty(
+                    axisName))
+            {
+                return result;
+            }
+
+            XmlNode axis =
+                FindFirst(
+                    chartDoc,
+                    axisName);
+
+            XmlNode title =
+                axis == null
+                    ? null
+                    : DirectChild(
+                        axis,
+                        "title");
+
+            if (title == null)
+                return result;
+
+            result.TextColor =
+                ReadChartDataLabelTextColor(
+                    title,
+                    theme);
+
+            ReadChartDataLabelFontStyle(
+                title,
+                out result.FontSize,
+                out result.Bold,
+                out result.Italic,
+                out result.FontFamily);
+
+            return result;
+        }
+
         private static string ReadChartAxisTitle(
             XmlDocument chartDoc,
             string axisName)
@@ -5555,24 +5608,10 @@ internal static partial class InternalPptxRenderer
             RectangleF chartRect,
             string kind,
             string valueTitle,
-            string categoryTitle)
+            string categoryTitle,
+            ChartLabelOptions valueStyle = null,
+            ChartLabelOptions categoryStyle = null)
         {
-            using (Font font =
-                SafeFont(
-                    "Arial",
-                    Math.Max(
-                        7f,
-                        Math.Min(
-                            11f,
-                            chartRect.Height /
-                            30f)),
-                    FontStyle.Bold))
-            using (Brush brush =
-                new SolidBrush(
-                    Color.FromArgb(
-                        70,
-                        70,
-                        70)))
             using (StringFormat format =
                 new StringFormat())
             {
@@ -5588,34 +5627,78 @@ internal static partial class InternalPptxRenderer
                     if (!string.IsNullOrEmpty(
                             valueTitle))
                     {
-                        g.DrawString(
-                            valueTitle,
-                            font,
-                            brush,
-                            new RectangleF(
-                                plot.Left,
-                                plot.Bottom + 24f,
-                                plot.Width,
+                        using (Font valueFont =
+                            SafeChartTextFont(
+                                "Arial",
                                 Math.Max(
-                                    18f,
-                                    font.Height + 4f)),
-                            format);
+                                    7f,
+                                    Math.Min(
+                                        11f,
+                                        chartRect.Height /
+                                        30f)),
+                                FontStyle.Bold,
+                                valueStyle))
+                        using (Brush valueBrush =
+                            new SolidBrush(
+                                valueStyle != null &&
+                                valueStyle.TextColor.HasValue
+                                    ? valueStyle.TextColor.Value
+                                    : Color.FromArgb(
+                                        70,
+                                        70,
+                                        70)))
+                        {
+                            g.DrawString(
+                                valueTitle,
+                                valueFont,
+                                valueBrush,
+                                new RectangleF(
+                                    plot.Left,
+                                    plot.Bottom + 24f,
+                                    plot.Width,
+                                    Math.Max(
+                                        18f,
+                                        valueFont.Height + 4f)),
+                                format);
+                        }
                     }
 
                     if (!string.IsNullOrEmpty(
                             categoryTitle))
                     {
-                        DrawRotatedChartAxisTitle(
-                            g,
-                            categoryTitle,
-                            font,
-                            brush,
-                            new PointF(
-                                chartRect.Left + 12f,
-                                plot.Top +
-                                plot.Height /
-                                2f),
-                            -90f);
+                        using (Font categoryFont =
+                            SafeChartTextFont(
+                                "Arial",
+                                Math.Max(
+                                    7f,
+                                    Math.Min(
+                                        11f,
+                                        chartRect.Height /
+                                        30f)),
+                                FontStyle.Bold,
+                                categoryStyle))
+                        using (Brush categoryBrush =
+                            new SolidBrush(
+                                categoryStyle != null &&
+                                categoryStyle.TextColor.HasValue
+                                    ? categoryStyle.TextColor.Value
+                                    : Color.FromArgb(
+                                        70,
+                                        70,
+                                        70)))
+                        {
+                            DrawRotatedChartAxisTitle(
+                                g,
+                                categoryTitle,
+                                categoryFont,
+                                categoryBrush,
+                                new PointF(
+                                    chartRect.Left + 12f,
+                                    plot.Top +
+                                    plot.Height /
+                                    2f),
+                                -90f);
+                        }
                     }
                 }
                 else
@@ -5623,34 +5706,78 @@ internal static partial class InternalPptxRenderer
                     if (!string.IsNullOrEmpty(
                             categoryTitle))
                     {
-                        g.DrawString(
-                            categoryTitle,
-                            font,
-                            brush,
-                            new RectangleF(
-                                plot.Left,
-                                plot.Bottom + 24f,
-                                plot.Width,
+                        using (Font categoryFont =
+                            SafeChartTextFont(
+                                "Arial",
                                 Math.Max(
-                                    18f,
-                                    font.Height + 4f)),
-                            format);
+                                    7f,
+                                    Math.Min(
+                                        11f,
+                                        chartRect.Height /
+                                        30f)),
+                                FontStyle.Bold,
+                                categoryStyle))
+                        using (Brush categoryBrush =
+                            new SolidBrush(
+                                categoryStyle != null &&
+                                categoryStyle.TextColor.HasValue
+                                    ? categoryStyle.TextColor.Value
+                                    : Color.FromArgb(
+                                        70,
+                                        70,
+                                        70)))
+                        {
+                            g.DrawString(
+                                categoryTitle,
+                                categoryFont,
+                                categoryBrush,
+                                new RectangleF(
+                                    plot.Left,
+                                    plot.Bottom + 24f,
+                                    plot.Width,
+                                    Math.Max(
+                                        18f,
+                                        categoryFont.Height + 4f)),
+                                format);
+                        }
                     }
 
                     if (!string.IsNullOrEmpty(
                             valueTitle))
                     {
-                        DrawRotatedChartAxisTitle(
-                            g,
-                            valueTitle,
-                            font,
-                            brush,
-                            new PointF(
-                                chartRect.Left + 12f,
-                                plot.Top +
-                                plot.Height /
-                                2f),
-                            -90f);
+                        using (Font valueFont =
+                            SafeChartTextFont(
+                                "Arial",
+                                Math.Max(
+                                    7f,
+                                    Math.Min(
+                                        11f,
+                                        chartRect.Height /
+                                        30f)),
+                                FontStyle.Bold,
+                                valueStyle))
+                        using (Brush valueBrush =
+                            new SolidBrush(
+                                valueStyle != null &&
+                                valueStyle.TextColor.HasValue
+                                    ? valueStyle.TextColor.Value
+                                    : Color.FromArgb(
+                                        70,
+                                        70,
+                                        70)))
+                        {
+                            DrawRotatedChartAxisTitle(
+                                g,
+                                valueTitle,
+                                valueFont,
+                                valueBrush,
+                                new PointF(
+                                    chartRect.Left + 12f,
+                                    plot.Top +
+                                    plot.Height /
+                                    2f),
+                                -90f);
+                        }
                     }
                 }
             }
