@@ -210,6 +210,12 @@ namespace PptxViewer
             richParagraphs.Clear();
         }
 
+        public void RefreshTextFromRichParagraphs()
+        {
+            text = BuildPlainText(
+                richParagraphs);
+        }
+
         private static string BuildPlainText(
             IList<PresentationTextParagraph> paragraphs)
         {
