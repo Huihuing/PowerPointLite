@@ -1086,6 +1086,55 @@ namespace PptxViewer
                     "Per-point chart dLbl overrides were not applied correctly.");
             }
 
+            XmlDocument manualPointLabelDoc =
+                new XmlDocument();
+
+            manualPointLabelDoc.LoadXml(
+                "<c:ser xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<c:dLbls><c:dLbl><c:idx val=\"0\"/><c:showVal val=\"1\"/>" +
+                "<c:layout><c:manualLayout>" +
+                "<c:xMode val=\"edge\"/><c:yMode val=\"edge\"/>" +
+                "<c:wMode val=\"factor\"/><c:hMode val=\"factor\"/>" +
+                "<c:x val=\"0.55\"/><c:y val=\"0.20\"/>" +
+                "<c:w val=\"0.20\"/><c:h val=\"0.18\"/>" +
+                "</c:manualLayout></c:layout>" +
+                "<c:spPr><a:solidFill><a:srgbClr val=\"99DDEE\"/></a:solidFill></c:spPr>" +
+                "</c:dLbl></c:dLbls></c:ser>");
+
+            ChartSeriesData manualPointSeries =
+                new ChartSeriesData();
+            manualPointSeries.Values.Add(
+                42.0);
+
+            ReadChartSeriesLabelOverrides(
+                manualPointLabelDoc.DocumentElement,
+                manualPointSeries,
+                theme);
+
+            ChartLabelOptions manualDefaults =
+                new ChartLabelOptions();
+            manualDefaults.ShowValue =
+                true;
+            manualDefaults.LayoutReferenceRect =
+                new RectangleF(
+                    0f,
+                    0f,
+                    220f,
+                    120f);
+
+            ChartLabelOptions manualPointOptions =
+                ResolveChartPointLabelOptions(
+                    manualDefaults,
+                    manualPointSeries,
+                    0);
+
+            if (manualPointOptions.ManualLayout == null ||
+                !manualPointOptions.FillColor.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "Chart point dLbl manual layout was not parsed.");
+            }
+
             ChartSeriesData labelSeries =
                 new ChartSeriesData();
             labelSeries.Categories.Add("Q1");
@@ -1170,6 +1219,41 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Chart dLblPos=inEnd did not move the column label inside the bar.");
+                }
+
+                dataLabelGraphics.Clear(
+                    Color.White);
+
+                DrawChartLabelText(
+                    dataLabelGraphics,
+                    "42",
+                    dataLabelFont,
+                    dataLabelBrush,
+                    18f,
+                    82f,
+                    manualPointOptions);
+
+                Color manualLabelFillPixel =
+                    dataLabelBitmap.GetPixel(
+                        130,
+                        30);
+
+                Color oldAutomaticLabelPixel =
+                    dataLabelBitmap.GetPixel(
+                        20,
+                        84);
+
+                bool manualLabelMoved =
+                    manualLabelFillPixel.B > 180 &&
+                    manualLabelFillPixel.G > 160 &&
+                    oldAutomaticLabelPixel.R > 245 &&
+                    oldAutomaticLabelPixel.G > 245 &&
+                    oldAutomaticLabelPixel.B > 245;
+
+                if (!manualLabelMoved)
+                {
+                    throw new InvalidOperationException(
+                        "Chart point dLbl manual layout was not used while rendering.");
                 }
 
                 dataLabelGraphics.Clear(
