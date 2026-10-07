@@ -3033,6 +3033,435 @@ chartDoc);
             return scale;
         }
 
+        private static Dictionary<string, ChartAxisScale>
+            BuildChartSecondaryValueAxisScales(
+                XmlDocument chartDoc,
+                List<ChartSeriesData> series,
+                string primaryValueAxisId,
+                string chartKind)
+        {
+            Dictionary<string, ChartAxisScale> result =
+                new Dictionary<string, ChartAxisScale>(
+                    StringComparer.Ordinal);
+
+            if (chartDoc == null ||
+                series == null)
+            {
+                return result;
+            }
+
+            List<string> axisIds =
+                new List<string>();
+
+            for (int i = 0;
+                 i < series.Count;
+                 i++)
+            {
+                ChartSeriesData item =
+                    series[i];
+
+                if (item == null ||
+                    string.IsNullOrEmpty(
+                        item.ValueAxisId) ||
+                    string.Equals(
+                        item.ValueAxisId,
+                        primaryValueAxisId,
+                        StringComparison.Ordinal) ||
+                    (!string.IsNullOrEmpty(
+                         item.ChartKind) &&
+                     !string.Equals(
+                         item.ChartKind,
+                         chartKind,
+                         StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                if (!axisIds.Contains(
+                        item.ValueAxisId))
+                {
+                    axisIds.Add(
+                        item.ValueAxisId);
+                }
+            }
+
+            for (int a = 0;
+                 a < axisIds.Count;
+                 a++)
+            {
+                string axisId =
+                    axisIds[a];
+
+                double minimum = 0.0;
+                double maximum = 0.0;
+                bool hasValue =
+                    false;
+
+                for (int s = 0;
+                     s < series.Count;
+                     s++)
+                {
+                    ChartSeriesData item =
+                        series[s];
+
+                    if (item == null ||
+                        !string.Equals(
+                            item.ValueAxisId,
+                            axisId,
+                            StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    for (int i = 0;
+                         i < item.Values.Count;
+                         i++)
+                    {
+                        double value =
+                            item.Values[i];
+
+                        if (!hasValue)
+                        {
+                            minimum =
+                                Math.Min(
+                                    0.0,
+                                    value);
+                            maximum =
+                                Math.Max(
+                                    0.0,
+                                    value);
+                            hasValue = true;
+                        }
+                        else
+                        {
+                            minimum =
+                                Math.Min(
+                                    minimum,
+                                    value);
+                            maximum =
+                                Math.Max(
+                                    maximum,
+                                    value);
+                        }
+                    }
+                }
+
+                if (!hasValue)
+                    continue;
+
+                if (Math.Abs(
+                        maximum -
+                        minimum) <
+                    0.0000001)
+                {
+                    maximum =
+                        minimum + 1.0;
+                }
+
+                result[
+                    axisId] =
+                    ReadChartAxisScale(
+                        chartDoc,
+                        axisId,
+                        minimum,
+                        maximum);
+            }
+
+            return result;
+        }
+
+        private static ChartAxisScale ResolveChartSeriesAxisScale(
+            ChartSeriesData series,
+            ChartAxisScale primaryScale,
+            Dictionary<string, ChartAxisScale>
+                secondaryScales)
+        {
+            if (series != null &&
+                secondaryScales != null &&
+                !string.IsNullOrEmpty(
+                    series.ValueAxisId))
+            {
+                ChartAxisScale scale;
+
+                if (secondaryScales.TryGetValue(
+                        series.ValueAxisId,
+                        out scale) &&
+                    scale != null)
+                {
+                    return scale;
+                }
+            }
+
+            return primaryScale;
+        }
+
+        private static string ReadChartAxisPosition(
+            XmlNode axis)
+        {
+            XmlNode position =
+                axis == null
+                    ? null
+                    : DirectChild(
+                        axis,
+                        "axPos");
+
+            string value =
+                position == null
+                    ? string.Empty
+                    : GetAttr(
+                        position,
+                        "val") ??
+                      string.Empty;
+
+            if (value == "l" ||
+                value == "r" ||
+                value == "t" ||
+                value == "b")
+            {
+                return value;
+            }
+
+            return string.Empty;
+        }
+
+        private static void DrawChartSecondaryValueAxes(
+            Graphics g,
+            RectangleF plot,
+            XmlDocument chartDoc,
+            string kind,
+            Dictionary<string, ChartAxisScale>
+                secondaryScales,
+            Dictionary<string, Color> theme)
+        {
+            if (g == null ||
+                chartDoc == null ||
+                secondaryScales == null ||
+                secondaryScales.Count == 0)
+            {
+                return;
+            }
+
+            using (Font font =
+                SafeFont(
+                    "Arial",
+                    Math.Max(
+                        6f,
+                        Math.Min(
+                            9f,
+                            plot.Height /
+                            38f))))
+            using (Brush text =
+                new SolidBrush(
+                    Color.FromArgb(
+                        95,
+                        95,
+                        95)))
+            {
+                foreach (KeyValuePair<string, ChartAxisScale> pair
+                    in secondaryScales)
+                {
+                    XmlNode axis =
+                        FindChartAxisById(
+                            chartDoc,
+                            pair.Key);
+
+                    if (axis == null ||
+                        ReadChartBooleanChild(
+                            axis,
+                            "delete"))
+                    {
+                        continue;
+                    }
+
+                    ChartAxisScale scale =
+                        pair.Value;
+
+                    ChartLineStyle style =
+                        ReadChartOverlayLineStyle(
+                            axis,
+                            theme,
+                            Color.FromArgb(
+                                105,
+                                105,
+                                105),
+                            1f);
+
+                    string axisPosition =
+                        ReadChartAxisPosition(
+                            axis);
+
+                    XmlNode labelPositionNode =
+                        DirectChild(
+                            axis,
+                            "tickLblPos");
+
+                    string labelPosition =
+                        labelPositionNode == null
+                            ? "nextTo"
+                            : GetAttr(
+                                labelPositionNode,
+                                "val") ??
+                              "nextTo";
+
+                    bool showLabels =
+                        !string.Equals(
+                            labelPosition,
+                            "none",
+                            StringComparison.OrdinalIgnoreCase);
+
+                    List<double> ticks =
+                        BuildChartAxisTicks(
+                            scale);
+
+                    using (Pen pen =
+                        new Pen(
+                            style.Color,
+                            Math.Max(
+                                1f,
+                                style.Width)))
+                    {
+                        pen.DashStyle =
+                            style.DashStyle;
+
+                        if (kind == "bar")
+                        {
+                            float y =
+                                axisPosition == "b"
+                                    ? plot.Bottom
+                                    : plot.Top;
+
+                            g.DrawLine(
+                                pen,
+                                plot.Left,
+                                y,
+                                plot.Right,
+                                y);
+
+                            for (int i = 0;
+                                 i < ticks.Count;
+                                 i++)
+                            {
+                                float x =
+                                    plot.Left +
+                                    plot.Width *
+                                    (float)ChartAxisFraction(
+                                        ticks[i],
+                                        scale);
+
+                                float direction =
+                                    y == plot.Top
+                                        ? -1f
+                                        : 1f;
+
+                                g.DrawLine(
+                                    pen,
+                                    x,
+                                    y,
+                                    x,
+                                    y +
+                                    direction *
+                                    4f);
+
+                                if (showLabels)
+                                {
+                                    string label =
+                                        FormatChartAxisNumber(
+                                            ticks[i],
+                                            scale.NumberFormat);
+
+                                    SizeF size =
+                                        g.MeasureString(
+                                            label,
+                                            font);
+
+                                    g.DrawString(
+                                        label,
+                                        font,
+                                        text,
+                                        x -
+                                        size.Width /
+                                        2f,
+                                        y == plot.Top
+                                            ? y -
+                                              size.Height -
+                                              5f
+                                            : y +
+                                              5f);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            float x =
+                                axisPosition == "l"
+                                    ? plot.Left
+                                    : plot.Right;
+
+                            g.DrawLine(
+                                pen,
+                                x,
+                                plot.Top,
+                                x,
+                                plot.Bottom);
+
+                            for (int i = 0;
+                                 i < ticks.Count;
+                                 i++)
+                            {
+                                float y =
+                                    plot.Bottom -
+                                    plot.Height *
+                                    (float)ChartAxisFraction(
+                                        ticks[i],
+                                        scale);
+
+                                float direction =
+                                    x == plot.Left
+                                        ? -1f
+                                        : 1f;
+
+                                g.DrawLine(
+                                    pen,
+                                    x,
+                                    y,
+                                    x +
+                                    direction *
+                                    4f,
+                                    y);
+
+                                if (showLabels)
+                                {
+                                    string label =
+                                        FormatChartAxisNumber(
+                                            ticks[i],
+                                            scale.NumberFormat);
+
+                                    SizeF size =
+                                        g.MeasureString(
+                                            label,
+                                            font);
+
+                                    g.DrawString(
+                                        label,
+                                        font,
+                                        text,
+                                        x == plot.Left
+                                            ? x -
+                                              size.Width -
+                                              5f
+                                            : x +
+                                              5f,
+                                        y -
+                                        size.Height /
+                                        2f);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         private static void NormalizeChartAxisScale(
             ChartAxisScale scale)
         {
