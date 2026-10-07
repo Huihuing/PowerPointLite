@@ -1524,7 +1524,8 @@ namespace PptxViewer
 
             PresentationSlide slide =
                 GetSelectedSlide();
-            PresentationLayerKind layerKind;
+            PresentationLayerKind layerKind =
+                PresentationLayerKind.TextBox;
             bool hasLayerSelection =
                 hasSelection &&
                 slide != null &&
