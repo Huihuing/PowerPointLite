@@ -3040,6 +3040,156 @@ namespace PptxViewer
                 }
             }
 
+            XmlDocument elementLayoutChart =
+                new XmlDocument();
+
+            elementLayoutChart.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
+                "<c:chart>" +
+                "<c:title><c:layout><c:manualLayout>" +
+                "<c:xMode val=\"edge\"/><c:yMode val=\"edge\"/>" +
+                "<c:wMode val=\"factor\"/><c:hMode val=\"factor\"/>" +
+                "<c:x val=\"0.10\"/><c:y val=\"0.08\"/>" +
+                "<c:w val=\"0.42\"/><c:h val=\"0.12\"/>" +
+                "</c:manualLayout></c:layout></c:title>" +
+                "<c:plotArea/>" +
+                "<c:legend><c:legendPos val=\"b\"/><c:layout><c:manualLayout>" +
+                "<c:xMode val=\"edge\"/><c:yMode val=\"edge\"/>" +
+                "<c:wMode val=\"factor\"/><c:hMode val=\"factor\"/>" +
+                "<c:x val=\"0.10\"/><c:y val=\"0.20\"/>" +
+                "<c:w val=\"0.40\"/><c:h val=\"0.30\"/>" +
+                "</c:manualLayout></c:layout></c:legend>" +
+                "</c:chart></c:chartSpace>");
+
+            RectangleF elementChartRect =
+                new RectangleF(
+                    0f,
+                    0f,
+                    320f,
+                    180f);
+
+            RectangleF resolvedTitleRect;
+
+            if (!TryResolveChartElementManualLayout(
+                    elementLayoutChart,
+                    "title",
+                    elementChartRect,
+                    new RectangleF(
+                        5f,
+                        4f,
+                        310f,
+                        30f),
+                    out resolvedTitleRect) ||
+                Math.Abs(
+                    resolvedTitleRect.Left -
+                    32f) > 0.5f ||
+                Math.Abs(
+                    resolvedTitleRect.Top -
+                    14.4f) > 0.5f ||
+                Math.Abs(
+                    resolvedTitleRect.Width -
+                    134.4f) > 0.5f ||
+                Math.Abs(
+                    resolvedTitleRect.Height -
+                    21.6f) > 0.5f)
+            {
+                throw new InvalidOperationException(
+                    "Chart title manual layout coordinates were not resolved.");
+            }
+
+            RectangleF resolvedLegendRect;
+
+            if (!TryResolveChartElementManualLayout(
+                    elementLayoutChart,
+                    "legend",
+                    elementChartRect,
+                    new RectangleF(
+                        12f,
+                        144f,
+                        300f,
+                        24f),
+                    out resolvedLegendRect) ||
+                Math.Abs(
+                    resolvedLegendRect.Left -
+                    32f) > 0.5f ||
+                Math.Abs(
+                    resolvedLegendRect.Top -
+                    36f) > 0.5f ||
+                Math.Abs(
+                    resolvedLegendRect.Width -
+                    128f) > 0.5f ||
+                Math.Abs(
+                    resolvedLegendRect.Height -
+                    54f) > 0.5f)
+            {
+                throw new InvalidOperationException(
+                    "Chart legend manual layout coordinates were not resolved.");
+            }
+
+            using (Bitmap manualLegendBitmap =
+                new Bitmap(
+                    320,
+                    180,
+                    PixelFormat.Format32bppArgb))
+            using (Graphics manualLegendGraphics =
+                Graphics.FromImage(
+                    manualLegendBitmap))
+            {
+                manualLegendGraphics.Clear(
+                    Color.White);
+
+                List<ChartSeriesData> manualLegendSeries =
+                    new List<ChartSeriesData>();
+
+                ChartSeriesData manualLegendItem =
+                    new ChartSeriesData();
+                manualLegendItem.Name =
+                    "Manual";
+                manualLegendItem.Values.Add(
+                    1.0);
+                manualLegendSeries.Add(
+                    manualLegendItem);
+
+                Color manualLegendColor =
+                    Color.FromArgb(
+                        34,
+                        116,
+                        208);
+
+                DrawChartLegend(
+                    manualLegendGraphics,
+                    elementChartRect,
+                    manualLegendSeries,
+                    new Color[]
+                    {
+                        manualLegendColor
+                    },
+                    "column",
+                    "b",
+                    null,
+                    null,
+                    elementLayoutChart);
+
+                Color manualLegendPixel =
+                    manualLegendBitmap.GetPixel(
+                        34,
+                        40);
+
+                if (Math.Abs(
+                        manualLegendPixel.R -
+                        manualLegendColor.R) > 3 ||
+                    Math.Abs(
+                        manualLegendPixel.G -
+                        manualLegendColor.G) > 3 ||
+                    Math.Abs(
+                        manualLegendPixel.B -
+                        manualLegendColor.B) > 3)
+                {
+                    throw new InvalidOperationException(
+                        "Chart legend manual layout was not used while rendering.");
+                }
+            }
+
             XmlDocument doughnut =
                 new XmlDocument();
 
