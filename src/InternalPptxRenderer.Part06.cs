@@ -5041,6 +5041,391 @@ chartDoc);
             }
         }
 
+        private static void DrawChartLinearTrendline(
+            Graphics g,
+            RectangleF plot,
+            IList<PointF> points,
+            ChartTrendlineOptions options,
+            Color fallbackColor)
+        {
+            if (g == null ||
+                points == null ||
+                points.Count < 2 ||
+                options == null ||
+                !string.Equals(
+                    options.Type,
+                    "linear",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            double sumX = 0.0;
+            double sumY = 0.0;
+            double sumXY = 0.0;
+            double sumXX = 0.0;
+
+            float minX =
+                float.MaxValue;
+            float maxX =
+                float.MinValue;
+
+            for (int i = 0;
+                 i < points.Count;
+                 i++)
+            {
+                double x =
+                    points[i].X;
+                double y =
+                    points[i].Y;
+
+                sumX += x;
+                sumY += y;
+                sumXY +=
+                    x * y;
+                sumXX +=
+                    x * x;
+
+                minX =
+                    Math.Min(
+                        minX,
+                        points[i].X);
+                maxX =
+                    Math.Max(
+                        maxX,
+                        points[i].X);
+            }
+
+            double count =
+                points.Count;
+            double denominator =
+                count *
+                sumXX -
+                sumX *
+                sumX;
+
+            if (Math.Abs(
+                    denominator) <
+                0.000001)
+            {
+                return;
+            }
+
+            double slope =
+                (count *
+                 sumXY -
+                 sumX *
+                 sumY) /
+                denominator;
+
+            double intercept =
+                (sumY -
+                 slope *
+                 sumX) /
+                count;
+
+            float averageStep =
+                points.Count <= 1
+                    ? 0f
+                    : (maxX -
+                       minX) /
+                      (points.Count -
+                       1f);
+
+            float startX =
+                minX -
+                (float)Math.Max(
+                    0.0,
+                    options.Backward) *
+                averageStep;
+
+            float endX =
+                maxX +
+                (float)Math.Max(
+                    0.0,
+                    options.Forward) *
+                averageStep;
+
+            startX =
+                Math.Max(
+                    plot.Left,
+                    startX);
+            endX =
+                Math.Min(
+                    plot.Right,
+                    endX);
+
+            if (endX <= startX)
+                return;
+
+            float startY =
+                (float)(
+                    intercept +
+                    slope *
+                    startX);
+
+            float endY =
+                (float)(
+                    intercept +
+                    slope *
+                    endX);
+
+            ChartLineStyle style =
+                options.LineStyle ??
+                new ChartLineStyle();
+
+            if (options.LineStyle == null)
+            {
+                style.Color =
+                    fallbackColor;
+                style.Width = 1.5f;
+                style.DashStyle =
+                    DashStyle.Dash;
+            }
+
+            GraphicsState state =
+                g.Save();
+
+            try
+            {
+                g.SetClip(
+                    plot,
+                    CombineMode.Intersect);
+
+                using (Pen pen =
+                    new Pen(
+                        style.Color,
+                        Math.Max(
+                            1f,
+                            style.Width)))
+                {
+                    pen.DashStyle =
+                        style.DashStyle;
+
+                    g.DrawLine(
+                        pen,
+                        startX,
+                        startY,
+                        endX,
+                        endY);
+                }
+            }
+            finally
+            {
+                g.Restore(
+                    state);
+            }
+        }
+
+        private static double ResolveChartErrorMagnitude(
+            double value,
+            ChartErrorBarOptions options)
+        {
+            if (options == null)
+                return 0.0;
+
+            if (string.Equals(
+                    options.ValueType,
+                    "percentage",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return Math.Abs(
+                           value) *
+                    Math.Max(
+                        0.0,
+                        options.Value) /
+                    100.0;
+            }
+
+            if (string.Equals(
+                    options.ValueType,
+                    "fixedVal",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return Math.Max(
+                    0.0,
+                    options.Value);
+            }
+
+            return 0.0;
+        }
+
+        private static void DrawChartErrorBar(
+            Graphics g,
+            RectangleF plot,
+            ChartAxisScale scale,
+            string kind,
+            PointF point,
+            double value,
+            ChartErrorBarOptions options,
+            Color fallbackColor)
+        {
+            if (g == null ||
+                scale == null ||
+                options == null)
+            {
+                return;
+            }
+
+            double magnitude =
+                ResolveChartErrorMagnitude(
+                    value,
+                    options);
+
+            if (magnitude <= 0.0)
+                return;
+
+            bool drawPlus =
+                !string.Equals(
+                    options.BarType,
+                    "minus",
+                    StringComparison.OrdinalIgnoreCase);
+
+            bool drawMinus =
+                !string.Equals(
+                    options.BarType,
+                    "plus",
+                    StringComparison.OrdinalIgnoreCase);
+
+            ChartLineStyle style =
+                options.LineStyle ??
+                new ChartLineStyle();
+
+            if (options.LineStyle == null)
+            {
+                style.Color =
+                    fallbackColor;
+                style.Width = 1f;
+            }
+
+            using (Pen pen =
+                new Pen(
+                    style.Color,
+                    Math.Max(
+                        1f,
+                        style.Width)))
+            {
+                pen.DashStyle =
+                    style.DashStyle;
+
+                const float cap =
+                    4f;
+
+                if (kind == "bar")
+                {
+                    float plusX =
+                        plot.Left +
+                        (float)(
+                            ChartAxisFraction(
+                                value +
+                                magnitude,
+                                scale) *
+                            plot.Width);
+
+                    float minusX =
+                        plot.Left +
+                        (float)(
+                            ChartAxisFraction(
+                                value -
+                                magnitude,
+                                scale) *
+                            plot.Width);
+
+                    float fromX =
+                        drawMinus
+                            ? minusX
+                            : point.X;
+                    float toX =
+                        drawPlus
+                            ? plusX
+                            : point.X;
+
+                    g.DrawLine(
+                        pen,
+                        fromX,
+                        point.Y,
+                        toX,
+                        point.Y);
+
+                    if (drawMinus)
+                    {
+                        g.DrawLine(
+                            pen,
+                            minusX,
+                            point.Y - cap,
+                            minusX,
+                            point.Y + cap);
+                    }
+
+                    if (drawPlus)
+                    {
+                        g.DrawLine(
+                            pen,
+                            plusX,
+                            point.Y - cap,
+                            plusX,
+                            point.Y + cap);
+                    }
+
+                    return;
+                }
+
+                float plusY =
+                    plot.Bottom -
+                    (float)(
+                        ChartAxisFraction(
+                            value +
+                            magnitude,
+                            scale) *
+                        plot.Height);
+
+                float minusY =
+                    plot.Bottom -
+                    (float)(
+                        ChartAxisFraction(
+                            value -
+                            magnitude,
+                            scale) *
+                        plot.Height);
+
+                float fromY =
+                    drawPlus
+                        ? plusY
+                        : point.Y;
+                float toY =
+                    drawMinus
+                        ? minusY
+                        : point.Y;
+
+                g.DrawLine(
+                    pen,
+                    point.X,
+                    fromY,
+                    point.X,
+                    toY);
+
+                if (drawPlus)
+                {
+                    g.DrawLine(
+                        pen,
+                        point.X - cap,
+                        plusY,
+                        point.X + cap,
+                        plusY);
+                }
+
+                if (drawMinus)
+                {
+                    g.DrawLine(
+                        pen,
+                        point.X - cap,
+                        minusY,
+                        point.X + cap,
+                        minusY);
+                }
+            }
+        }
+
         private static ChartLineStyle ReadChartMinorGridlineStyle(
             XmlDocument chartDoc,
             Dictionary<string, Color> theme)
