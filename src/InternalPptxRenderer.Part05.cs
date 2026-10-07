@@ -202,6 +202,7 @@ namespace PptxViewer
             public string ValueAxisId;
             public readonly List<string> Categories = new List<string>();
             public readonly List<double> Values = new List<double>();
+            public readonly List<double> BubbleSizes = new List<double>();
             public readonly List<Color?> PointColors = new List<Color?>();
             public readonly Dictionary<int, ChartPointLabelOverride> PointLabelOverrides =
                 new Dictionary<int, ChartPointLabelOverride>();

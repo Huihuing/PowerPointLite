@@ -69,6 +69,7 @@ internal static partial class InternalPptxRenderer
             public bool ShowCategoryName;
             public bool ShowSeriesName;
             public bool ShowPercent;
+            public bool ShowBubbleSize;
             public bool ShowLeaderLines;
             public Color? TextColor;
             public Color? FillColor;
@@ -90,7 +91,8 @@ internal static partial class InternalPptxRenderer
                     return ShowValue ||
                         ShowCategoryName ||
                         ShowSeriesName ||
-                        ShowPercent;
+                        ShowPercent ||
+                        ShowBubbleSize;
                 }
             }
         }
@@ -101,6 +103,7 @@ internal static partial class InternalPptxRenderer
             public bool? ShowCategoryName;
             public bool? ShowSeriesName;
             public bool? ShowPercent;
+            public bool? ShowBubbleSize;
             public bool Delete;
             public Color? TextColor;
             public Color? FillColor;
@@ -1977,6 +1980,10 @@ chartDoc);
                 ReadChartBooleanChild(
                     labels,
                     "showPercent");
+            result.ShowBubbleSize =
+                ReadChartBooleanChild(
+                    labels,
+                    "showBubbleSize");
             result.ShowLeaderLines =
                 ReadChartBooleanChild(
                     labels,
@@ -2142,6 +2149,15 @@ chartDoc);
                         out parsedBoolean))
                 {
                     item.ShowPercent =
+                        parsedBoolean;
+                }
+
+                if (TryReadChartBooleanChild(
+                        label,
+                        "showBubbleSize",
+                        out parsedBoolean))
+                {
+                    item.ShowBubbleSize =
                         parsedBoolean;
                 }
 
@@ -2522,6 +2538,8 @@ chartDoc);
                     defaults.ShowSeriesName;
                 result.ShowPercent =
                     defaults.ShowPercent;
+                result.ShowBubbleSize =
+                    defaults.ShowBubbleSize;
                 result.ShowLeaderLines =
                     defaults.ShowLeaderLines;
                 result.TextColor =
@@ -2569,6 +2587,7 @@ chartDoc);
                 result.ShowCategoryName = false;
                 result.ShowSeriesName = false;
                 result.ShowPercent = false;
+                result.ShowBubbleSize = false;
                 return result;
             }
 
@@ -2587,6 +2606,10 @@ chartDoc);
             if (item.ShowPercent.HasValue)
                 result.ShowPercent =
                     item.ShowPercent.Value;
+
+            if (item.ShowBubbleSize.HasValue)
+                result.ShowBubbleSize =
+                    item.ShowBubbleSize.Value;
 
             if (item.TextColor.HasValue)
                 result.TextColor =
@@ -2744,6 +2767,15 @@ chartDoc);
                 parts.Add(
                     FormatChartAxisNumber(
                         series.Values[index],
+                        options.NumberFormat));
+            }
+
+            if (options.ShowBubbleSize &&
+                index < series.BubbleSizes.Count)
+            {
+                parts.Add(
+                    FormatChartAxisNumber(
+                        series.BubbleSizes[index],
                         options.NumberFormat));
             }
 

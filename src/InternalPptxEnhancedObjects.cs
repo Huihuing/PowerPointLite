@@ -13449,6 +13449,26 @@ namespace PptxViewer
                     style,
                     theme);
 
+                style.Values.AddRange(
+                    ys);
+                style.BubbleSizes.AddRange(
+                    sizes);
+
+                for (int i = 0;
+                     i < xs.Count;
+                     i++)
+                {
+                    style.Categories.Add(
+                        FormatChartAxisNumber(
+                            xs[i],
+                            null));
+                }
+
+                ReadChartSeriesLabelOverrides(
+                    seriesNodes[s],
+                    style,
+                    theme);
+
                 int pointCount =
                     Math.Min(
                         xs.Count,
@@ -13564,6 +13584,28 @@ namespace PptxViewer
                 string.IsNullOrEmpty(
                     scatterStyle);
 
+            ChartLabelOptions labels =
+                ReadChartLabelOptions(
+                    chartDoc,
+                    theme);
+            labels.LayoutReferenceRect =
+                rect;
+
+            using (Font labelFont =
+                SafeFont(
+                    "Arial",
+                    Math.Max(
+                        6f,
+                        Math.Min(
+                            9f,
+                            plot.Height /
+                            36f))))
+            using (Brush labelBrush =
+                new SolidBrush(
+                    Color.FromArgb(
+                        70,
+                        70,
+                        70)))
             for (int s = 0;
                  s < allX.Count;
                  s++)
@@ -13741,29 +13783,52 @@ namespace PptxViewer
                             style.MarkerSize,
                             pointColor);
                     }
+
+                    ChartLabelOptions pointLabels =
+                        ResolveChartPointLabelOptions(
+                            labels,
+                            style,
+                            i);
+
+                    if (pointLabels.HasAny)
+                    {
+                        string label =
+                            BuildChartDataLabel(
+                                pointLabels,
+                                style,
+                                i,
+                                false);
+
+                        DrawChartPointDataLabel(
+                            g,
+                            labelFont,
+                            labelBrush,
+                            label,
+                            points[i],
+                            pointLabels);
+                    }
                 }
             }
 
-            if (!bubble)
-            {
-                List<ChartSeriesData> legendSeries =
-                    styles;
+            List<ChartSeriesData> legendSeries =
+                styles;
 
-                DrawChartLegend(
-                    g,
-                    rect,
-                    legendSeries,
-                    palette,
-                    "scatter",
-                    ReadChartLegendPosition(
-                        chartDoc),
-                    ReadChartLegendTextStyle(
-                        chartDoc,
-                        theme),
-                    ReadChartLegendHiddenEntries(
-                        chartDoc),
-                        chartDoc);
-            }
+            DrawChartLegend(
+                g,
+                rect,
+                legendSeries,
+                palette,
+                bubble
+                    ? "bubble"
+                    : "scatter",
+                ReadChartLegendPosition(
+                    chartDoc),
+                ReadChartLegendTextStyle(
+                    chartDoc,
+                    theme),
+                ReadChartLegendHiddenEntries(
+                    chartDoc),
+                    chartDoc);
         }
 
         private static string ReadScatterChartStyle(
