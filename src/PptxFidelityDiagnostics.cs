@@ -4384,6 +4384,61 @@ namespace PptxViewer
                 processConnectorGraphics.Clear(
                     Color.White);
 
+                processPositions[
+                    "processLegBlocker"] =
+                    new RectangleF(
+                        48f,
+                        65f,
+                        30f,
+                        50f);
+
+                DrawSmartArtConnectors(
+                    processConnectorGraphics,
+                    "process",
+                    processNodes,
+                    processNodeMap,
+                    processPositions,
+                    new Color[]
+                    {
+                        Color.FromArgb(
+                            76,
+                            123,
+                            205)
+                    });
+
+                Color blockedVerticalLegPixel =
+                    processConnectorBitmap.GetPixel(
+                        60,
+                        82);
+
+                Color sideChannelPixel =
+                    processConnectorBitmap.GetPixel(
+                        140,
+                        90);
+
+                bool blockedVerticalLegStayedClear =
+                    blockedVerticalLegPixel.R >= 245 &&
+                    blockedVerticalLegPixel.G >= 245 &&
+                    blockedVerticalLegPixel.B >= 245;
+
+                bool sideChannelVisible =
+                    sideChannelPixel.R < 245 ||
+                    sideChannelPixel.G < 245 ||
+                    sideChannelPixel.B < 245;
+
+                if (!blockedVerticalLegStayedClear ||
+                    !sideChannelVisible)
+                {
+                    throw new InvalidOperationException(
+                        "SmartArt connector did not switch to a clear side channel.");
+                }
+
+                processPositions.Remove(
+                    "processLegBlocker");
+
+                processConnectorGraphics.Clear(
+                    Color.White);
+
                 Dictionary<string, RectangleF> verticalPositions =
                     new Dictionary<string, RectangleF>(
                         StringComparer.Ordinal);
