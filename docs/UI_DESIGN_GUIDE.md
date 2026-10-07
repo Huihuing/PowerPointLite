@@ -47,6 +47,9 @@ Microsoft Office의 Ribbon 색상, 공식 아이콘, 앱 로고를 복제하지 
 - auto-hide pane은 canvas 폭을 회수한다.
 - 기본 viewer canvas는 콘텐츠에 집중하도록 어둡고 단순하게 유지한다.
 
+- Presenter View 상단 action/status 영역과 Advanced Editor quick-shape 선택기는 창 폭에 따라 재배치하고, 공간이 부족하면 보조 상태/선택기를 숨겨 주요 action과 겹치지 않게 한다.
+- 고정 좌표는 초기 배치값으로만 사용하고, toolbar의 우측 보조 컨트롤은 Resize 시 남는 폭을 다시 계산한다.
+
 ### 향후 Editor
 
 Toolbar를 무조건 Office Ribbon처럼 복제하지 않는다.
