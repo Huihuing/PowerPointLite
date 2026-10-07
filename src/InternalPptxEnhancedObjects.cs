@@ -13193,7 +13193,7 @@ namespace PptxViewer
 
                     if (!stacked)
                     {
-                        DrawChartLinearTrendline(
+                        DrawChartTrendline(
                             g,
                             plot,
                             topPoints,
@@ -13212,6 +13212,7 @@ namespace PptxViewer
                                 "line",
                                 topPoints[i],
                                 item.Values[i],
+                                i,
                                 item.ErrorBars,
                                 color);
                         }
@@ -13618,7 +13619,7 @@ namespace PptxViewer
                             y);
                 }
 
-                DrawChartLinearTrendline(
+                DrawChartTrendline(
                     g,
                     plot,
                     points,
@@ -13679,6 +13680,7 @@ namespace PptxViewer
                             "line",
                             points[i],
                             allY[s][i],
+                            i,
                             style.ErrorBars,
                             pointColor);
                     }
