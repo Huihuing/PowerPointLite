@@ -3266,6 +3266,111 @@ namespace PptxViewer
                     "SmartArt hierarchy assistant was not positioned beside its parent.");
             }
 
+            SmartNode multiAssistantRoot =
+                new SmartNode();
+            multiAssistantRoot.Id =
+                "multiAssistantRoot";
+            multiAssistantRoot.Label =
+                "Root";
+            multiAssistantRoot.Depth = 0;
+
+            List<SmartNode> multiAssistantNodes =
+                new List<SmartNode>();
+            multiAssistantNodes.Add(
+                multiAssistantRoot);
+
+            for (int i = 0;
+                 i < 4;
+                 i++)
+            {
+                SmartNode assistant =
+                    new SmartNode();
+
+                assistant.Id =
+                    "multiAssistant" +
+                    i.ToString();
+                assistant.Label =
+                    "Assistant " +
+                    (i + 1).ToString();
+                assistant.Depth = 1;
+                assistant.IsAssistant = true;
+                assistant.ParentId =
+                    multiAssistantRoot.Id;
+
+                multiAssistantNodes.Add(
+                    assistant);
+            }
+
+            Dictionary<string, RectangleF> multiAssistantPositions =
+                BuildHierarchySmartArtPositions(
+                    multiAssistantNodes,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        900f,
+                        360f),
+                    1);
+
+            RectangleF multiRootBox =
+                multiAssistantPositions[
+                    "multiAssistantRoot"];
+            RectangleF assistant0 =
+                multiAssistantPositions[
+                    "multiAssistant0"];
+            RectangleF assistant1 =
+                multiAssistantPositions[
+                    "multiAssistant1"];
+            RectangleF assistant2 =
+                multiAssistantPositions[
+                    "multiAssistant2"];
+            RectangleF assistant3 =
+                multiAssistantPositions[
+                    "multiAssistant3"];
+
+            float multiParentCenterY =
+                multiRootBox.Top +
+                multiRootBox.Height /
+                2f;
+            float leftStackCenterY =
+                (assistant0.Top +
+                 assistant0.Height /
+                 2f +
+                 assistant2.Top +
+                 assistant2.Height /
+                 2f) /
+                2f;
+            float rightStackCenterY =
+                (assistant1.Top +
+                 assistant1.Height /
+                 2f +
+                 assistant3.Top +
+                 assistant3.Height /
+                 2f) /
+                2f;
+
+            if (assistant0.Right >
+                    multiRootBox.Left ||
+                assistant2.Right >
+                    multiRootBox.Left ||
+                assistant1.Left <
+                    multiRootBox.Right ||
+                assistant3.Left <
+                    multiRootBox.Right ||
+                assistant0.Bottom >
+                    assistant2.Top ||
+                assistant1.Bottom >
+                    assistant3.Top ||
+                Math.Abs(
+                    leftStackCenterY -
+                    multiParentCenterY) > 2f ||
+                Math.Abs(
+                    rightStackCenterY -
+                    multiParentCenterY) > 2f)
+            {
+                throw new InvalidOperationException(
+                    "SmartArt multiple assistants were not separated into centered left/right stacks.");
+            }
+
             SmartNode leftParent =
                 new SmartNode();
             leftParent.Id = "leftParent";
