@@ -144,6 +144,10 @@ namespace PptxViewer
                 FindToolbarButton(
                     "Workspace") != null;
 
+            bool compactToolbar =
+                toolbar.ClientSize.Width <
+                1120;
+
             for (int i = 0;
                  i < order.Length;
                  i++)
@@ -159,6 +163,14 @@ namespace PptxViewer
 
                 if (key == "Auto TOC" &&
                     hasWorkspace)
+                {
+                    button.Visible = false;
+                    continue;
+                }
+
+                if (compactToolbar &&
+                    IsCompactToolbarMenuItem(
+                        key))
                 {
                     button.Visible = false;
                     continue;
@@ -220,29 +232,6 @@ namespace PptxViewer
                 }
             }
 
-            if (zoomTrack != null)
-            {
-                int preferredZoomWidth =
-                    toolbar.ClientSize.Width <
-                        1180
-                        ? 96
-                        : 128;
-
-                zoomTrack.Width =
-                    preferredZoomWidth;
-                zoomTrack.Left =
-                    x + 4;
-                zoomTrack.Top =
-                    Math.Max(
-                        0,
-                        (topBandHeight -
-                         zoomTrack.Height) /
-                        2);
-                x =
-                    zoomTrack.Right +
-                    12;
-            }
-
             if (languageButton != null)
             {
                 NormalizeToolbarButton(
@@ -258,6 +247,51 @@ namespace PptxViewer
                         languageButton.Width -
                         10);
                 languageButton.BringToFront();
+            }
+
+            if (zoomTrack != null)
+            {
+                int zoomRightLimit =
+                    languageButton != null
+                        ? languageButton.Left - 12
+                        : toolbar.ClientSize.Width - 10;
+
+                int availableZoomWidth =
+                    Math.Max(
+                        0,
+                        zoomRightLimit -
+                        x -
+                        4);
+
+                int preferredZoomWidth =
+                    toolbar.ClientSize.Width <
+                        1180
+                        ? 96
+                        : 128;
+
+                if (availableZoomWidth >= 72)
+                {
+                    zoomTrack.Visible = true;
+                    zoomTrack.Width =
+                        Math.Min(
+                            preferredZoomWidth,
+                            availableZoomWidth);
+                    zoomTrack.Left =
+                        x + 4;
+                    zoomTrack.Top =
+                        Math.Max(
+                            0,
+                            (topBandHeight -
+                             zoomTrack.Height) /
+                            2);
+                    x =
+                        zoomTrack.Right +
+                        12;
+                }
+                else
+                {
+                    zoomTrack.Visible = false;
+                }
             }
 
             if (engineLabel != null)
@@ -284,6 +318,7 @@ namespace PptxViewer
                         0,
                         available);
                 engineLabel.Visible =
+                    !compactToolbar &&
                     available >= 84;
             }
         }
@@ -335,6 +370,16 @@ namespace PptxViewer
             }
 
             return separator;
+        }
+
+        private static bool IsCompactToolbarMenuItem(
+            string key)
+        {
+            return
+                key == "Presenter" ||
+                key == "TOC" ||
+                key == "100%" ||
+                key == "Print";
         }
 
         private static bool IsToolbarGroupBreakAfter(
