@@ -204,6 +204,59 @@ namespace PptxViewer
             list.IntegralHeight =
                 false;
 
+            int hotIndex =
+                -1;
+
+            list.MouseMove +=
+                delegate(
+                    object sender,
+                    MouseEventArgs e)
+                {
+                    int next =
+                        list.IndexFromPoint(
+                            e.Location);
+
+                    if (next == hotIndex)
+                        return;
+
+                    int previous =
+                        hotIndex;
+                    hotIndex =
+                        next;
+
+                    if (previous >= 0 &&
+                        previous < list.Items.Count)
+                    {
+                        list.Invalidate(
+                            list.GetItemRectangle(
+                                previous));
+                    }
+
+                    if (hotIndex >= 0 &&
+                        hotIndex < list.Items.Count)
+                    {
+                        list.Invalidate(
+                            list.GetItemRectangle(
+                                hotIndex));
+                    }
+                };
+
+            list.MouseLeave +=
+                delegate
+                {
+                    int previous =
+                        hotIndex;
+                    hotIndex = -1;
+
+                    if (previous >= 0 &&
+                        previous < list.Items.Count)
+                    {
+                        list.Invalidate(
+                            list.GetItemRectangle(
+                                previous));
+                    }
+                };
+
             list.DrawItem +=
                 delegate(
                     object sender,
@@ -219,6 +272,9 @@ namespace PptxViewer
                     bool selected =
                         (e.State &
                          DrawItemState.Selected) != 0;
+                    bool hot =
+                        e.Index ==
+                        hotIndex;
 
                     Rectangle bounds =
                         e.Bounds;
@@ -227,7 +283,9 @@ namespace PptxViewer
                         new SolidBrush(
                             selected
                                 ? Surface
-                                : Sidebar))
+                                : hot
+                                    ? SurfaceHover
+                                    : Sidebar))
                     {
                         e.Graphics.FillRectangle(
                             background,
@@ -268,7 +326,7 @@ namespace PptxViewer
                             .ToString(),
                         list.Font,
                         textBounds,
-                        selected
+                        selected || hot
                             ? PrimaryText
                             : SecondaryText,
                         TextFormatFlags.Left |
