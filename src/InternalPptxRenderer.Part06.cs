@@ -419,6 +419,11 @@ internal static partial class InternalPptxRenderer
                             plotTop -
                             bottomPad));
 
+            ApplyChartManualPlotLayout(
+                chartDoc,
+                rect,
+                ref plot);
+
             Color plotBackground =
                 ReadChartAreaFill(
                     chartDoc,
