@@ -11760,7 +11760,10 @@ namespace PptxViewer
                 series,
                 palette,
                 "pie",
-                ReadChartLegendPosition(chartDoc));
+                ReadChartLegendPosition(chartDoc),
+                ReadChartLegendTextStyle(
+                    chartDoc,
+                    theme));
         }
 
         private static void DrawDoughnutChartValueLabels(
@@ -12478,7 +12481,10 @@ namespace PptxViewer
                 palette,
                 "area",
                 ReadChartLegendPosition(
-                    chartDoc));
+                    chartDoc),
+                ReadChartLegendTextStyle(
+                    chartDoc,
+                    theme));
         }
 
         private static string ReadAreaChartGrouping(
@@ -12864,7 +12870,10 @@ namespace PptxViewer
                     palette,
                     "scatter",
                     ReadChartLegendPosition(
-                        chartDoc));
+                        chartDoc),
+                    ReadChartLegendTextStyle(
+                        chartDoc,
+                        theme));
             }
         }
 
@@ -13024,7 +13033,10 @@ namespace PptxViewer
                 series,
                 palette,
                 "radar",
-                ReadChartLegendPosition(chartDoc));
+                ReadChartLegendPosition(chartDoc),
+                ReadChartLegendTextStyle(
+                    chartDoc,
+                    theme));
         }
 
         private static void DrawRadarCategoryLabels(
