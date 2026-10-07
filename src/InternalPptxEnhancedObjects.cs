@@ -11516,6 +11516,11 @@ namespace PptxViewer
                         rect.Height *
                         0.10f);
 
+            bool titleOverlay =
+                ReadChartOverlay(
+                    chartDoc,
+                    "title");
+
             if (!string.IsNullOrEmpty(
                     title))
             {
@@ -11568,6 +11573,10 @@ namespace PptxViewer
             string legendPosition =
                 ReadChartLegendPosition(
                     chartDoc);
+            bool legendOverlay =
+                ReadChartOverlay(
+                    chartDoc,
+                    "legend");
 
             float leftPad =
                 Math.Max(
@@ -11585,40 +11594,48 @@ namespace PptxViewer
                     rect.Height *
                     0.09f);
             float topPad =
-                titleHeight;
+                string.IsNullOrEmpty(
+                    title)
+                    ? 12f
+                    : titleOverlay
+                        ? 12f
+                        : titleHeight;
 
-            if (legendPosition == "r" ||
-                legendPosition == "tr")
+            if (!legendOverlay)
             {
-                rightPad =
-                    Math.Max(
-                        82f,
-                        rect.Width *
-                        0.19f);
-            }
-            else if (legendPosition == "l")
-            {
-                leftPad =
-                    Math.Max(
-                        82f,
-                        rect.Width *
-                        0.19f);
-            }
-            else if (legendPosition == "b")
-            {
-                bottomPad =
-                    Math.Max(
-                        58f,
-                        rect.Height *
-                        0.17f);
-            }
-            else if (legendPosition == "t")
-            {
-                topPad +=
-                    Math.Max(
-                        28f,
-                        rect.Height *
-                        0.09f);
+                if (legendPosition == "r" ||
+                    legendPosition == "tr")
+                {
+                    rightPad =
+                        Math.Max(
+                            82f,
+                            rect.Width *
+                            0.19f);
+                }
+                else if (legendPosition == "l")
+                {
+                    leftPad =
+                        Math.Max(
+                            82f,
+                            rect.Width *
+                            0.19f);
+                }
+                else if (legendPosition == "b")
+                {
+                    bottomPad =
+                        Math.Max(
+                            58f,
+                            rect.Height *
+                            0.17f);
+                }
+                else if (legendPosition == "t")
+                {
+                    topPad +=
+                        Math.Max(
+                            28f,
+                            rect.Height *
+                            0.09f);
+                }
             }
 
             plot =
