@@ -2984,6 +2984,35 @@ namespace PptxViewer
                 }
             }
 
+            XmlDocument axisTitleOnlyChart =
+                new XmlDocument();
+
+            axisTitleOnlyChart.LoadXml(
+                "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" +
+                "<c:chart><c:plotArea><c:catAx>" +
+                "<c:title><c:tx><c:rich><a:p><a:r><a:t>Axis Only</a:t></a:r></a:p></c:rich></c:tx>" +
+                "<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr><a:solidFill><a:srgbClr val=\"CC2244\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr>" +
+                "</c:title>" +
+                "</c:catAx></c:plotArea></c:chart></c:chartSpace>");
+
+            ChartLabelOptions axisOnlyChartTitleStyle =
+                ReadChartTitleTextStyle(
+                    axisTitleOnlyChart,
+                    theme);
+
+            if (!string.IsNullOrEmpty(
+                    ReadChartTitle(
+                        axisTitleOnlyChart)) ||
+                ReadChartOverlay(
+                    axisTitleOnlyChart,
+                    "title") ||
+                (axisOnlyChartTitleStyle != null &&
+                 axisOnlyChartTitleStyle.TextColor.HasValue))
+            {
+                throw new InvalidOperationException(
+                    "Axis title leaked into chart-level title scope.");
+            }
+
             XmlDocument manualLayoutChart =
                 new XmlDocument();
 
