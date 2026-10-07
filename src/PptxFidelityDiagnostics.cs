@@ -3162,6 +3162,85 @@ namespace PptxViewer
                 }
             }
 
+            XmlDocument boundaryLayoutDoc =
+                new XmlDocument();
+
+            boundaryLayoutDoc.LoadXml(
+                "<c:manualLayout xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
+                "<c:xMode val=\"edge\"/><c:yMode val=\"edge\"/>" +
+                "<c:wMode val=\"factor\"/><c:hMode val=\"factor\"/>" +
+                "<c:x val=\"0.90\"/><c:y val=\"0.10\"/>" +
+                "<c:w val=\"0.30\"/><c:h val=\"0.40\"/>" +
+                "</c:manualLayout>");
+
+            RectangleF boundaryResolved =
+                ResolveChartManualLayoutRectangle(
+                    boundaryLayoutDoc.DocumentElement,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        320f,
+                        200f),
+                    new RectangleF(
+                        40f,
+                        30f,
+                        240f,
+                        140f));
+
+            if (Math.Abs(
+                    boundaryResolved.Left -
+                    224f) > 0.5f ||
+                Math.Abs(
+                    boundaryResolved.Width -
+                    96f) > 0.5f)
+            {
+                throw new InvalidOperationException(
+                    "Chart manual layout boundary correction did not preserve width.");
+            }
+
+            XmlDocument invalidLayoutDoc =
+                new XmlDocument();
+
+            invalidLayoutDoc.LoadXml(
+                "<c:manualLayout xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
+                "<c:xMode val=\"edge\"/><c:wMode val=\"factor\"/>" +
+                "<c:x val=\"1.20\"/><c:w val=\"0.30\"/>" +
+                "</c:manualLayout>");
+
+            RectangleF invalidAutomatic =
+                new RectangleF(
+                    40f,
+                    30f,
+                    240f,
+                    140f);
+
+            RectangleF invalidResolved =
+                ResolveChartManualLayoutRectangle(
+                    invalidLayoutDoc.DocumentElement,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        320f,
+                        200f),
+                    invalidAutomatic);
+
+            if (Math.Abs(
+                    invalidResolved.Left -
+                    invalidAutomatic.Left) > 0.1f ||
+                Math.Abs(
+                    invalidResolved.Top -
+                    invalidAutomatic.Top) > 0.1f ||
+                Math.Abs(
+                    invalidResolved.Width -
+                    invalidAutomatic.Width) > 0.1f ||
+                Math.Abs(
+                    invalidResolved.Height -
+                    invalidAutomatic.Height) > 0.1f)
+            {
+                throw new InvalidOperationException(
+                    "Invalid chart manual layout values did not fall back to automatic layout.");
+            }
+
             XmlDocument nestedManualLayoutChart =
                 new XmlDocument();
 
