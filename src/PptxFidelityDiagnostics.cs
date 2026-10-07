@@ -78,7 +78,7 @@ namespace PptxViewer
                 "<c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\">" +
                 "<c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"F5F7FB\"/></a:solidFill></c:spPr>" +
                 "<c:chart>" +
-                "<c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarterly Delta</a:t></a:r></a:p></c:rich></c:tx></c:title>" +
+                "<c:title><c:tx><c:rich><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:r><a:t>Quarterly Delta</a:t></a:r></a:p></c:rich></c:tx><c:txPr><a:bodyPr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"/><a:lstStyle xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"/><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr sz=\"1500\" b=\"1\" i=\"1\"><a:latin typeface=\"Arial\"/><a:solidFill><a:srgbClr val=\"228844\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr></c:title>" +
                 "<c:plotArea><c:barChart><c:barDir val=\"col\"/>" +
                 "<c:dLbls><c:numFmt formatCode=\"0.0\" sourceLinked=\"0\"/><c:dLblPos val=\"inEnd\"/><c:showVal val=\"1\"/><c:showCatName val=\"1\"/><c:spPr><a:solidFill xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:srgbClr val=\"FFF1CC\"/></a:solidFill><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"12700\"><a:solidFill><a:srgbClr val=\"775511\"/></a:solidFill><a:prstDash val=\"dot\"/></a:ln></c:spPr><c:txPr><a:p xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:pPr><a:defRPr sz=\"1350\" b=\"1\" i=\"1\"><a:latin typeface=\"Arial\"/><a:solidFill><a:srgbClr val=\"224488\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr><c:separator> · </c:separator></c:dLbls>" +
                 BuildSyntheticChartSeries(
@@ -206,6 +206,29 @@ namespace PptxViewer
             {
                 throw new InvalidOperationException(
                     "Chart axis titles were not parsed.");
+            }
+
+            ChartLabelOptions chartTitleStyle =
+                ReadChartTitleTextStyle(
+                    chart,
+                    theme);
+
+            if (!chartTitleStyle.TextColor.HasValue ||
+                chartTitleStyle.TextColor.Value.R != 0x22 ||
+                chartTitleStyle.TextColor.Value.G != 0x88 ||
+                chartTitleStyle.TextColor.Value.B != 0x44 ||
+                !chartTitleStyle.FontSize.HasValue ||
+                Math.Abs(
+                    chartTitleStyle.FontSize.Value -
+                    15f) > 0.01f ||
+                !chartTitleStyle.Bold.HasValue ||
+                !chartTitleStyle.Bold.Value ||
+                !chartTitleStyle.Italic.HasValue ||
+                !chartTitleStyle.Italic.Value ||
+                chartTitleStyle.FontFamily != "Arial")
+            {
+                throw new InvalidOperationException(
+                    "Chart title txPr text style was not parsed correctly.");
             }
 
             if (!string.Equals(
@@ -1312,6 +1335,42 @@ namespace PptxViewer
                         960f,
                         520f),
                     theme);
+
+                bool titleStyleVisible =
+                    false;
+
+                for (int y = 24;
+                     y < 82 &&
+                     !titleStyleVisible;
+                     y++)
+                {
+                    for (int x = 300;
+                         x < 700;
+                         x++)
+                    {
+                        Color pixel =
+                            bitmap.GetPixel(
+                                x,
+                                y);
+
+                        if (pixel.G >
+                                pixel.R + 55 &&
+                            pixel.G >
+                                pixel.B + 35 &&
+                            pixel.G > 90)
+                        {
+                            titleStyleVisible =
+                                true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!titleStyleVisible)
+                {
+                    throw new InvalidOperationException(
+                        "Chart title txPr text color was not rendered.");
+                }
 
                 int nonWhite;
                 int distinct;
