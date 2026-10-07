@@ -158,13 +158,15 @@ Advanced Editor는 선택 객체에 대해 **Send Back / Bring Front**를 제공
 
 Image의 OOXML `a:srcRect` crop은 editable model의 `CropLeft/Top/Right/Bottom`에 0~100000 단위로 보존된다. Viewer와 Editor Canvas는 모두 `PresentationRenderPrimitives.CalculateImageSourceRectangle`을 사용해 같은 source rectangle을 계산하고, Writer가 `a:srcRect`를 다시 기록하므로 read-edit-write에서도 crop이 유지된다. Properties의 **Image crop (%)**에서 Left/Top/Right/Bottom을 0~99.9%로 직접 편집할 수 있으며, 두 방향 crop 합이 100%에 도달하지 않도록 공통 normalization을 적용한다.
 
+Picture transform도 editable model에 OOXML 원본 단위를 유지한다. `RotationUnits`는 1/60000°, `FlipHorizontal/FlipVertical`은 `a:xfrm flipH/flipV`, `Opacity`는 `a:alphaModFix amt`의 0~100000 값을 보존한다. Viewer와 Editor Canvas는 공통 `PresentationRenderPrimitives.DrawImage`를 사용해 crop + rotation + flip + opacity를 같은 순서로 적용하고, Writer가 다시 `rot/flipH/flipV/alphaModFix`를 기록한다. Properties의 **Image transform**에서 Rotation(°), Transparency(%), horizontal/vertical flip을 직접 바꾸고 Reset transform으로 기본값으로 되돌릴 수 있다.
+
 Table도 Canvas의 일반 객체 paint/hit-test 경로를 사용한다. 따라서 단일 table은 drag/resize 및 Send Back/Bring Front를 사용할 수 있고, 다른 객체와 함께 multi-selection/align/distribute/delete/copy/cut/duplicate에 참여한다. 기존 table preview child-control 오버레이는 제거했으며, table을 더블클릭하면 기존 Table Editor를 열어 cell 내용을 수정한다.
 
 multi-selection 상태에서는 상단 **Align** 메뉴가 활성화된다. 2개 이상 객체에 대해 left/center/right/top/middle/bottom 정렬을 제공하고, 3개 이상에서는 horizontal/vertical distribute를 추가로 활성화한다. distribute는 양 끝 객체의 center를 고정한 채 중간 객체의 center 간격을 균등하게 재배치한다.
 
 복사/붙여넣기는 단일 객체뿐 아니라 **현재 multi-selection 전체**를 처리한다. 선택 객체는 원본 `ObjectOrder` 순서대로 PowerPointLite 전용 versioned Clipboard payload에 기록되고, text/shape/image/table의 상대 좌표·서식·table cell 내용·이미지 bytes·상대 z-order를 유지한 채 현재 슬라이드에 붙여넣는다. 그룹이 슬라이드 경계를 벗어날 때는 객체별로 잘라 맞추지 않고 그룹 bounds에 하나의 translation을 적용해 내부 간격을 보존한다.
 
-Windows system clipboard에는 현재 `PowerPointLite.ObjectSelection.v2` 포맷을 기록하고 이전 `v1` payload도 읽을 수 있다. v2는 image crop 값을 추가로 보존한다. 따라서 다른 PowerPointLite 창/프로세스에서도 객체 묶음을 붙여넣을 수 있다. 단일 text box는 Unicode text도 함께 내보내고 단일 image는 Bitmap도 함께 내보낸다. 반대로 외부 프로그램에서 복사한 일반 text와 Bitmap image도 각각 새 text box / image 객체로 받아들인다. 전용 payload codec은 이미지 크기와 object/run count에 상한을 두고 structural self-test에서 encode/decode와 relative z-order round-trip을 검증한다.
+Windows system clipboard에는 현재 `PowerPointLite.ObjectSelection.v3` 포맷을 기록하고 이전 `v1/v2` payload도 읽을 수 있다. v2는 image crop, v3는 rotation/flip/opacity 값을 추가로 보존한다. 따라서 다른 PowerPointLite 창/프로세스에서도 객체 묶음을 붙여넣을 수 있다. 단일 text box는 Unicode text도 함께 내보내고 단일 image는 Bitmap도 함께 내보낸다. 반대로 외부 프로그램에서 복사한 일반 text와 Bitmap image도 각각 새 text box / image 객체로 받아들인다. 전용 payload codec은 이미지 크기와 object/run count에 상한을 두고 structural self-test에서 encode/decode와 relative z-order round-trip을 검증한다.
 
 기본 편집 단축키는 `Ctrl+C` Copy, `Ctrl+X` Cut, `Ctrl+V` Paste, `Ctrl+D` Duplicate, `Ctrl+A` Select All이다. Text box가 선택되어 있을 때 `Ctrl+B`, `Ctrl+I`, `Ctrl+U`는 각각 Bold/Italic/Underline을 토글하며, text editor에서 문자열을 선택한 상태라면 선택 영역에만 적용된다. 혼합 서식 범위는 indeterminate 상태로 표시하고 첫 토글은 서식을 켜는 방향으로 동작한다. Canvas 우클릭 메뉴에서도 동일한 작업을 제공한다. 우클릭한 객체가 기존 selection 밖에 있으면 해당 객체를 먼저 단일 선택하고, 빈 canvas를 우클릭하면 selection을 해제한다. Properties의 text/number/combobox 입력에 포커스가 있을 때는 Copy/Cut/Paste/Select All 단축키를 폼이 가로채지 않고 해당 입력 컨트롤에 넘긴다.
 

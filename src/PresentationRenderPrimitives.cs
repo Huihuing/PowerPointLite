@@ -1133,6 +1133,29 @@ namespace PptxViewer
                     "Shared render color parsing failed.");
             }
 
+            if (PresentationRenderPrimitives
+                    .NormalizeRotationUnits(
+                        -60000) !=
+                    21540000 ||
+                Math.Abs(
+                    PresentationRenderPrimitives
+                        .RotationDegrees(
+                            2700000) -
+                    45f) >
+                    0.001f ||
+                PresentationRenderPrimitives
+                    .ClampOpacity(
+                        120000) !=
+                    100000 ||
+                PresentationRenderPrimitives
+                    .ClampOpacity(
+                        -1) !=
+                    0)
+            {
+                throw new InvalidOperationException(
+                    "Shared image transform normalization failed.");
+            }
+
             RectangleF cropped =
                 PresentationRenderPrimitives
                     .CalculateImageSourceRectangle(

@@ -54,6 +54,10 @@ namespace PptxViewer
             generatedImage.CropTop = 8000;
             generatedImage.CropRight = 18000;
             generatedImage.CropBottom = 6000;
+            generatedImage.RotationUnits = 2700000;
+            generatedImage.FlipHorizontal = true;
+            generatedImage.FlipVertical = false;
+            generatedImage.Opacity = 64000;
 
             if (!second.MoveObjectToFront(
                     PresentationLayerKind.Shape,
@@ -236,6 +240,15 @@ namespace PptxViewer
                     "Editable reader did not preserve image crop values.");
             }
 
+            if (second.Images[0].RotationUnits != 2700000 ||
+                !second.Images[0].FlipHorizontal ||
+                second.Images[0].FlipVertical ||
+                second.Images[0].Opacity != 64000)
+            {
+                throw new InvalidOperationException(
+                    "Editable reader did not preserve image transform values.");
+            }
+
             second.SynchronizeObjectOrder();
 
             if (second.ObjectOrder.Count < 5 ||
@@ -312,6 +325,15 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Image crop was not preserved after read-edit-write.");
+                }
+
+                if (verify.Images[0].RotationUnits != 2700000 ||
+                    !verify.Images[0].FlipHorizontal ||
+                    verify.Images[0].FlipVertical ||
+                    verify.Images[0].Opacity != 64000)
+                {
+                    throw new InvalidOperationException(
+                        "Image rotation, flip, or opacity was not preserved after read-edit-write.");
                 }
 
                 verify.SynchronizeObjectOrder();
@@ -584,6 +606,77 @@ namespace PptxViewer
                 {
                     throw new InvalidOperationException(
                         "Generated image crop XML was not found in slide2.xml.");
+                }
+
+                bool foundImageTransform = false;
+                XmlNodeList transforms =
+                    slide2.GetElementsByTagName(
+                        "a:xfrm");
+
+                for (int i = 0;
+                     i < transforms.Count;
+                     i++)
+                {
+                    XmlNode transform =
+                        transforms[i];
+
+                    if (transform == null ||
+                        transform.Attributes == null)
+                    {
+                        continue;
+                    }
+
+                    string rotation =
+                        transform.Attributes["rot"] == null
+                            ? string.Empty
+                            : transform.Attributes["rot"].Value;
+                    string flipHorizontal =
+                        transform.Attributes["flipH"] == null
+                            ? string.Empty
+                            : transform.Attributes["flipH"].Value;
+                    string flipVertical =
+                        transform.Attributes["flipV"] == null
+                            ? string.Empty
+                            : transform.Attributes["flipV"].Value;
+
+                    if (rotation == "2700000" &&
+                        flipHorizontal == "1" &&
+                        string.IsNullOrEmpty(
+                            flipVertical))
+                    {
+                        foundImageTransform = true;
+                        break;
+                    }
+                }
+
+                XmlNodeList alphaNodes =
+                    slide2.GetElementsByTagName(
+                        "a:alphaModFix");
+                bool foundImageOpacity = false;
+
+                for (int i = 0;
+                     i < alphaNodes.Count;
+                     i++)
+                {
+                    XmlNode alpha =
+                        alphaNodes[i];
+
+                    if (alpha != null &&
+                        alpha.Attributes != null &&
+                        alpha.Attributes["amt"] != null &&
+                        alpha.Attributes["amt"].Value ==
+                            "64000")
+                    {
+                        foundImageOpacity = true;
+                        break;
+                    }
+                }
+
+                if (!foundImageTransform ||
+                    !foundImageOpacity)
+                {
+                    throw new InvalidOperationException(
+                        "Generated image rotation, flip, or opacity XML was not found in slide2.xml.");
                 }
 
                 XmlDocument slide3 =
