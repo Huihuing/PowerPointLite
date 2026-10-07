@@ -14848,10 +14848,25 @@ namespace PptxViewer
                 }
             }
 
-            Dictionary<string, int> assistantCounts =
+            Dictionary<string, int> assistantTotals =
                 new Dictionary<string, int>(
                     StringComparer.Ordinal);
-            Dictionary<string, int> assistantTotals =
+            Dictionary<string, int> assistantPlanningCounts =
+                new Dictionary<string, int>(
+                    StringComparer.Ordinal);
+            Dictionary<string, bool> assistantSideAssignments =
+                new Dictionary<string, bool>(
+                    StringComparer.Ordinal);
+            Dictionary<string, int> assistantLeftTotals =
+                new Dictionary<string, int>(
+                    StringComparer.Ordinal);
+            Dictionary<string, int> assistantRightTotals =
+                new Dictionary<string, int>(
+                    StringComparer.Ordinal);
+            Dictionary<string, int> assistantLeftPlaced =
+                new Dictionary<string, int>(
+                    StringComparer.Ordinal);
+            Dictionary<string, int> assistantRightPlaced =
                 new Dictionary<string, int>(
                     StringComparer.Ordinal);
 
@@ -14878,6 +14893,133 @@ namespace PptxViewer
                     total + 1;
             }
 
+
+            for (int i = 0;
+                 i < nodes.Count;
+                 i++)
+            {
+                SmartNode assistant =
+                    nodes[i];
+
+                if (!assistant.IsAssistant ||
+                    string.IsNullOrEmpty(
+                        assistant.ParentId))
+                {
+                    continue;
+                }
+
+                RectangleF parentBox;
+
+                if (!positions.TryGetValue(
+                        assistant.ParentId,
+                        out parentBox))
+                {
+                    continue;
+                }
+
+                int assistantIndex = 0;
+                assistantPlanningCounts.TryGetValue(
+                    assistant.ParentId,
+                    out assistantIndex);
+                assistantPlanningCounts[
+                    assistant.ParentId] =
+                    assistantIndex +
+                    1;
+
+                float gap =
+                    Math.Max(
+                        8f,
+                        Math.Min(
+                            rect.Width,
+                            rect.Height) *
+                        0.025f);
+
+                float leftSpace =
+                    parentBox.Left -
+                    rect.Left;
+                float rightSpace =
+                    rect.Right -
+                    parentBox.Right;
+
+                float desiredBoxW =
+                    Math.Max(
+                        42f,
+                        parentBox.Width *
+                        0.62f);
+                float sideCapacity =
+                    Math.Max(
+                        0f,
+                        Math.Max(
+                            leftSpace,
+                            rightSpace) -
+                        gap);
+
+                float boxW =
+                    sideCapacity >= 42f
+                        ? Math.Min(
+                            desiredBoxW,
+                            sideCapacity)
+                        : Math.Max(
+                            32f,
+                            Math.Min(
+                                parentBox.Width *
+                                    0.42f,
+                                rect.Width *
+                                    0.20f));
+
+                bool leftFits =
+                    leftSpace >=
+                    boxW +
+                    gap;
+                bool rightFits =
+                    rightSpace >=
+                    boxW +
+                    gap;
+
+                bool placeLeft =
+                    assistantIndex %
+                    2 ==
+                    0;
+
+                if (placeLeft &&
+                    !leftFits &&
+                    rightFits)
+                {
+                    placeLeft = false;
+                }
+                else if (!placeLeft &&
+                         !rightFits &&
+                         leftFits)
+                {
+                    placeLeft = true;
+                }
+                else if (!leftFits &&
+                         !rightFits)
+                {
+                    placeLeft =
+                        leftSpace >=
+                        rightSpace;
+                }
+
+                assistantSideAssignments[
+                    assistant.Id] =
+                    placeLeft;
+
+                Dictionary<string, int> sideTotals =
+                    placeLeft
+                        ? assistantLeftTotals
+                        : assistantRightTotals;
+
+                int sideTotal = 0;
+                sideTotals.TryGetValue(
+                    assistant.ParentId,
+                    out sideTotal);
+                sideTotals[
+                    assistant.ParentId] =
+                    sideTotal +
+                    1;
+            }
+
             for (int i = 0;
                  i < nodes.Count;
                  i++)
@@ -14897,14 +15039,6 @@ namespace PptxViewer
                 {
                     continue;
                 }
-
-                int assistantIndex = 0;
-                assistantCounts.TryGetValue(
-                    assistant.ParentId,
-                    out assistantIndex);
-                assistantCounts[
-                    assistant.ParentId] =
-                    assistantIndex + 1;
 
                 float gap =
                     Math.Max(
@@ -14953,24 +15087,15 @@ namespace PptxViewer
                         parentBox.Height *
                         0.72f);
 
-                bool placeLeft =
-                    assistantIndex % 2 == 0;
+                bool placeLeft;
 
-                if (placeLeft &&
-                    leftSpace <
-                        boxW + gap &&
-                    rightSpace >
-                        leftSpace)
+                if (!assistantSideAssignments.TryGetValue(
+                        assistant.Id,
+                        out placeLeft))
                 {
-                    placeLeft = false;
-                }
-                else if (!placeLeft &&
-                         rightSpace <
-                            boxW + gap &&
-                         leftSpace >
-                            rightSpace)
-                {
-                    placeLeft = true;
+                    placeLeft =
+                        leftSpace >=
+                        rightSpace;
                 }
 
                 float x =
@@ -14989,21 +15114,28 @@ namespace PptxViewer
                             boxW,
                             x));
 
-                int totalAssistants = 1;
-                assistantTotals.TryGetValue(
-                    assistant.ParentId,
-                    out totalAssistants);
-
-                int sideIndex =
-                    assistantIndex /
-                    2;
-                int sideTotal =
+                Dictionary<string, int> sidePlaced =
                     placeLeft
-                        ? (totalAssistants + 1) /
-                          2
-                        : totalAssistants /
-                          2;
+                        ? assistantLeftPlaced
+                        : assistantRightPlaced;
+                Dictionary<string, int> sideTotals =
+                    placeLeft
+                        ? assistantLeftTotals
+                        : assistantRightTotals;
 
+                int sideIndex = 0;
+                sidePlaced.TryGetValue(
+                    assistant.ParentId,
+                    out sideIndex);
+                sidePlaced[
+                    assistant.ParentId] =
+                    sideIndex +
+                    1;
+
+                int sideTotal = 1;
+                sideTotals.TryGetValue(
+                    assistant.ParentId,
+                    out sideTotal);
                 sideTotal =
                     Math.Max(
                         1,

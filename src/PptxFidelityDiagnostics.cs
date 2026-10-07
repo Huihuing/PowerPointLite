@@ -4879,6 +4879,119 @@ namespace PptxViewer
                     "SmartArt multiple assistants were not separated into centered left/right stacks.");
             }
 
+            SmartNode constrainedRoot =
+                new SmartNode();
+            constrainedRoot.Id =
+                "constrainedRoot";
+            constrainedRoot.Label =
+                "Root";
+            constrainedRoot.Depth = 0;
+            constrainedRoot.Children.Add(
+                "constrainedLeft");
+            constrainedRoot.Children.Add(
+                "constrainedCenter");
+            constrainedRoot.Children.Add(
+                "constrainedRight");
+
+            List<SmartNode> constrainedNodes =
+                new List<SmartNode>();
+            constrainedNodes.Add(
+                constrainedRoot);
+
+            string[] constrainedParentIds =
+                new string[]
+                {
+                    "constrainedLeft",
+                    "constrainedCenter",
+                    "constrainedRight"
+                };
+
+            for (int i = 0;
+                 i < constrainedParentIds.Length;
+                 i++)
+            {
+                SmartNode parent =
+                    new SmartNode();
+                parent.Id =
+                    constrainedParentIds[i];
+                parent.Label =
+                    "Parent " +
+                    i.ToString();
+                parent.Depth = 1;
+                parent.ParentId =
+                    constrainedRoot.Id;
+                constrainedNodes.Add(
+                    parent);
+            }
+
+            for (int i = 0;
+                 i < 4;
+                 i++)
+            {
+                SmartNode assistant =
+                    new SmartNode();
+                assistant.Id =
+                    "constrainedAssistant" +
+                    i.ToString();
+                assistant.Label =
+                    "Advisor " +
+                    i.ToString();
+                assistant.Depth = 2;
+                assistant.IsAssistant = true;
+                assistant.ParentId =
+                    "constrainedLeft";
+                constrainedNodes.Add(
+                    assistant);
+            }
+
+            Dictionary<string, RectangleF> constrainedPositions =
+                BuildHierarchySmartArtPositions(
+                    constrainedNodes,
+                    new RectangleF(
+                        0f,
+                        0f,
+                        520f,
+                        360f),
+                    2);
+
+            RectangleF constrainedParent =
+                constrainedPositions[
+                    "constrainedLeft"];
+
+            for (int i = 0;
+                 i < 4;
+                 i++)
+            {
+                RectangleF current =
+                    constrainedPositions[
+                        "constrainedAssistant" +
+                        i.ToString()];
+
+                if (current.Left <
+                    constrainedParent.Right)
+                {
+                    throw new InvalidOperationException(
+                        "SmartArt constrained assistants were not moved to the available side.");
+                }
+
+                for (int j = i + 1;
+                     j < 4;
+                     j++)
+                {
+                    RectangleF other =
+                        constrainedPositions[
+                            "constrainedAssistant" +
+                            j.ToString()];
+
+                    if (current.IntersectsWith(
+                            other))
+                    {
+                        throw new InvalidOperationException(
+                            "SmartArt assistants overlapped after one-sided redistribution.");
+                    }
+                }
+            }
+
             SmartNode leftParent =
                 new SmartNode();
             leftParent.Id = "leftParent";
