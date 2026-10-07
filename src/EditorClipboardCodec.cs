@@ -1165,9 +1165,9 @@ namespace PptxViewer
                 decoded.Objects[2].Kind !=
                     EditorObjectKind.TextBox ||
                 decoded.Objects[3].Kind !=
-                    EditorObjectKind.Table ||
+                    EditorObjectKind.Chart ||
                 decoded.Objects[4].Kind !=
-                    EditorObjectKind.Chart)
+                    EditorObjectKind.Table)
             {
                 throw new InvalidOperationException(
                     "Clipboard package did not preserve relative z-order.");
@@ -1191,25 +1191,25 @@ namespace PptxViewer
                 decoded.Objects[2].TextBox.Text !=
                     "Clipboard text" ||
                 !decoded.Objects[2].TextBox.Bold ||
-                decoded.Objects[3].Table == null ||
-                decoded.Objects[3].Table.Rows != 2 ||
-                decoded.Objects[3].Table.Columns != 2 ||
-                decoded.Objects[3].Table.GetCell(
+                decoded.Objects[3].Chart == null ||
+                decoded.Objects[3].Chart.Name !=
+                    "Clipboard chart" ||
+                decoded.Objects[3].Chart.XmlData == null ||
+                Encoding.UTF8.GetString(
+                    decoded.Objects[3].Chart.XmlData)
+                    .IndexOf(
+                        "chartSpace",
+                        StringComparison.Ordinal) < 0 ||
+                decoded.Objects[4].Table == null ||
+                decoded.Objects[4].Table.Rows != 2 ||
+                decoded.Objects[4].Table.Columns != 2 ||
+                decoded.Objects[4].Table.GetCell(
                     0,
                     0).Text !=
                     "Table cell" ||
-                !decoded.Objects[3].Table.GetCell(
+                !decoded.Objects[4].Table.GetCell(
                     0,
-                    0).Bold ||
-                decoded.Objects[4].Chart == null ||
-                decoded.Objects[4].Chart.Name !=
-                    "Clipboard chart" ||
-                decoded.Objects[4].Chart.XmlData == null ||
-                Encoding.UTF8.GetString(
-                    decoded.Objects[4].Chart.XmlData)
-                    .IndexOf(
-                        "chartSpace",
-                        StringComparison.Ordinal) < 0)
+                    0).Bold)
             {
                 throw new InvalidOperationException(
                     "Clipboard package object properties were not preserved.");
