@@ -129,6 +129,9 @@ Microsoft PowerPoint (설치된 경우)
   - legendEntry/idx/delete 기반 개별 legend 항목 숨김 반영
   - chart title/legend overlay=1일 때 plot 영역을 예약하지 않고 겹쳐 배치
   - plotArea/layout/manualLayout의 x/y/w/h 및 factor/edge mode를 일반/확장 차트 plot 사각형에 기본 반영
+  - plotArea manualLayout의 layoutTarget=inner/outer를 구분하고, outer에서는 축·축 레이블용 자동 inset 비율을 보존해 내부 plot을 근사
+  - plotArea manualLayout은 direct-child layout scope만 사용해 dLbl 등 중첩 manualLayout과 분리
+  - x/y/w/h 허용 범위를 벗어난 manualLayout은 기본 배치로 fallback하고, 유효한 배치가 차트 경계를 넘으면 크기를 유지한 채 안쪽으로 이동
   - chart title/legend layout/manualLayout의 x/y/w/h 및 factor/edge mode를 기본 위치·크기에 반영
   - chart-level title/legend를 axis title과 별도 scope로 해석해 축 제목을 차트 제목으로 오인하지 않도록 처리
   - chart title txPr의 solidFill·sz·b/i·latin typeface 텍스트 스타일 기본 반영
@@ -163,7 +166,7 @@ Microsoft PowerPoint (설치된 경우)
   - hierarchy 일반 자식을 부모 중심별 그룹으로 묶어 sibling spacing과 행 배치를 근사
   - hierarchy parent-child 및 assistant connector를 직각 elbow routing으로 근사
   - process 같은 행은 node edge 연결, 행 전환 및 verticalProcess는 직각 elbow routing으로 근사
-  - hierarchy/process/verticalProcess elbow의 중앙 수평 segment가 다른 node와 겹치면 행 사이의 빈 channel을 우선 선택
+  - hierarchy/process/verticalProcess elbow의 전체 V-H-V 경로를 장애물과 대조하고, 중앙/분할 수평 channel이 막히면 H-V-H side-channel로 전환
   - process multi-row 배치는 행별 실제 노드 수 기준 중앙 정렬 및 안정적인 row spacing 적용
   - 좁은 process 영역에서는 가용 폭 기준으로 열 수를 자동 축소해 node가 좌우 경계를 벗어나지 않도록 배치
   - verticalProcess는 높이 cap 이후 전체 node stack을 영역 중앙에 재배치
