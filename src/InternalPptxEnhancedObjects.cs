@@ -12899,16 +12899,27 @@ namespace PptxViewer
                     "0%";
             }
 
-            string valueTickLabelPosition =
-                ReadChartAxisTickLabelPosition(
+            bool valueAxisDeleted =
+                ReadChartAxisDeleted(
                     chartDoc,
                     "valAx");
+            bool categoryAxisDeleted =
+                ReadChartAxisDeleted(
+                    chartDoc,
+                    "catAx");
+
+            string valueTickLabelPosition =
+                ResolveChartAxisTickLabelPosition(
+                    chartDoc,
+                    "valAx",
+                    "column");
 
             DrawChartValueGrid(
                 g,
                 plot,
                 axisScale,
                 "column",
+                !valueAxisDeleted &&
                 !string.Equals(
                     valueTickLabelPosition,
                     "none",
@@ -12970,19 +12981,35 @@ namespace PptxViewer
                 valueAxis.DashStyle =
                     valueAxisStyle.DashStyle;
 
-                g.DrawLine(
-                    categoryAxis,
-                    plot.Left,
-                    zeroY,
-                    plot.Right,
-                    zeroY);
+                if (!categoryAxisDeleted)
+                {
+                    g.DrawLine(
+                        categoryAxis,
+                        plot.Left,
+                        zeroY,
+                        plot.Right,
+                        zeroY);
+                }
 
-                g.DrawLine(
-                    valueAxis,
-                    plot.Left,
-                    plot.Top,
-                    plot.Left,
-                    plot.Bottom);
+                if (!valueAxisDeleted)
+                {
+                    string valueAxisPosition =
+                        ReadChartAxisPosition(
+                            chartDoc,
+                            "valAx");
+
+                    float valueAxisX =
+                        valueAxisPosition == "r"
+                            ? plot.Right
+                            : plot.Left;
+
+                    g.DrawLine(
+                        valueAxis,
+                        valueAxisX,
+                        plot.Top,
+                        valueAxisX,
+                        plot.Bottom);
+                }
             }
 
             DrawChartAxisTickMarks(
@@ -13216,11 +13243,13 @@ namespace PptxViewer
             }
 
             string categoryTickLabelPosition =
-                ReadChartAxisTickLabelPosition(
+                ResolveChartAxisTickLabelPosition(
                     chartDoc,
-                    "catAx");
+                    "catAx",
+                    "column");
 
-            if (!string.Equals(
+            if (!categoryAxisDeleted &&
+                !string.Equals(
                     categoryTickLabelPosition,
                     "none",
                     StringComparison.OrdinalIgnoreCase))
@@ -13245,12 +13274,16 @@ namespace PptxViewer
                 plot,
                 rect,
                 "column",
-                ReadChartAxisTitle(
-                    chartDoc,
-                    "valAx"),
-                ReadChartAxisTitle(
-                    chartDoc,
-                    "catAx"),
+                valueAxisDeleted
+                    ? string.Empty
+                    : ReadChartAxisTitle(
+                        chartDoc,
+                        "valAx"),
+                categoryAxisDeleted
+                    ? string.Empty
+                    : ReadChartAxisTitle(
+                        chartDoc,
+                        "catAx"),
                 ReadChartAxisTitleTextStyle(
                     chartDoc,
                     "valAx",
