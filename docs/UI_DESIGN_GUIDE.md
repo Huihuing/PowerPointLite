@@ -48,6 +48,7 @@ Microsoft Office의 Ribbon 색상, 공식 아이콘, 앱 로고를 복제하지 
 - 기본 viewer canvas는 콘텐츠에 집중하도록 어둡고 단순하게 유지한다.
 
 - Presenter View 상단 action/status 영역과 Advanced Editor quick-shape 선택기는 창 폭에 따라 재배치하고, 공간이 부족하면 보조 상태/선택기를 숨겨 주요 action과 겹치지 않게 한다.
+- Basic/Advanced Editor는 창 폭에 따라 Slides pane을 176~220px(Advanced 184~220px), Properties pane을 286~300px 범위로 조정하고, 좁은 폭에서는 canvas padding도 줄여 편집 영역을 우선 확보한다.
 - Viewer 상단 toolbar는 고정 폭 임계값 대신 현재 UI 글꼴로 측정한 전체 command 폭을 기준으로 compact mode를 결정한다.
 - compact mode에서는 Presenter/TOC/100%/Print 같은 중복 action을 View 메뉴로 접고, zoom은 실제 남는 폭에 맞춰 축소하거나 숨긴다.
 - toolbar button 높이와 간격도 현재 글꼴 높이를 기준으로 보정해 Windows 125%/150% scaling과 언어 변경에서 텍스트가 치우치지 않게 한다.
